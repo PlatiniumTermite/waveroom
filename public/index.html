@@ -1,709 +1,475 @@
-
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>WaveRoom — Sync Audio With Anyone</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
+<title>WaveRoom — Sync Audio Live</title>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
 <style>
-  :root {
-    --bg: #080a0f;
-    --surface: #0f1219;
-    --border: #1e2433;
-    --accent: #00e5ff;
-    --accent2: #7c3aed;
-    --green: #00ff88;
-    --red: #ff3b6b;
-    --text: #e8eaf6;
-    --muted: #4a5578;
-  }
+* { box-sizing: border-box; margin: 0; padding: 0; }
 
-  * { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #07080d;
+  --surface: #0e1018;
+  --border: #1c2030;
+  --accent: #00e5ff;
+  --purple: #8b5cf6;
+  --green: #00ff88;
+  --red: #ff4466;
+  --text: #e2e8f0;
+  --muted: #4a5578;
+}
 
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'Syne', sans-serif;
-    min-height: 100vh;
-    overflow-x: hidden;
-  }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Syne', sans-serif;
+  min-height: 100vh;
+}
 
-  /* Animated background grid */
-  body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background-image:
-      linear-gradient(var(--border) 1px, transparent 1px),
-      linear-gradient(90deg, var(--border) 1px, transparent 1px);
-    background-size: 60px 60px;
-    opacity: 0.3;
-    pointer-events: none;
-    z-index: 0;
-  }
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: linear-gradient(var(--border) 1px, transparent 1px), linear-gradient(90deg, var(--border) 1px, transparent 1px);
+  background-size: 50px 50px;
+  opacity: 0.25;
+  pointer-events: none;
+}
 
-  .glow-orb {
-    position: fixed;
-    border-radius: 50%;
-    filter: blur(120px);
-    pointer-events: none;
-    z-index: 0;
-  }
-  .glow-orb-1 { width: 500px; height: 500px; background: rgba(0,229,255,0.06); top: -200px; left: -100px; }
-  .glow-orb-2 { width: 400px; height: 400px; background: rgba(124,58,237,0.08); bottom: -150px; right: -100px; }
+.wrap {
+  position: relative;
+  z-index: 1;
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 32px 20px;
+}
 
-  .container {
-    position: relative;
-    z-index: 1;
-    max-width: 900px;
-    margin: 0 auto;
-    padding: 40px 24px;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-  }
+/* HEADER */
+.logo { display: flex; align-items: center; gap: 10px; margin-bottom: 56px; }
+.logo-icon {
+  width: 38px; height: 38px; border-radius: 10px;
+  background: linear-gradient(135deg, var(--accent), var(--purple));
+  display: flex; align-items: center; justify-content: center; font-size: 20px;
+}
+.logo-name {
+  font-size: 22px; font-weight: 800;
+  background: linear-gradient(135deg, var(--accent), var(--purple));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+}
 
-  /* Header */
-  header {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 60px;
-  }
+/* SCREENS */
+.screen { display: none; }
+.screen.active { display: block; animation: up 0.25s ease; }
+@keyframes up { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:translateY(0); } }
 
-  .logo {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
+/* HOME */
+.hero { text-align: center; padding: 30px 0 50px; }
+.hero h1 { font-size: clamp(38px, 7vw, 76px); font-weight: 800; letter-spacing: -2px; line-height: 1.05; margin-bottom: 18px; }
+.hero h1 em { font-style: normal; background: linear-gradient(135deg, var(--accent), var(--purple)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+.hero p { font-family: 'Space Mono', monospace; font-size: 15px; color: var(--muted); max-width: 420px; margin: 0 auto 48px; line-height: 1.7; }
 
-  .logo-icon {
-    width: 36px;
-    height: 36px;
-    background: linear-gradient(135deg, var(--accent), var(--accent2));
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 18px;
-  }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; max-width: 580px; margin: 0 auto; }
+@media(max-width:500px){ .two { grid-template-columns: 1fr; } }
 
-  .logo-text {
-    font-size: 22px;
-    font-weight: 800;
-    letter-spacing: -0.5px;
-    background: linear-gradient(135deg, var(--accent), var(--accent2));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
+.card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+  padding: 28px 22px; text-align: left; cursor: pointer;
+  transition: border-color 0.2s, transform 0.2s;
+}
+.card:hover { border-color: rgba(0,229,255,0.35); transform: translateY(-3px); }
+.card-icon { font-size: 28px; margin-bottom: 14px; }
+.card-title { font-size: 18px; font-weight: 700; margin-bottom: 6px; }
+.card-desc { font-size: 13px; color: var(--muted); font-family: 'Space Mono', monospace; line-height: 1.55; }
 
-  /* Screens */
-  .screen { display: none; }
-  .screen.active { display: block; animation: fadeIn 0.3s ease; }
+/* FORM */
+.form-box { max-width: 460px; margin: 0 auto; }
+.back { background: none; border: none; color: var(--muted); font-family: 'Space Mono', monospace; font-size: 13px; cursor: pointer; margin-bottom: 36px; padding: 0; transition: color 0.2s; }
+.back:hover { color: var(--accent); }
+.ftitle { font-size: 34px; font-weight: 800; letter-spacing: -1px; margin-bottom: 6px; }
+.fsub { font-family: 'Space Mono', monospace; font-size: 13px; color: var(--muted); margin-bottom: 28px; line-height: 1.65; }
+label { display: block; font-size: 11px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
 
-  @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(12px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
+input {
+  width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+  padding: 13px 15px; color: var(--text); font-family: 'Space Mono', monospace; font-size: 15px;
+  outline: none; transition: border-color 0.2s; margin-bottom: 20px;
+}
+input:focus { border-color: var(--accent); }
+input::placeholder { color: var(--muted); }
+#code-input { letter-spacing: 5px; font-size: 20px; text-transform: uppercase; }
 
-  /* Home screen */
-  .hero {
-    text-align: center;
-    padding: 40px 0 60px;
-  }
+.btn {
+  width: 100%; padding: 14px; border-radius: 10px; font-family: 'Syne', sans-serif;
+  font-size: 15px; font-weight: 700; cursor: pointer; border: none; transition: all 0.2s;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.btn-cyan { background: linear-gradient(135deg, var(--accent), #0099bb); color: #000; }
+.btn-cyan:hover { box-shadow: 0 8px 24px rgba(0,229,255,0.3); transform: translateY(-1px); }
+.btn-purple { background: linear-gradient(135deg, var(--purple), #6d28d9); color: #fff; }
+.btn-purple:hover { box-shadow: 0 8px 24px rgba(139,92,246,0.35); transform: translateY(-1px); }
+.btn-red { background: var(--red); color: #fff; }
+.btn-red:hover { opacity: 0.85; }
+.btn-ghost { background: var(--surface); border: 1px solid var(--border); color: var(--text); }
+.btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+.btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none !important; box-shadow: none !important; }
 
-  .hero h1 {
-    font-size: clamp(36px, 6vw, 72px);
-    font-weight: 800;
-    line-height: 1.1;
-    letter-spacing: -2px;
-    margin-bottom: 20px;
-  }
+.err { background: rgba(255,68,102,0.1); border: 1px solid rgba(255,68,102,0.3); border-radius: 8px; padding: 12px 15px; font-family: 'Space Mono', monospace; font-size: 13px; color: var(--red); margin-bottom: 18px; display: none; }
+.err.show { display: block; }
 
-  .hero h1 span {
-    background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
+/* ROOM */
+.room-top { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 28px; }
+.rname { font-size: 26px; font-weight: 800; letter-spacing: -0.5px; }
+.rcode {
+  display: inline-flex; align-items: center; gap: 8px; margin-top: 6px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+  padding: 7px 13px; font-family: 'Space Mono', monospace; font-size: 20px; font-weight: 700;
+  letter-spacing: 4px; color: var(--accent); cursor: pointer; transition: border-color 0.2s;
+}
+.rcode:hover { border-color: var(--accent); }
+.rcode small { font-size: 11px; color: var(--muted); letter-spacing: 0; }
 
-  .hero p {
-    font-size: 18px;
-    color: var(--muted);
-    max-width: 480px;
-    margin: 0 auto 50px;
-    line-height: 1.6;
-    font-family: 'Space Mono', monospace;
-  }
+.pill {
+  display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 100px;
+  font-family: 'Space Mono', monospace; font-size: 12px; font-weight: 700;
+}
+.pill-live { background: rgba(0,255,136,0.1); color: var(--green); border: 1px solid rgba(0,255,136,0.25); }
+.pill-wait { background: rgba(74,85,120,0.15); color: var(--muted); border: 1px solid var(--border); }
+.pill-ear { background: rgba(0,229,255,0.1); color: var(--accent); border: 1px solid rgba(0,229,255,0.2); }
+.dot { width: 7px; height: 7px; border-radius: 50%; }
+.dot-g { background: var(--green); animation: blink 1.4s infinite; }
+.dot-m { background: var(--muted); }
+.dot-c { background: var(--accent); animation: blink 1.4s infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.4} }
 
-  .cards {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 20px;
-    max-width: 640px;
-    margin: 0 auto;
-  }
+.panel { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 22px; margin-bottom: 16px; }
+.panel-title { font-size: 11px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted); font-family: 'Space Mono', monospace; margin-bottom: 16px; }
 
-  @media (max-width: 540px) { .cards { grid-template-columns: 1fr; } }
+canvas { width: 100%; height: 72px; display: block; border-radius: 6px; background: var(--bg); }
 
-  .card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 32px 24px;
-    text-align: left;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    position: relative;
-    overflow: hidden;
-  }
+.btn-row { display: flex; gap: 12px; }
+.btn-row .btn { width: auto; flex: 1; }
 
-  .card::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    opacity: 0;
-    transition: opacity 0.2s;
-    border-radius: 16px;
-  }
+.hint { background: rgba(0,229,255,0.04); border: 1px solid rgba(0,229,255,0.12); border-radius: 10px; padding: 14px 18px; margin-bottom: 16px; font-family: 'Space Mono', monospace; font-size: 12px; color: var(--muted); line-height: 1.9; }
+.hint strong { color: var(--accent); }
 
-  .card.host-card::before { background: radial-gradient(circle at 30% 30%, rgba(0,229,255,0.08), transparent 70%); }
-  .card.join-card::before { background: radial-gradient(circle at 30% 30%, rgba(124,58,237,0.08), transparent 70%); }
+.lcount { color: var(--accent); }
+.no-l { font-family: 'Space Mono', monospace; font-size: 13px; color: var(--muted); text-align: center; padding: 18px 0; }
+.litem { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--border); font-family: 'Space Mono', monospace; font-size: 13px; }
+.litem:last-child { border: none; }
+.lavatar { width: 30px; height: 30px; border-radius: 7px; background: linear-gradient(135deg, var(--purple), var(--accent)); display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
 
-  .card:hover { border-color: rgba(0,229,255,0.3); transform: translateY(-2px); }
-  .card:hover::before { opacity: 1; }
-
-  .card-icon { font-size: 32px; margin-bottom: 16px; }
-  .card-title { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
-  .card-desc { font-size: 14px; color: var(--muted); font-family: 'Space Mono', monospace; line-height: 1.5; }
-
-  .card-arrow {
-    position: absolute;
-    right: 20px;
-    top: 50%;
-    transform: translateY(-50%);
-    font-size: 20px;
-    color: var(--muted);
-    transition: all 0.2s;
-  }
-  .card:hover .card-arrow { color: var(--accent); transform: translateY(-50%) translateX(4px); }
-
-  /* Forms */
-  .form-screen {
-    max-width: 480px;
-    margin: 0 auto;
-  }
-
-  .back-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    color: var(--muted);
-    font-family: 'Space Mono', monospace;
-    font-size: 13px;
-    cursor: pointer;
-    margin-bottom: 40px;
-    background: none;
-    border: none;
-    padding: 0;
-    transition: color 0.2s;
-  }
-  .back-btn:hover { color: var(--accent); }
-
-  .form-title { font-size: 32px; font-weight: 800; margin-bottom: 8px; letter-spacing: -1px; }
-  .form-sub { font-size: 14px; color: var(--muted); font-family: 'Space Mono', monospace; margin-bottom: 32px; line-height: 1.6; }
-
-  label { display: block; font-size: 12px; font-weight: 700; letter-spacing: 1px; color: var(--muted); margin-bottom: 8px; text-transform: uppercase; }
-
-  input[type="text"] {
-    width: 100%;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 14px 16px;
-    color: var(--text);
-    font-family: 'Space Mono', monospace;
-    font-size: 16px;
-    outline: none;
-    transition: border-color 0.2s;
-    margin-bottom: 24px;
-  }
-  input[type="text"]:focus { border-color: var(--accent); }
-  input[type="text"]::placeholder { color: var(--muted); }
-
-  .btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    padding: 14px 28px;
-    border-radius: 10px;
-    font-family: 'Syne', sans-serif;
-    font-size: 15px;
-    font-weight: 700;
-    cursor: pointer;
-    border: none;
-    transition: all 0.2s ease;
-    width: 100%;
-  }
-
-  .btn-primary {
-    background: linear-gradient(135deg, var(--accent), #0099bb);
-    color: #000;
-  }
-  .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(0,229,255,0.3); }
-
-  .btn-purple {
-    background: linear-gradient(135deg, var(--accent2), #9333ea);
-    color: #fff;
-  }
-  .btn-purple:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(124,58,237,0.4); }
-
-  .btn-danger { background: var(--red); color: #fff; }
-  .btn-danger:hover { opacity: 0.85; }
-
-  .btn-ghost {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    color: var(--text);
-  }
-  .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
-
-  .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important; }
-
-  /* Room screen */
-  .room-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 12px;
-    margin-bottom: 32px;
-  }
-
-  .room-info { }
-  .room-name { font-size: 28px; font-weight: 800; letter-spacing: -0.5px; }
-  .room-code-label { font-size: 13px; color: var(--muted); font-family: 'Space Mono', monospace; margin-top: 4px; }
-
-  .room-code-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 8px 14px;
-    font-family: 'Space Mono', monospace;
-    font-size: 22px;
-    font-weight: 700;
-    letter-spacing: 4px;
-    color: var(--accent);
-    cursor: pointer;
-    transition: all 0.2s;
-    margin-top: 8px;
-  }
-  .room-code-badge:hover { border-color: var(--accent); }
-  .room-code-badge .copy-hint { font-size: 11px; color: var(--muted); letter-spacing: 0; }
-
-  .status-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 14px;
-    border-radius: 100px;
-    font-family: 'Space Mono', monospace;
-    font-size: 12px;
-    font-weight: 700;
-  }
-  .status-pill.streaming { background: rgba(0,255,136,0.1); color: var(--green); border: 1px solid rgba(0,255,136,0.2); }
-  .status-pill.waiting { background: rgba(74,85,120,0.2); color: var(--muted); border: 1px solid var(--border); }
-  .status-pill.listening { background: rgba(0,229,255,0.1); color: var(--accent); border: 1px solid rgba(0,229,255,0.2); }
-
-  .dot { width: 8px; height: 8px; border-radius: 50%; }
-  .dot.green { background: var(--green); animation: pulse 1.5s infinite; }
-  .dot.muted { background: var(--muted); }
-  .dot.cyan { background: var(--accent); animation: pulse 1.5s infinite; }
-
-  @keyframes pulse {
-    0%, 100% { opacity: 1; transform: scale(1); }
-    50% { opacity: 0.5; transform: scale(0.8); }
-  }
-
-  /* Waveform visualizer */
-  .visualizer-wrap {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 24px;
-    margin-bottom: 20px;
-    position: relative;
-    overflow: hidden;
-  }
-
-  #visualizer {
-    width: 100%;
-    height: 80px;
-    display: block;
-  }
-
-  /* Controls */
-  .controls-panel {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 24px;
-    margin-bottom: 20px;
-  }
-
-  .controls-title {
-    font-size: 12px;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    color: var(--muted);
-    margin-bottom: 16px;
-    font-family: 'Space Mono', monospace;
-  }
-
-  .controls-row {
-    display: flex;
-    gap: 12px;
-    flex-wrap: wrap;
-  }
-
-  .controls-row .btn { width: auto; flex: 1; min-width: 120px; }
-
-  /* Listeners panel */
-  .listeners-panel {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 24px;
-  }
-
-  .listeners-title {
-    font-size: 12px;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    color: var(--muted);
-    margin-bottom: 16px;
-    font-family: 'Space Mono', monospace;
-    display: flex;
-    justify-content: space-between;
-  }
-
-  .listener-count { color: var(--accent); }
-
-  .listener-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 10px 0;
-    border-bottom: 1px solid var(--border);
-    font-family: 'Space Mono', monospace;
-    font-size: 13px;
-  }
-  .listener-item:last-child { border-bottom: none; }
-
-  .listener-avatar {
-    width: 32px;
-    height: 32px;
-    border-radius: 8px;
-    background: linear-gradient(135deg, var(--accent2), var(--accent));
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 14px;
-    flex-shrink: 0;
-  }
-
-  .no-listeners {
-    color: var(--muted);
-    font-family: 'Space Mono', monospace;
-    font-size: 13px;
-    text-align: center;
-    padding: 20px 0;
-  }
-
-  /* Toast */
-  .toast {
-    position: fixed;
-    bottom: 32px;
-    left: 50%;
-    transform: translateX(-50%) translateY(100px);
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 12px 20px;
-    font-family: 'Space Mono', monospace;
-    font-size: 13px;
-    color: var(--text);
-    z-index: 999;
-    transition: transform 0.3s ease;
-    white-space: nowrap;
-  }
-  .toast.show { transform: translateX(-50%) translateY(0); }
-
-  /* Error */
-  .error-msg {
-    background: rgba(255,59,107,0.1);
-    border: 1px solid rgba(255,59,107,0.3);
-    border-radius: 8px;
-    padding: 12px 16px;
-    font-family: 'Space Mono', monospace;
-    font-size: 13px;
-    color: var(--red);
-    margin-bottom: 20px;
-    display: none;
-  }
-  .error-msg.show { display: block; }
-
-  /* Instructions */
-  .instructions {
-    background: rgba(0,229,255,0.05);
-    border: 1px solid rgba(0,229,255,0.15);
-    border-radius: 12px;
-    padding: 16px 20px;
-    margin-bottom: 20px;
-  }
-  .instructions p {
-    font-family: 'Space Mono', monospace;
-    font-size: 12px;
-    color: var(--muted);
-    line-height: 1.8;
-  }
-  .instructions strong { color: var(--accent); }
+/* TOAST */
+.toast {
+  position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(80px);
+  background: #1a1f2e; border: 1px solid var(--border); border-radius: 10px;
+  padding: 11px 20px; font-family: 'Space Mono', monospace; font-size: 13px;
+  z-index: 999; transition: transform 0.3s ease; white-space: nowrap;
+}
+.toast.show { transform: translateX(-50%) translateY(0); }
 </style>
 </head>
 <body>
-<div class="glow-orb glow-orb-1"></div>
-<div class="glow-orb glow-orb-2"></div>
-
-<div class="container">
-  <header>
-    <div class="logo">
-      <div class="logo-icon">🌊</div>
-      <div class="logo-text">WaveRoom</div>
-    </div>
-  </header>
+<div class="wrap">
+  <div class="logo">
+    <div class="logo-icon">🌊</div>
+    <div class="logo-name">WaveRoom</div>
+  </div>
 
   <!-- HOME -->
-  <div id="screen-home" class="screen active">
+  <div id="s-home" class="screen active">
     <div class="hero">
-      <h1>Share Audio<br>With <span>Everyone</span></h1>
-      <p>Create a room. Share your tab audio. Everyone hears the same thing at the same moment.</p>
-      <div class="cards">
-        <div class="card host-card" onclick="showScreen('screen-create')">
+      <h1>Sync Audio<br>With <em>Everyone</em></h1>
+      <p>Create a room. Share your tab audio. Everyone hears the same thing live — no YouTube URL needed.</p>
+      <div class="two">
+        <div class="card" onclick="go('s-create')">
           <div class="card-icon">🎙</div>
           <div class="card-title">Host a Room</div>
-          <div class="card-desc">Share your audio with everyone in the room</div>
-          <div class="card-arrow">→</div>
+          <div class="card-desc">Share your audio. Others hear it live.</div>
         </div>
-        <div class="card join-card" onclick="showScreen('screen-join')">
+        <div class="card" onclick="go('s-join')">
           <div class="card-icon">🎧</div>
           <div class="card-title">Join a Room</div>
-          <div class="card-desc">Enter a room code to listen in sync</div>
-          <div class="card-arrow">→</div>
+          <div class="card-desc">Enter a code and listen in sync.</div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- CREATE ROOM -->
-  <div id="screen-create" class="screen">
-    <div class="form-screen">
-      <button class="back-btn" onclick="showScreen('screen-home')">← Back</button>
-      <div class="form-title">Host a Room</div>
-      <div class="form-sub">You'll share your tab's audio and everyone who joins will hear it live.</div>
+  <!-- CREATE -->
+  <div id="s-create" class="screen">
+    <div class="form-box">
+      <button class="back" onclick="go('s-home')">← Back</button>
+      <div class="ftitle">Host a Room</div>
+      <div class="fsub">You share tab audio — everyone who joins hears it instantly.</div>
       <label>Room Name</label>
-      <input type="text" id="room-name-input" placeholder="My Vibe Session" maxlength="40">
-      <button class="btn btn-primary" onclick="createRoom()">Create Room →</button>
+      <input id="rname" type="text" placeholder="My Vibe Session" maxlength="40">
+      <button class="btn btn-cyan" onclick="createRoom()">Create Room →</button>
     </div>
   </div>
 
-  <!-- JOIN ROOM -->
-  <div id="screen-join" class="screen">
-    <div class="form-screen">
-      <button class="back-btn" onclick="showScreen('screen-home')">← Back</button>
-      <div class="form-title">Join a Room</div>
-      <div class="form-sub">Enter the 6-character room code from your friend.</div>
+  <!-- JOIN -->
+  <div id="s-join" class="screen">
+    <div class="form-box">
+      <button class="back" onclick="go('s-home')">← Back</button>
+      <div class="ftitle">Join a Room</div>
+      <div class="fsub">Type the 6-letter code your friend shared with you.</div>
       <label>Room Code</label>
-      <input type="text" id="join-code-input" placeholder="ABC123" maxlength="6" style="text-transform:uppercase;letter-spacing:4px;">
-      <div id="join-error" class="error-msg">Room not found. Check the code and try again.</div>
+      <input id="code-input" type="text" placeholder="ABC123" maxlength="6">
+      <div id="join-err" class="err">Room not found. Check the code.</div>
       <button class="btn btn-purple" onclick="joinRoom()">Join Room →</button>
     </div>
   </div>
 
   <!-- HOST ROOM -->
-  <div id="screen-host-room" class="screen">
-    <div class="room-header">
-      <div class="room-info">
-        <div class="room-name" id="host-room-name">Room</div>
-        <div class="room-code-badge" id="host-room-code" onclick="copyCode()" title="Click to copy">
-          <span id="host-code-text">------</span>
-          <span class="copy-hint">copy</span>
+  <div id="s-host" class="screen">
+    <div class="room-top">
+      <div>
+        <div class="rname" id="h-rname">Room</div>
+        <div class="rcode" id="h-code" onclick="copyCode()">
+          <span id="h-code-text">------</span>
+          <small>tap to copy</small>
         </div>
       </div>
-      <div id="host-status" class="status-pill waiting">
-        <div class="dot muted"></div>
-        <span>Not Streaming</span>
+      <div id="h-pill" class="pill pill-wait"><div class="dot dot-m"></div><span>Not streaming</span></div>
+    </div>
+
+    <div class="hint">
+      <strong>How to share:</strong><br>
+      1. Click <strong>Start Sharing</strong> below<br>
+      2. Pick a <strong>Browser Tab</strong> (not screen)<br>
+      3. ✅ Check <strong>"Share tab audio"</strong><br>
+      4. Everyone hears it instantly 🎧
+    </div>
+
+    <div class="panel">
+      <canvas id="h-canvas"></canvas>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Controls</div>
+      <div class="btn-row">
+        <button id="share-btn" class="btn btn-cyan" onclick="startShare()">🎙 Start Sharing</button>
+        <button id="stop-btn" class="btn btn-red" onclick="stopShare()" disabled>⏹ Stop</button>
       </div>
     </div>
 
-    <div class="instructions">
-      <p>
-        <strong>How to share audio:</strong><br>
-        1. Click <strong>Start Sharing</strong> below<br>
-        2. A browser dialog appears — select a <strong>Browser Tab</strong><br>
-        3. ✅ Check <strong>"Share tab audio"</strong><br>
-        4. Everyone in the room hears it instantly
-      </p>
-    </div>
-
-    <div class="visualizer-wrap">
-      <canvas id="visualizer"></canvas>
-    </div>
-
-    <div class="controls-panel">
-      <div class="controls-title">Audio Controls</div>
-      <div class="controls-row">
-        <button id="share-btn" class="btn btn-primary" onclick="startSharing()">🎙 Start Sharing</button>
-        <button id="stop-btn" class="btn btn-danger" onclick="stopSharing()" disabled>⏹ Stop</button>
+    <div class="panel">
+      <div class="panel-title" style="display:flex;justify-content:space-between;">
+        <span>Listeners</span><span class="lcount" id="h-lcount">0</span>
       </div>
+      <div id="h-llist"><div class="no-l">No one joined yet — share your code!</div></div>
     </div>
 
-    <div class="listeners-panel">
-      <div class="listeners-title">
-        <span>Connected Listeners</span>
-        <span class="listener-count" id="listener-count">0</span>
-      </div>
-      <div id="listeners-list">
-        <div class="no-listeners">No one has joined yet. Share your room code!</div>
-      </div>
-    </div>
-
-    <div style="margin-top:20px;">
-      <button class="btn btn-ghost" onclick="leaveRoom()">Leave Room</button>
+    <div style="margin-top:14px;">
+      <button class="btn btn-ghost" onclick="leave()">Leave Room</button>
     </div>
   </div>
 
   <!-- LISTENER ROOM -->
-  <div id="screen-listener-room" class="screen">
-    <div class="room-header">
-      <div class="room-info">
-        <div class="room-name" id="listener-room-name">Room</div>
-        <div class="room-code-label" id="listener-room-code" style="font-family:'Space Mono';color:var(--muted);"></div>
+  <div id="s-listener" class="screen">
+    <div class="room-top">
+      <div>
+        <div class="rname" id="l-rname">Room</div>
+        <div style="font-family:'Space Mono',monospace;font-size:13px;color:var(--muted);margin-top:6px;" id="l-code"></div>
       </div>
-      <div id="listener-status" class="status-pill waiting">
-        <div class="dot muted"></div>
-        <span>Waiting for host...</span>
-      </div>
+      <div id="l-pill" class="pill pill-wait"><div class="dot dot-m"></div><span>Waiting...</span></div>
     </div>
 
-    <div class="visualizer-wrap">
-      <canvas id="visualizer-listener"></canvas>
+    <div class="panel">
+      <canvas id="l-canvas"></canvas>
     </div>
 
-    <div style="margin-top:20px;">
-      <audio id="remote-audio" autoplay></audio>
-    </div>
-
-    <div class="controls-panel">
-      <div class="controls-title">You are listening</div>
-      <div style="font-family:'Space Mono';font-size:13px;color:var(--muted);line-height:1.8;">
-        Audio from the host will play automatically when they start sharing.<br>
-        Make sure your device volume is on. 🔊
+    <div class="panel">
+      <div class="panel-title">Status</div>
+      <div style="font-family:'Space Mono',monospace;font-size:13px;color:var(--muted);line-height:1.8;" id="l-status-text">
+        Waiting for host to start sharing audio... 🎧<br>
+        Make sure your volume is on.
       </div>
     </div>
 
-    <div style="margin-top:20px;">
-      <button class="btn btn-ghost" onclick="leaveRoom()">Leave Room</button>
+    <audio id="remote-audio" autoplay playsinline></audio>
+
+    <div style="margin-top:14px;">
+      <button class="btn btn-ghost" onclick="leave()">Leave Room</button>
     </div>
   </div>
 </div>
 
-<!-- Toast -->
 <div id="toast" class="toast"></div>
 
+<!-- Load socket.io from the server itself -->
 <script src="/socket.io/socket.io.js"></script>
 <script>
-// ─── CONFIG ─────────────────────────────────────────────────────
-const STUN = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
-
-// ─── STATE ──────────────────────────────────────────────────────
-let socket, currentRoom, isHost;
+// ── STATE ──────────────────────────────────────────────────────────
+let socket = null;
+let myCode = null;
+let amHost = false;
 let localStream = null;
-let peerConnections = {}; // listenerId → RTCPeerConnection (host)
-let hostConnection = null; // RTCPeerConnection (listener)
-let audioCtx, analyser, animFrame;
+let peers = {};        // listenerId → RTCPeerConnection  (host side)
+let hostPeer = null;   // RTCPeerConnection  (listener side)
+let audioCtx = null, analyser = null, raf = null;
+let listeners = {};
 
-// ─── SOCKET ─────────────────────────────────────────────────────
+const ICE = { iceServers: [
+  { urls: 'stun:stun.l.google.com:19302' },
+  { urls: 'stun:stun1.l.google.com:19302' }
+]};
+
+// ── SCREENS ────────────────────────────────────────────────────────
+function go(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+// ── SOCKET INIT ────────────────────────────────────────────────────
 function initSocket() {
   if (socket && socket.connected) return;
-  socket = io();
 
-  socket.on('listener-joined', async ({ listenerId }) => {
-    addListenerToUI(listenerId);
-    if (localStream) {
-      await sendOfferToListener(listenerId);
-    }
+  // Connect to same origin — works on Render automatically
+  socket = io({ transports: ['websocket', 'polling'] });
+
+  socket.on('connect', () => {
+    console.log('Socket connected:', socket.id);
+    toast('Connected to server ✅');
   });
 
-  socket.on('listener-left', ({ listenerId }) => {
-    removeListenerFromUI(listenerId);
-    if (peerConnections[listenerId]) {
-      peerConnections[listenerId].close();
-      delete peerConnections[listenerId];
-    }
+  socket.on('connect_error', (e) => {
+    console.error('Socket error:', e);
+    toast('Connection error — refresh page');
   });
 
+  // ── HOST events ──
+  socket.on('listener-joined', async ({ id }) => {
+    addListener(id);
+    if (localStream) await sendOffer(id);
+  });
+
+  socket.on('listener-left', ({ id }) => {
+    removeListener(id);
+    if (peers[id]) { peers[id].close(); delete peers[id]; }
+  });
+
+  socket.on('listener-count', (n) => {
+    document.getElementById('h-lcount').textContent = n;
+  });
+
+  // ── LISTENER events ──
   socket.on('offer', async ({ from, offer }) => {
-    // Listener receives offer from host
-    hostConnection = new RTCPeerConnection(STUN);
-    hostConnection.ontrack = (e) => {
+    hostPeer = new RTCPeerConnection(ICE);
+
+    hostPeer.ontrack = (e) => {
+      console.log('Got remote track!', e.streams[0]);
       const audio = document.getElementById('remote-audio');
       audio.srcObject = e.streams[0];
-      startListenerVisualizer(e.streams[0]);
-      setListenerStatus('listening');
+      audio.play().catch(console.error);
+      startViz(e.streams[0], 'l-canvas');
+      setPill('l-pill', 'ear');
+      document.getElementById('l-status-text').textContent = '🎧 Receiving audio from host...';
     };
-    hostConnection.onicecandidate = (e) => {
+
+    hostPeer.onicecandidate = (e) => {
       if (e.candidate) socket.emit('ice-candidate', { to: from, candidate: e.candidate });
     };
-    await hostConnection.setRemoteDescription(new RTCSessionDescription(offer));
-    const answer = await hostConnection.createAnswer();
-    await hostConnection.setLocalDescription(answer);
+
+    await hostPeer.setRemoteDescription(new RTCSessionDescription(offer));
+    const answer = await hostPeer.createAnswer();
+    await hostPeer.setLocalDescription(answer);
     socket.emit('answer', { to: from, answer });
   });
 
   socket.on('answer', async ({ from, answer }) => {
-    if (peerConnections[from]) {
-      await peerConnections[from].setRemoteDescription(new RTCSessionDescription(answer));
-    }
+    if (peers[from]) await peers[from].setRemoteDescription(new RTCSessionDescription(answer));
   });
 
   socket.on('ice-candidate', async ({ from, candidate }) => {
-    if (isHost && peerConnections[from]) {
-      await peerConnections[from].addIceCandidate(new RTCIceCandidate(candidate));
-    } else if (!isHost && hostConnection) {
-      await hostConnection.addIceCandidate(new RTCIceCandidate(candidate));
-    }
+    const pc = amHost ? peers[from] : hostPeer;
+    if (pc) await pc.addIceCandidate(new RTCIceCandidate(candidate)).catch(console.error);
   });
 
   socket.on('host-left', () => {
-    showToast('Host ended the session');
-    leaveRoom();
+    toast('Host ended the session');
+    leave();
   });
 }
 
-// ─── HOST: Send offer to new listener ───────────────────────────
-async function sendOfferToListener(listenerId) {
-  const pc = new RTCPeerConnection(STUN);
-  peerConnections[listenerId] = pc;
+// ── CREATE ROOM ────────────────────────────────────────────────────
+function createRoom() {
+  const name = document.getElementById('rname').value.trim() || 'Audio Room';
+  initSocket();
+  amHost = true;
 
-  localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+  socket.emit('create-room', { name }, (res) => {
+    if (!res || !res.ok) { toast('Failed to create room'); return; }
+    myCode = res.code;
+    document.getElementById('h-rname').textContent = res.name;
+    document.getElementById('h-code-text').textContent = res.code;
+    go('s-host');
+    toast('Room created! 🎉 Share the code');
+  });
+}
+
+// ── JOIN ROOM ──────────────────────────────────────────────────────
+function joinRoom() {
+  const code = document.getElementById('code-input').value.trim().toUpperCase();
+  if (!code || code.length < 4) return;
+  initSocket();
+  amHost = false;
+
+  socket.emit('join-room', { code }, (res) => {
+    if (!res || !res.ok) {
+      document.getElementById('join-err').classList.add('show');
+      return;
+    }
+    document.getElementById('join-err').classList.remove('show');
+    myCode = code;
+    document.getElementById('l-rname').textContent = res.name;
+    document.getElementById('l-code').textContent = 'Code: ' + code;
+    go('s-listener');
+    toast('Joined! Waiting for host 🎧');
+  });
+}
+
+// ── START SHARING (HOST) ───────────────────────────────────────────
+async function startShare() {
+  try {
+    const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+
+    // We only want audio — stop video tracks
+    stream.getVideoTracks().forEach(t => t.stop());
+
+    if (!stream.getAudioTracks().length) {
+      toast('⚠️ No audio track — did you check "Share tab audio"?');
+      return;
+    }
+
+    localStream = stream;
+    startViz(localStream, 'h-canvas');
+    setPill('h-pill', 'live');
+
+    document.getElementById('share-btn').disabled = true;
+    document.getElementById('stop-btn').disabled = false;
+
+    // If listeners already in room, send them offers
+    for (const id of Object.keys(listeners)) {
+      await sendOffer(id);
+    }
+
+    localStream.getTracks().forEach(t => { t.onended = () => stopShare(); });
+    toast('🎙 Streaming live!');
+  } catch (e) {
+    console.error(e);
+    if (e.name !== 'NotAllowedError') toast('Could not capture audio');
+  }
+}
+
+// ── SEND OFFER TO LISTENER ─────────────────────────────────────────
+async function sendOffer(listenerId) {
+  if (peers[listenerId]) { peers[listenerId].close(); }
+  const pc = new RTCPeerConnection(ICE);
+  peers[listenerId] = pc;
+
+  localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
 
   pc.onicecandidate = (e) => {
     if (e.candidate) socket.emit('ice-candidate', { to: listenerId, candidate: e.candidate });
@@ -714,224 +480,124 @@ async function sendOfferToListener(listenerId) {
   socket.emit('offer', { to: listenerId, offer });
 }
 
-// ─── SCREENS ─────────────────────────────────────────────────────
-function showScreen(id) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
-}
-
-// ─── CREATE ROOM ─────────────────────────────────────────────────
-function createRoom() {
-  const name = document.getElementById('room-name-input').value.trim() || 'Audio Room';
-  initSocket();
-  isHost = true;
-  socket.emit('create-room', { name }, ({ code, room }) => {
-    currentRoom = code;
-    document.getElementById('host-room-name').textContent = room.name;
-    document.getElementById('host-code-text').textContent = code;
-    showScreen('screen-host-room');
-    showToast('Room created! Share the code 🎉');
-  });
-}
-
-// ─── JOIN ROOM ────────────────────────────────────────────────────
-function joinRoom() {
-  const code = document.getElementById('join-code-input').value.trim().toUpperCase();
-  if (!code) return;
-  initSocket();
-  isHost = false;
-  socket.emit('join-room', { code }, ({ error, room }) => {
-    if (error) {
-      document.getElementById('join-error').classList.add('show');
-      return;
-    }
-    document.getElementById('join-error').classList.remove('show');
-    currentRoom = code;
-    document.getElementById('listener-room-name').textContent = room.name;
-    document.getElementById('listener-room-code').textContent = `Room code: ${code}`;
-    showScreen('screen-listener-room');
-    showToast('Joined! Waiting for host to share... 🎧');
-  });
-}
-
-// ─── START SHARING ────────────────────────────────────────────────
-async function startSharing() {
-  try {
-    localStream = await navigator.mediaDevices.getDisplayMedia({
-      video: true,
-      audio: true
-    });
-
-    // Remove video tracks — audio only
-    localStream.getVideoTracks().forEach(t => t.stop());
-
-    // Start visualizer
-    startHostVisualizer(localStream);
-
-    // Update UI
-    document.getElementById('share-btn').disabled = true;
-    document.getElementById('stop-btn').disabled = false;
-    setHostStatus('streaming');
-
-    // Send to existing listeners
-    for (const lid of Object.keys(peerConnections)) {
-      peerConnections[lid].close();
-      delete peerConnections[lid];
-    }
-
-    // Re-emit offer to all current listeners (they'll re-request via server)
-    socket.emit('host-streaming', { code: currentRoom });
-
-    localStream.getTracks()[0].onended = () => stopSharing();
-
-    showToast('🎙 Streaming started!');
-  } catch (e) {
-    if (e.name !== 'NotAllowedError') {
-      showToast('Could not capture audio. Try again.');
-    }
-  }
-}
-
-// ─── STOP SHARING ─────────────────────────────────────────────────
-function stopSharing() {
-  if (localStream) {
-    localStream.getTracks().forEach(t => t.stop());
-    localStream = null;
-  }
-  Object.values(peerConnections).forEach(pc => pc.close());
-  peerConnections = {};
-  stopVisualizer();
+// ── STOP SHARING ───────────────────────────────────────────────────
+function stopShare() {
+  if (localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
+  Object.values(peers).forEach(pc => pc.close());
+  peers = {};
+  stopViz();
+  setPill('h-pill', 'wait');
   document.getElementById('share-btn').disabled = false;
   document.getElementById('stop-btn').disabled = true;
-  setHostStatus('waiting');
-  showToast('⏹ Streaming stopped');
+  toast('⏹ Stopped streaming');
 }
 
-// ─── LEAVE ────────────────────────────────────────────────────────
-function leaveRoom() {
-  stopSharing();
-  if (hostConnection) { hostConnection.close(); hostConnection = null; }
-  if (socket) socket.disconnect();
-  socket = null;
-  currentRoom = null;
-  stopVisualizer();
-  showScreen('screen-home');
+// ── LEAVE ──────────────────────────────────────────────────────────
+function leave() {
+  stopShare();
+  if (hostPeer) { hostPeer.close(); hostPeer = null; }
+  stopViz();
+  if (socket) { socket.disconnect(); socket = null; }
+  myCode = null; listeners = {};
+  go('s-home');
 }
 
-// ─── UI HELPERS ───────────────────────────────────────────────────
-function setHostStatus(state) {
-  const el = document.getElementById('host-status');
-  if (state === 'streaming') {
-    el.className = 'status-pill streaming';
-    el.innerHTML = '<div class="dot green"></div><span>Live</span>';
-  } else {
-    el.className = 'status-pill waiting';
-    el.innerHTML = '<div class="dot muted"></div><span>Not Streaming</span>';
-  }
-}
-
-function setListenerStatus(state) {
-  const el = document.getElementById('listener-status');
-  if (state === 'listening') {
-    el.className = 'status-pill listening';
-    el.innerHTML = '<div class="dot cyan"></div><span>Receiving audio</span>';
-  } else {
-    el.className = 'status-pill waiting';
-    el.innerHTML = '<div class="dot muted"></div><span>Waiting for host...</span>';
-  }
-}
-
-let listeners = {};
-function addListenerToUI(id) {
+// ── LISTENERS UI ───────────────────────────────────────────────────
+function addListener(id) {
   listeners[id] = true;
   renderListeners();
 }
-function removeListenerFromUI(id) {
+function removeListener(id) {
   delete listeners[id];
   renderListeners();
 }
 function renderListeners() {
-  const count = Object.keys(listeners).length;
-  document.getElementById('listener-count').textContent = count;
-  const el = document.getElementById('listeners-list');
-  if (count === 0) {
-    el.innerHTML = '<div class="no-listeners">No one has joined yet. Share your room code!</div>';
-  } else {
-    el.innerHTML = Object.keys(listeners).map((id, i) => `
-      <div class="listener-item">
-        <div class="listener-avatar">🎧</div>
-        <span>Listener ${i + 1}</span>
-        <span style="margin-left:auto;font-size:11px;color:var(--green);">● Connected</span>
-      </div>
-    `).join('');
-  }
+  const ids = Object.keys(listeners);
+  const el = document.getElementById('h-llist');
+  document.getElementById('h-lcount').textContent = ids.length;
+  if (!ids.length) { el.innerHTML = '<div class="no-l">No one joined yet — share your code!</div>'; return; }
+  el.innerHTML = ids.map((id, i) => `
+    <div class="litem">
+      <div class="lavatar">🎧</div>
+      <span>Listener ${i + 1}</span>
+      <span style="margin-left:auto;font-size:11px;color:var(--green);">● live</span>
+    </div>`).join('');
 }
 
+// ── COPY CODE ──────────────────────────────────────────────────────
 function copyCode() {
-  const code = document.getElementById('host-code-text').textContent;
-  navigator.clipboard.writeText(code).then(() => showToast('Code copied! 📋'));
+  const code = document.getElementById('h-code-text').textContent;
+  navigator.clipboard.writeText(code).then(() => toast('Code copied 📋'));
 }
 
-function showToast(msg) {
+// ── PILLS ──────────────────────────────────────────────────────────
+function setPill(id, state) {
+  const el = document.getElementById(id);
+  const map = {
+    live: ['pill-live', '<div class="dot dot-g"></div><span>Live</span>'],
+    wait: ['pill-wait', '<div class="dot dot-m"></div><span>Not streaming</span>'],
+    ear:  ['pill-ear',  '<div class="dot dot-c"></div><span>Receiving audio</span>']
+  };
+  el.className = 'pill ' + map[state][0];
+  el.innerHTML = map[state][1];
+}
+
+// ── VISUALIZER ─────────────────────────────────────────────────────
+function startViz(stream, canvasId) {
+  stopViz();
+  try {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const src = audioCtx.createMediaStreamSource(stream);
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 256;
+    src.connect(analyser);
+    drawViz(canvasId);
+  } catch(e) { console.warn('Viz error', e); }
+}
+
+function drawViz(canvasId) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.offsetWidth || 600;
+  const H = canvas.offsetHeight || 72;
+  canvas.width = W; canvas.height = H;
+  const buf = new Uint8Array(analyser.frequencyBinCount);
+
+  function frame() {
+    raf = requestAnimationFrame(frame);
+    analyser.getByteFrequencyData(buf);
+    ctx.fillStyle = '#07080d';
+    ctx.fillRect(0, 0, W, H);
+    const bw = (W / buf.length) * 2.2;
+    let x = 0;
+    for (let i = 0; i < buf.length; i++) {
+      const h = (buf[i] / 255) * H;
+      const hue = 160 + (i / buf.length) * 100;
+      ctx.fillStyle = `hsla(${hue},100%,60%,0.9)`;
+      ctx.fillRect(x, H - h, bw, h);
+      x += bw + 1;
+    }
+  }
+  frame();
+}
+
+function stopViz() {
+  if (raf) { cancelAnimationFrame(raf); raf = null; }
+  if (audioCtx) { audioCtx.close().catch(()=>{}); audioCtx = null; }
+}
+
+// ── TOAST ──────────────────────────────────────────────────────────
+function toast(msg) {
   const t = document.getElementById('toast');
   t.textContent = msg;
   t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 3000);
 }
 
-// ─── VISUALIZER ───────────────────────────────────────────────────
-function startHostVisualizer(stream) {
-  setupVisualizer(stream, document.getElementById('visualizer'));
-}
-function startListenerVisualizer(stream) {
-  setupVisualizer(stream, document.getElementById('visualizer-listener'));
-}
-
-function setupVisualizer(stream, canvas) {
-  if (audioCtx) audioCtx.close();
-  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  const source = audioCtx.createMediaStreamSource(stream);
-  analyser = audioCtx.createAnalyser();
-  analyser.fftSize = 256;
-  source.connect(analyser);
-  drawVisualizer(canvas);
-}
-
-function drawVisualizer(canvas) {
-  const ctx = canvas.getContext('2d');
-  const W = canvas.offsetWidth;
-  const H = canvas.offsetHeight;
-  canvas.width = W;
-  canvas.height = H;
-  const bufLen = analyser.frequencyBinCount;
-  const dataArr = new Uint8Array(bufLen);
-
-  function draw() {
-    animFrame = requestAnimationFrame(draw);
-    analyser.getByteFrequencyData(dataArr);
-    ctx.fillStyle = '#0f1219';
-    ctx.fillRect(0, 0, W, H);
-    const barW = (W / bufLen) * 2.5;
-    let x = 0;
-    for (let i = 0; i < bufLen; i++) {
-      const barH = (dataArr[i] / 255) * H;
-      const hue = (i / bufLen) * 180 + 160; // cyan to purple
-      ctx.fillStyle = `hsla(${hue},100%,60%,0.85)`;
-      ctx.fillRect(x, H - barH, barW, barH);
-      x += barW + 1;
-    }
-  }
-  draw();
-}
-
-function stopVisualizer() {
-  if (animFrame) cancelAnimationFrame(animFrame);
-  if (audioCtx) { audioCtx.close(); audioCtx = null; }
-}
-
-// Input uppercase for code
-document.getElementById('join-code-input').addEventListener('input', function() {
-  this.value = this.value.toUpperCase();
+// ── INPUT ──────────────────────────────────────────────────────────
+document.getElementById('code-input').addEventListener('input', function() {
+  this.value = this.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
 });
 </script>
 </body>
