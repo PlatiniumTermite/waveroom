@@ -5,137 +5,75 @@ const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
+
 const io = new Server(server, {
-  cors: { origin: '*' },
-  maxHttpBufferSize: 50e6 // 50MB for audio chunks
+  cors: { origin: '*', methods: ['GET', 'POST'] },
+  transports: ['websocket', 'polling']
 });
 
 app.use(express.static(path.join(__dirname, 'public')));
 
-// rooms: { roomId: { host: socketId, state: {playing, currentTime, trackName, startedAt}, listeners: Set } }
+// Simple health check
+app.get('/health', (req, res) => res.send('OK'));
+
 const rooms = {};
 
-function generateRoomCode() {
+function makeCode() {
   return Math.random().toString(36).substring(2, 8).toUpperCase();
 }
 
 io.on('connection', (socket) => {
-  console.log('Connected:', socket.id);
+  console.log('+ connected:', socket.id);
 
-  // Host creates room
-  socket.on('create-room', (trackName) => {
-    const roomId = generateRoomCode();
-    rooms[roomId] = {
-      host: socket.id,
-      trackName: trackName || 'Unknown Track',
-      state: { playing: false, currentTime: 0, startedAt: null },
-      listeners: new Set()
-    };
-    socket.join(roomId);
-    socket.roomId = roomId;
-    socket.isHost = true;
-    socket.emit('room-created', { roomId });
-    console.log(`Room ${roomId} created by ${socket.id}`);
+  socket.on('create-room', ({ name }, cb) => {
+    const code = makeCode();
+    rooms[code] = { host: socket.id, name: name || 'Audio Room', listeners: [] };
+    socket.join(code);
+    socket.data.code = code;
+    socket.data.isHost = true;
+    console.log('Room created:', code);
+    cb({ ok: true, code, name: rooms[code].name });
   });
 
-  // Listener joins room
-  socket.on('join-room', (roomId) => {
-    const room = rooms[roomId];
-    if (!room) {
-      socket.emit('error', 'Room not found');
-      return;
-    }
-    socket.join(roomId);
-    socket.roomId = roomId;
-    socket.isHost = false;
-    room.listeners.add(socket.id);
-
-    // Send current state to new listener
-    const now = Date.now();
-    let syncTime = room.state.currentTime;
-    if (room.state.playing && room.state.startedAt) {
-      syncTime = room.state.currentTime + (now - room.state.startedAt) / 1000;
-    }
-
-    socket.emit('room-joined', {
-      roomId,
-      trackName: room.trackName,
-      state: { ...room.state, currentTime: syncTime },
-      listenerCount: room.listeners.size
-    });
-
-    // Tell host: new listener joined, send audio chunk
-    io.to(room.host).emit('listener-joined', { listenerId: socket.id });
-
-    // Update listener count for everyone
-    io.to(roomId).emit('listener-count', room.listeners.size);
-    console.log(`${socket.id} joined room ${roomId}`);
+  socket.on('join-room', ({ code }, cb) => {
+    const room = rooms[code];
+    if (!room) return cb({ ok: false, error: 'Room not found' });
+    room.listeners.push(socket.id);
+    socket.join(code);
+    socket.data.code = code;
+    socket.data.isHost = false;
+    io.to(room.host).emit('listener-joined', { id: socket.id });
+    io.to(code).emit('listener-count', room.listeners.length);
+    console.log(socket.id, 'joined', code);
+    cb({ ok: true, name: room.name });
   });
 
-  // Host sends audio chunk to a specific listener
-  socket.on('audio-chunk', ({ listenerId, chunk }) => {
-    io.to(listenerId).emit('audio-chunk', chunk);
-  });
-
-  // Host broadcasts play/pause/seek
-  socket.on('playback-event', (event) => {
-    const roomId = socket.roomId;
-    const room = rooms[roomId];
-    if (!room || room.host !== socket.id) return;
-
-    const now = Date.now();
-    if (event.type === 'play') {
-      room.state.playing = true;
-      room.state.currentTime = event.currentTime;
-      room.state.startedAt = now;
-    } else if (event.type === 'pause') {
-      room.state.playing = false;
-      room.state.currentTime = event.currentTime;
-      room.state.startedAt = null;
-    } else if (event.type === 'seek') {
-      room.state.currentTime = event.currentTime;
-      room.state.startedAt = room.state.playing ? now : null;
-    }
-
-    // Broadcast to all listeners with server timestamp for sync
-    socket.to(roomId).emit('playback-event', { ...event, serverTime: now });
-  });
-
-  // Host updates track name
-  socket.on('track-name', (name) => {
-    const room = rooms[socket.roomId];
-    if (room && room.host === socket.id) {
-      room.trackName = name;
-      io.to(socket.roomId).emit('track-name', name);
-    }
-  });
-
-  // WebRTC signaling
   socket.on('offer', ({ to, offer }) => {
     io.to(to).emit('offer', { from: socket.id, offer });
   });
+
   socket.on('answer', ({ to, answer }) => {
     io.to(to).emit('answer', { from: socket.id, answer });
   });
+
   socket.on('ice-candidate', ({ to, candidate }) => {
     io.to(to).emit('ice-candidate', { from: socket.id, candidate });
   });
 
   socket.on('disconnect', () => {
-    const roomId = socket.roomId;
-    const room = rooms[roomId];
-    if (!room) return;
-
-    if (room.host === socket.id) {
-      io.to(roomId).emit('host-left');
-      delete rooms[roomId];
+    const code = socket.data.code;
+    if (!code || !rooms[code]) return;
+    if (socket.data.isHost) {
+      io.to(code).emit('host-left');
+      delete rooms[code];
+      console.log('Room deleted:', code);
     } else {
-      room.listeners.delete(socket.id);
-      io.to(roomId).emit('listener-count', room.listeners.size);
+      rooms[code].listeners = rooms[code].listeners.filter(id => id !== socket.id);
+      io.to(rooms[code]?.host).emit('listener-left', { id: socket.id });
+      io.to(code).emit('listener-count', rooms[code].listeners.length);
     }
-    console.log(`Disconnected: ${socket.id} from room ${roomId}`);
   });
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`AudioSync server running on port ${PORT}`));
+server.listen(PORT, () => console.log(`WaveRoom running on port ${PORT}`));
