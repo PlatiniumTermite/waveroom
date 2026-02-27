@@ -21,12 +21,9 @@ function makeCode() {
 io.on('connection', (socket) => {
   console.log('+ connected:', socket.id);
 
-  // NTP-style clock sync — listener pings server to measure offset
+  // NTP clock sync
   socket.on('ping-time', ({ clientTime }) => {
-    socket.emit('pong-time', {
-      serverTime: Date.now(),
-      clientSendTime: clientTime
-    });
+    socket.emit('pong-time', { serverTime: Date.now(), clientSendTime: clientTime });
   });
 
   socket.on('create-room', ({ name }, cb) => {
@@ -35,7 +32,6 @@ io.on('connection', (socket) => {
     socket.join(code);
     socket.data.code = code;
     socket.data.isHost = true;
-    console.log('Room created:', code);
     cb({ ok: true, code, name: rooms[code].name });
   });
 
@@ -48,36 +44,32 @@ io.on('connection', (socket) => {
     socket.data.isHost = false;
     io.to(room.host).emit('listener-joined', { id: socket.id });
     io.to(code).emit('listener-count', room.listeners.length);
-    console.log(socket.id, 'joined', code);
     cb({ ok: true, name: room.name });
   });
 
-  // Host -> all listeners: play
-  socket.on('play-cmd', ({ currentTime, serverTime }) => {
+  // WebRTC signaling
+  socket.on('offer', ({ to, offer }) => io.to(to).emit('offer', { from: socket.id, offer }));
+  socket.on('answer', ({ to, answer }) => io.to(to).emit('answer', { from: socket.id, answer }));
+  socket.on('ice-candidate', ({ to, candidate }) => io.to(to).emit('ice-candidate', { from: socket.id, candidate }));
+
+  // Host -> listeners: sync heartbeat every 2s with exact timestamp
+  socket.on('sync-heartbeat', ({ currentTime }) => {
+    const code = socket.data.code;
+    if (!code || !rooms[code] || rooms[code].host !== socket.id) return;
+    socket.to(code).emit('sync-heartbeat', { currentTime, serverTime: Date.now() });
+  });
+
+  // Host -> listeners: play/pause/seek events  
+  socket.on('play-cmd', ({ currentTime }) => {
     const code = socket.data.code;
     if (!code || !rooms[code] || rooms[code].host !== socket.id) return;
     socket.to(code).emit('play-cmd', { currentTime, serverTime: Date.now() });
   });
 
-  // Host -> all listeners: pause
   socket.on('pause-cmd', ({ currentTime }) => {
     const code = socket.data.code;
-    if (!code || !rooms[code] || rooms[code].host !== socket.id) return;
-    socket.to(code).emit('pause-cmd', { currentTime });
-  });
-
-  // Host -> all listeners: seek
-  socket.on('seek-cmd', ({ currentTime, playing, serverTime }) => {
-    const code = socket.data.code;
-    if (!code || !rooms[code] || rooms[code].host !== socket.id) return;
-    socket.to(code).emit('seek-cmd', { currentTime, playing, serverTime: Date.now() });
-  });
-
-  // Host -> specific listener: current state (when they join mid-session)
-  socket.on('sync-state', ({ playing, currentTime, serverNow }) => {
-    const code = socket.data.code;
     if (!code || !rooms[code]) return;
-    socket.to(code).emit('sync-state', { playing, currentTime, serverNow: Date.now() });
+    socket.to(code).emit('pause-cmd', { currentTime });
   });
 
   socket.on('disconnect', () => {
@@ -86,7 +78,6 @@ io.on('connection', (socket) => {
     if (socket.data.isHost) {
       io.to(code).emit('host-left');
       delete rooms[code];
-      console.log('Room deleted:', code);
     } else {
       rooms[code].listeners = rooms[code].listeners.filter(id => id !== socket.id);
       if (rooms[code]) {
