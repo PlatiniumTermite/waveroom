@@ -1,260 +1,159 @@
-
-Index · HTML
-Copy
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
-<title>WaveRoom</title>
+<title>WaveRoom — Sync Audio</title>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --bg:#07080d;--s:#0c0e15;--b:#191e2e;
+  --bg:#07080d;--s:#0c0e16;--b:#1a1f30;
   --c:#00e5ff;--p:#8b5cf6;--g:#00ff88;
-  --r:#ff4466;--t:#e8edf8;--m:#4a5578;
-  --gold:#ffd700
+  --r:#ff4466;--t:#e8edf8;--m:#4a5578;--gold:#ffd700
 }
 html,body{background:var(--bg);color:var(--t);font-family:'Syne',sans-serif;min-height:100vh;overscroll-behavior:none}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(var(--b) 1px,transparent 1px),linear-gradient(90deg,var(--b) 1px,transparent 1px);background-size:48px 48px;opacity:.12;pointer-events:none;z-index:0}
+body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;background:radial-gradient(ellipse 700px 400px at 15% 0%,rgba(0,229,255,.035),transparent),radial-gradient(ellipse 600px 500px at 85% 100%,rgba(139,92,246,.04),transparent)}
+#app{position:relative;z-index:1;max-width:800px;margin:0 auto;padding:26px 16px}
 
-/* animated background */
-body::before{
-  content:'';position:fixed;inset:0;
-  background-image:linear-gradient(var(--b) 1px,transparent 1px),linear-gradient(90deg,var(--b) 1px,transparent 1px);
-  background-size:48px 48px;opacity:.12;pointer-events:none;z-index:0
-}
-/* glow orbs */
-body::after{
-  content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
-  background:
-    radial-gradient(ellipse 600px 400px at 20% 10%,rgba(0,229,255,.04),transparent),
-    radial-gradient(ellipse 500px 400px at 80% 90%,rgba(139,92,246,.05),transparent)
-}
-
-#app{position:relative;z-index:1;max-width:800px;margin:0 auto;padding:28px 18px}
-
-/* NAV */
-.nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:44px}
+.nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:40px}
 .nav-left{display:flex;align-items:center;gap:10px}
-.nav-icon{
-  width:36px;height:36px;border-radius:9px;
-  background:linear-gradient(135deg,var(--c),var(--p));
-  display:flex;align-items:center;justify-content:center;font-size:18px;
-  box-shadow:0 0 20px rgba(0,229,255,.2)
-}
-.nav-name{
-  font-size:20px;font-weight:800;
-  background:linear-gradient(135deg,var(--c),var(--p));
-  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text
-}
-.nav-badge{
-  font-family:'Space Mono',monospace;font-size:9px;color:var(--gold);
-  border:1px solid rgba(255,215,0,.3);border-radius:20px;padding:2px 8px;
-  background:rgba(255,215,0,.07)
-}
+.nav-icon{width:34px;height:34px;border-radius:8px;background:linear-gradient(135deg,var(--c),var(--p));display:flex;align-items:center;justify-content:center;font-size:17px;box-shadow:0 0 16px rgba(0,229,255,.18)}
+.nav-name{font-size:19px;font-weight:800;background:linear-gradient(135deg,var(--c),var(--p));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.nav-badge{font-family:'Space Mono',monospace;font-size:9px;color:var(--gold);border:1px solid rgba(255,215,0,.25);border-radius:20px;padding:2px 8px;background:rgba(255,215,0,.06)}
 
-/* SCREENS */
 .screen{display:none}
-.screen.on{display:block;animation:up .22s ease}
-@keyframes up{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.screen.on{display:block;animation:up .2s ease}
+@keyframes up{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 
 /* HOME */
-.hero{text-align:center;padding:10px 0 32px}
-.hero-badge{
-  display:inline-flex;align-items:center;gap:6px;
-  font-family:'Space Mono',monospace;font-size:10px;color:var(--c);
-  border:1px solid rgba(0,229,255,.2);border-radius:20px;
-  padding:4px 12px;margin-bottom:20px;background:rgba(0,229,255,.05)
-}
-.hero h1{font-size:clamp(32px,6vw,60px);font-weight:800;letter-spacing:-2px;line-height:1.05;margin-bottom:14px}
-.hero h1 em{
-  font-style:normal;
-  background:linear-gradient(135deg,var(--c),var(--p));
-  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text
-}
-.hero-sub{font-family:'Space Mono',monospace;font-size:12px;color:var(--m);max-width:360px;margin:0 auto 32px;line-height:1.9}
-
-.home-cards{display:grid;grid-template-columns:1fr 1fr;gap:12px;max-width:520px;margin:0 auto}
-@media(max-width:430px){.home-cards{grid-template-columns:1fr}}
-
-.hcard{
-  background:var(--s);border:1px solid var(--b);border-radius:14px;
-  padding:22px 18px;cursor:pointer;text-align:left;
-  transition:border-color .18s,transform .18s,box-shadow .18s;
-  -webkit-tap-highlight-color:transparent;position:relative;overflow:hidden
-}
-.hcard::before{
-  content:'';position:absolute;inset:0;opacity:0;transition:opacity .2s;border-radius:14px
-}
-.hcard.host-c::before{background:radial-gradient(circle at 30% 30%,rgba(0,229,255,.07),transparent 70%)}
-.hcard.join-c::before{background:radial-gradient(circle at 30% 30%,rgba(139,92,246,.07),transparent 70%)}
-.hcard:hover{border-color:rgba(0,229,255,.35);transform:translateY(-3px);box-shadow:0 10px 30px rgba(0,0,0,.3)}
-.hcard:hover::before{opacity:1}
-.hcard-icon{font-size:26px;margin-bottom:10px}
-.hcard-title{font-size:16px;font-weight:700;margin-bottom:4px}
-.hcard-desc{font-size:11px;color:var(--m);font-family:'Space Mono',monospace;line-height:1.55}
+.hero{text-align:center;padding:8px 0 28px}
+.hero-chip{display:inline-flex;align-items:center;gap:5px;font-family:'Space Mono',monospace;font-size:10px;color:var(--c);border:1px solid rgba(0,229,255,.18);border-radius:20px;padding:3px 10px;margin-bottom:18px;background:rgba(0,229,255,.05)}
+.hero h1{font-size:clamp(30px,6vw,58px);font-weight:800;letter-spacing:-2px;line-height:1.05;margin-bottom:12px}
+.hero h1 em{font-style:normal;background:linear-gradient(135deg,var(--c),var(--p));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.hero-sub{font-family:'Space Mono',monospace;font-size:12px;color:var(--m);max-width:360px;margin:0 auto 28px;line-height:1.9}
+.home-cards{display:grid;grid-template-columns:1fr 1fr;gap:11px;max-width:500px;margin:0 auto}
+@media(max-width:420px){.home-cards{grid-template-columns:1fr}}
+.hcard{background:var(--s);border:1px solid var(--b);border-radius:13px;padding:20px 16px;cursor:pointer;text-align:left;transition:border-color .18s,transform .18s;-webkit-tap-highlight-color:transparent;position:relative;overflow:hidden}
+.hcard:hover,.hcard:active{border-color:rgba(0,229,255,.35);transform:translateY(-2px)}
+.hi{font-size:22px;margin-bottom:8px}.ht{font-size:15px;font-weight:700;margin-bottom:3px}
+.hd{font-size:11px;color:var(--m);font-family:'Space Mono',monospace;line-height:1.5}
 
 /* FORM */
-.fbox{max-width:400px;margin:0 auto}
-.back-btn{background:none;border:none;color:var(--m);font-family:'Space Mono',monospace;font-size:11px;cursor:pointer;margin-bottom:28px;padding:0;transition:color .18s}
-.back-btn:hover{color:var(--c)}
-.f-title{font-size:27px;font-weight:800;letter-spacing:-1px;margin-bottom:5px}
-.f-sub{font-family:'Space Mono',monospace;font-size:11px;color:var(--m);margin-bottom:22px;line-height:1.75}
-.f-label{display:block;font-size:9px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--m);margin-bottom:5px}
-.f-input{
-  width:100%;background:var(--s);border:1px solid var(--b);border-radius:8px;
-  padding:11px 13px;color:var(--t);font-family:'Space Mono',monospace;font-size:13px;
-  outline:none;transition:border-color .18s;margin-bottom:12px
-}
-.f-input:focus{border-color:var(--c)}
-.f-input::placeholder{color:var(--m)}
+.fbox{max-width:390px;margin:0 auto}
+.back{background:none;border:none;color:var(--m);font-family:'Space Mono',monospace;font-size:11px;cursor:pointer;margin-bottom:24px;padding:0;transition:color .18s}
+.back:hover{color:var(--c)}
+.ftitle{font-size:26px;font-weight:800;letter-spacing:-1px;margin-bottom:4px}
+.fsub{font-family:'Space Mono',monospace;font-size:11px;color:var(--m);margin-bottom:20px;line-height:1.7}
+.fl{display:block;font-size:9px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--m);margin-bottom:5px}
+.fi{width:100%;background:var(--s);border:1px solid var(--b);border-radius:8px;padding:11px 13px;color:var(--t);font-family:'Space Mono',monospace;font-size:13px;outline:none;transition:border-color .18s;margin-bottom:12px}
+.fi:focus{border-color:var(--c)}
+.fi::placeholder{color:var(--m)}
 #join-code{letter-spacing:5px;font-size:20px;text-transform:uppercase;text-align:center}
 
-/* BUTTONS */
-.btn{
-  width:100%;padding:12px;border-radius:8px;
-  font-family:'Syne',sans-serif;font-size:13px;font-weight:700;
-  cursor:pointer;border:none;transition:all .18s;
-  display:flex;align-items:center;justify-content:center;gap:6px;
-  -webkit-tap-highlight-color:transparent
-}
-.btn-c{background:linear-gradient(135deg,var(--c),#009eb5);color:#000}
-.btn-c:hover{box-shadow:0 6px 20px rgba(0,229,255,.3);transform:translateY(-1px)}
-.btn-p{background:linear-gradient(135deg,var(--p),#6d28d9);color:#fff}
-.btn-p:hover{box-shadow:0 6px 20px rgba(139,92,246,.32);transform:translateY(-1px)}
-.btn-g{background:var(--s);border:1px solid var(--b);color:var(--t)}
-.btn-g:hover{border-color:var(--c);color:var(--c)}
-.btn-r{background:var(--r);color:#fff}
+.btn{width:100%;padding:12px;border-radius:8px;font-family:'Syne',sans-serif;font-size:13px;font-weight:700;cursor:pointer;border:none;transition:all .18s;display:flex;align-items:center;justify-content:center;gap:6px;-webkit-tap-highlight-color:transparent}
+.bc{background:linear-gradient(135deg,var(--c),#009eb5);color:#000}
+.bc:hover{box-shadow:0 5px 18px rgba(0,229,255,.28);transform:translateY(-1px)}
+.bp{background:linear-gradient(135deg,var(--p),#6d28d9);color:#fff}
+.bp:hover{box-shadow:0 5px 18px rgba(139,92,246,.3);transform:translateY(-1px)}
+.bg{background:var(--s);border:1px solid var(--b);color:var(--t)}
+.bg:hover,.bg:active{border-color:var(--c);color:var(--c)}
+.br{background:rgba(255,68,102,.15);border:1px solid rgba(255,68,102,.3);color:var(--r)}
 .btn:disabled{opacity:.28;cursor:not-allowed;transform:none!important;box-shadow:none!important}
-.btn-row{display:flex;gap:7px}
-.btn-row .btn{width:auto;flex:1;padding:10px 6px;font-size:12px}
-
-.f-err{background:rgba(255,68,102,.1);border:1px solid rgba(255,68,102,.3);border-radius:7px;padding:8px 12px;font-family:'Space Mono',monospace;font-size:11px;color:var(--r);margin-bottom:11px;display:none}
-.f-err.on{display:block}
+.brow{display:flex;gap:7px}
+.brow .btn{width:auto;flex:1;padding:9px 6px;font-size:12px}
+.ferr{background:rgba(255,68,102,.08);border:1px solid rgba(255,68,102,.25);border-radius:7px;padding:8px 12px;font-family:'Space Mono',monospace;font-size:11px;color:var(--r);margin-bottom:11px;display:none;line-height:1.6}
+.ferr.on{display:block}
 
 /* ROOM */
-.room-head{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px}
-.room-name{font-size:21px;font-weight:800;letter-spacing:-.5px}
-.room-code-wrap{display:flex;align-items:center;gap:8px;margin-top:5px}
-.room-code{
-  display:inline-flex;align-items:center;gap:6px;
-  background:var(--s);border:1px solid var(--b);border-radius:7px;
-  padding:6px 11px;font-family:'Space Mono',monospace;font-size:17px;
-  font-weight:700;letter-spacing:4px;color:var(--c);
-  cursor:pointer;transition:border-color .18s;-webkit-tap-highlight-color:transparent
-}
-.room-code:hover,.room-code:active{border-color:var(--c)}
-.room-code small{font-size:9px;color:var(--m);letter-spacing:0}
-
+.rhead{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:9px;margin-bottom:14px}
+.rname{font-size:20px;font-weight:800;letter-spacing:-.5px}
+.rcode{display:inline-flex;align-items:center;gap:6px;margin-top:4px;background:var(--s);border:1px solid var(--b);border-radius:7px;padding:5px 10px;font-family:'Space Mono',monospace;font-size:17px;font-weight:700;letter-spacing:4px;color:var(--c);cursor:pointer;transition:border-color .18s;-webkit-tap-highlight-color:transparent}
+.rcode:hover,.rcode:active{border-color:var(--c)}
+.rcode small{font-size:9px;color:var(--m);letter-spacing:0}
 .pill{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:100px;font-family:'Space Mono',monospace;font-size:10px;font-weight:700}
-.p-live{background:rgba(0,255,136,.1);color:var(--g);border:1px solid rgba(0,255,136,.22)}
-.p-wait{background:rgba(74,85,120,.13);color:var(--m);border:1px solid var(--b)}
-.p-sync{background:rgba(0,229,255,.1);color:var(--c);border:1px solid rgba(0,229,255,.2)}
+.pl{background:rgba(0,255,136,.1);color:var(--g);border:1px solid rgba(0,255,136,.22)}
+.pw{background:rgba(74,85,120,.13);color:var(--m);border:1px solid var(--b)}
+.ps{background:rgba(0,229,255,.1);color:var(--c);border:1px solid rgba(0,229,255,.2)}
 .dot{width:5px;height:5px;border-radius:50%;flex-shrink:0}
-.d-g{background:var(--g);animation:bl 1.3s infinite}
-.d-m{background:var(--m)}
-.d-c{background:var(--c);animation:bl 1.3s infinite}
+.dg{background:var(--g);animation:bl 1.3s infinite}
+.dm{background:var(--m)}
+.dc{background:var(--c);animation:bl 1.3s infinite}
 @keyframes bl{0%,100%{opacity:1}50%{opacity:.28}}
 
-/* PANEL */
-.panel{background:var(--s);border:1px solid var(--b);border-radius:13px;padding:16px;margin-bottom:11px;position:relative}
-.ptitle{font-size:9px;text-transform:uppercase;letter-spacing:1.2px;color:var(--m);font-family:'Space Mono',monospace;margin-bottom:11px}
+.panel{background:var(--s);border:1px solid var(--b);border-radius:12px;padding:15px;margin-bottom:10px;position:relative}
+.ptitle{font-size:9px;text-transform:uppercase;letter-spacing:1.2px;color:var(--m);font-family:'Space Mono',monospace;margin-bottom:10px}
+.dbadge{position:absolute;top:13px;right:13px;font-family:'Space Mono',monospace;font-size:8px;font-weight:700;color:var(--gold);border:1px solid rgba(255,215,0,.25);border-radius:4px;padding:2px 5px;background:rgba(255,215,0,.06);letter-spacing:1px}
 
-/* DOLBY BADGE */
-.dolby-badge{
-  position:absolute;top:14px;right:14px;
-  font-family:'Space Mono',monospace;font-size:8px;font-weight:700;
-  color:var(--gold);border:1px solid rgba(255,215,0,.3);
-  border-radius:4px;padding:2px 6px;background:rgba(255,215,0,.07);
-  letter-spacing:1px
-}
+/* LOAD SECTION */
+.load-panel{background:var(--s);border:1px solid var(--b);border-radius:12px;padding:15px;margin-bottom:10px}
+.src-tabs{display:flex;gap:6px;margin-bottom:12px}
+.src-tab{flex:1;padding:7px;border-radius:7px;font-family:'Space Mono',monospace;font-size:10px;font-weight:700;cursor:pointer;border:1px solid var(--b);background:transparent;color:var(--m);transition:all .15s;-webkit-tap-highlight-color:transparent;text-align:center}
+.src-tab.active{background:rgba(0,229,255,.1);color:var(--c);border-color:rgba(0,229,255,.3)}
+.src-pane{display:none}
+.src-pane.on{display:block}
+.url-row{display:flex;gap:7px}
+.url-row .fi{margin-bottom:0;flex:1;font-size:11px}
+.url-row .btn{width:auto;padding:11px 14px;white-space:nowrap;font-size:12px}
 
-/* TRACK */
-.track-info{display:flex;align-items:center;gap:11px;margin-bottom:14px}
-.track-art{
-  width:44px;height:44px;border-radius:10px;flex-shrink:0;
-  background:linear-gradient(135deg,var(--p),var(--c));
-  display:flex;align-items:center;justify-content:center;font-size:20px;
-  animation:rotate 10s linear infinite;animation-play-state:paused;
-  box-shadow:0 4px 14px rgba(0,229,255,.15)
-}
-.track-art.spin{animation-play-state:running}
-@keyframes rotate{to{transform:rotate(360deg)}}
-.track-name{font-size:14px;font-weight:700;word-break:break-all;line-height:1.3}
-.track-sub{font-family:'Space Mono',monospace;font-size:10px;color:var(--m);margin-top:2px}
+/* STATUS BAR */
+.load-status{display:flex;align-items:center;gap:7px;margin-top:9px;font-family:'Space Mono',monospace;font-size:11px;min-height:20px;color:var(--m)}
+.load-status .spin{display:inline-block;animation:rot .7s linear infinite}
+@keyframes rot{to{transform:rotate(360deg)}}
 
-/* SEEKBAR */
-.seekbar{padding:5px 0;cursor:pointer;margin-bottom:5px;user-select:none}
-.seekbar-track{width:100%;height:4px;background:var(--b);border-radius:10px;overflow:hidden}
-.seekbar-fill{
-  height:100%;width:0%;border-radius:10px;transition:width .2s linear;
-  background:linear-gradient(90deg,var(--c),var(--p))
-}
-.seekbar-times{display:flex;justify-content:space-between;font-family:'Space Mono',monospace;font-size:9px;color:var(--m);margin-top:4px}
-
-.vol-row{display:flex;align-items:center;gap:8px;margin-top:10px}
+/* PLAYER */
+.tinfo{display:flex;align-items:center;gap:10px;margin-bottom:13px}
+.tart{width:40px;height:40px;border-radius:9px;flex-shrink:0;background:linear-gradient(135deg,var(--p),var(--c));display:flex;align-items:center;justify-content:center;font-size:18px;animation:rot 10s linear infinite;animation-play-state:paused;box-shadow:0 4px 12px rgba(0,229,255,.12)}
+.tart.spin{animation-play-state:running}
+.tname{font-size:13px;font-weight:700;word-break:break-all;line-height:1.3}
+.tsub{font-family:'Space Mono',monospace;font-size:10px;color:var(--m);margin-top:2px}
+.seekbar{padding:5px 0;cursor:pointer;margin-bottom:4px;user-select:none}
+.seek-track{width:100%;height:4px;background:var(--b);border-radius:10px;overflow:hidden}
+.seek-fill{height:100%;width:0%;border-radius:10px;transition:width .2s linear;background:linear-gradient(90deg,var(--c),var(--p))}
+.seek-times{display:flex;justify-content:space-between;font-family:'Space Mono',monospace;font-size:9px;color:var(--m);margin-top:4px}
+.vol{display:flex;align-items:center;gap:7px;margin-top:10px}
 .vol-lbl{font-family:'Space Mono',monospace;font-size:10px;color:var(--m);white-space:nowrap}
-input[type=range]{flex:1;accent-color:var(--c);cursor:pointer;height:18px}
+input[type=range]{flex:1;accent-color:var(--c);cursor:pointer;height:16px}
 
 /* DOLBY EQ */
-.eq-row{display:flex;align-items:flex-end;gap:6px;margin-top:12px;padding:10px 12px;background:rgba(255,215,0,.04);border:1px solid rgba(255,215,0,.12);border-radius:8px}
-.eq-label{font-family:'Space Mono',monospace;font-size:9px;color:var(--gold);text-transform:uppercase;letter-spacing:.8px;white-space:nowrap;margin-right:4px}
-.eq-btn{
-  flex:1;padding:5px 4px;border-radius:5px;font-family:'Space Mono',monospace;
-  font-size:9px;font-weight:700;cursor:pointer;border:1px solid rgba(255,215,0,.2);
-  background:transparent;color:var(--m);transition:all .15s;white-space:nowrap;
-  -webkit-tap-highlight-color:transparent
-}
-.eq-btn:hover,.eq-btn.active{background:rgba(255,215,0,.15);color:var(--gold);border-color:rgba(255,215,0,.4)}
+.eq-row{display:flex;align-items:center;gap:5px;margin-top:11px;padding:8px 10px;background:rgba(255,215,0,.04);border:1px solid rgba(255,215,0,.1);border-radius:7px;flex-wrap:wrap}
+.eq-lbl{font-family:'Space Mono',monospace;font-size:9px;color:var(--gold);text-transform:uppercase;letter-spacing:.8px;white-space:nowrap;margin-right:2px}
+.eq-btn{flex:1;min-width:46px;padding:5px 3px;border-radius:5px;font-family:'Space Mono',monospace;font-size:9px;font-weight:700;cursor:pointer;border:1px solid rgba(255,215,0,.15);background:transparent;color:var(--m);transition:all .14s;-webkit-tap-highlight-color:transparent;text-align:center}
+.eq-btn:hover,.eq-btn.on{background:rgba(255,215,0,.12);color:var(--gold);border-color:rgba(255,215,0,.35)}
 
-/* URL INPUT */
-.url-section{margin-bottom:0}
-.url-row{display:flex;gap:7px}
-.url-row .f-input{margin-bottom:0;flex:1;font-size:11px}
-.url-row .btn{width:auto;padding:11px 13px;white-space:nowrap;font-size:12px}
-.url-divider{text-align:center;font-family:'Space Mono',monospace;font-size:9px;color:var(--m);margin:9px 0}
-
-/* CANVAS */
-canvas{width:100%;height:54px;display:block;border-radius:6px;background:var(--bg)}
+canvas{width:100%;height:52px;display:block;border-radius:6px;background:var(--bg)}
 
 /* LISTENERS */
-.l-count{color:var(--c)}
-.no-listeners{font-family:'Space Mono',monospace;font-size:11px;color:var(--m);text-align:center;padding:12px 0}
-.listener-item{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--b);font-family:'Space Mono',monospace;font-size:11px}
-.listener-item:last-child{border:none}
-.listener-av{width:26px;height:26px;border-radius:6px;background:linear-gradient(135deg,var(--p),var(--c));display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0}
+.lcnt{color:var(--c)}
+.nol{font-family:'Space Mono',monospace;font-size:11px;color:var(--m);text-align:center;padding:11px 0}
+.litem{display:flex;align-items:center;gap:7px;padding:6px 0;border-bottom:1px solid var(--b);font-family:'Space Mono',monospace;font-size:11px}
+.litem:last-child{border:none}
+.lav{width:24px;height:24px;border-radius:5px;background:linear-gradient(135deg,var(--p),var(--c));display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0}
 
 /* SYNC BOX */
-.sync-box{background:rgba(0,229,255,.04);border:1px solid rgba(0,229,255,.1);border-radius:8px;padding:10px 13px;font-family:'Space Mono',monospace;font-size:11px;color:var(--m);line-height:1.85}
-.sync-box b{color:var(--c)}
-
-/* HINT */
-.hint-box{background:rgba(0,229,255,.04);border:1px solid rgba(0,229,255,.1);border-radius:8px;padding:10px 13px;font-family:'Space Mono',monospace;font-size:10px;color:var(--m);line-height:1.9;margin-bottom:10px}
-.hint-box b{color:var(--c)}
-.hint-box strong{color:var(--t)}
+.sbox{background:rgba(0,229,255,.04);border:1px solid rgba(0,229,255,.1);border-radius:8px;padding:9px 12px;font-family:'Space Mono',monospace;font-size:11px;color:var(--m);line-height:1.85}
+.sbox b{color:var(--c)}
 
 /* TOAST */
-.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(80px);background:#161b26;border:1px solid var(--b);border-radius:8px;padding:8px 16px;font-family:'Space Mono',monospace;font-size:11px;z-index:999;transition:transform .28s ease;white-space:nowrap;max-width:92vw;text-align:center}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(80px);background:#161b26;border:1px solid var(--b);border-radius:8px;padding:9px 16px;font-family:'Space Mono',monospace;font-size:11px;z-index:999;transition:transform .28s ease;white-space:nowrap;max-width:94vw;text-align:center;pointer-events:none}
 .toast.on{transform:translateX(-50%) translateY(0)}
 
-/* MOBILE UNLOCK OVERLAY */
-#unlock-overlay{position:fixed;inset:0;background:rgba(7,8,13,.96);z-index:100;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;cursor:pointer;-webkit-tap-highlight-color:transparent}
-#unlock-overlay.gone{display:none}
-.uo-icon{font-size:50px;animation:tap 1.5s infinite}
-@keyframes tap{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
-.uo-title{font-size:20px;font-weight:800}
-.uo-sub{font-family:'Space Mono',monospace;font-size:11px;color:var(--m);text-align:center;max-width:230px;line-height:1.65}
+/* UNLOCK */
+#unlock{position:fixed;inset:0;background:rgba(7,8,13,.96);z-index:100;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:13px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+#unlock.gone{display:none}
+.ui{font-size:48px;animation:tap 1.5s infinite}
+@keyframes tap{0%,100%{transform:scale(1)}50%{transform:scale(1.1)}}
+.ut{font-size:19px;font-weight:800}
+.us{font-family:'Space Mono',monospace;font-size:11px;color:var(--m);text-align:center;max-width:230px;line-height:1.65}
 </style>
 </head>
 <body>
 
-<!-- Mobile audio unlock -->
-<div id="unlock-overlay" class="gone" onclick="unlockTap()">
-  <div class="uo-icon">👆</div>
-  <div class="uo-title">Tap to Enable Audio</div>
-  <div class="uo-sub">Your browser needs one tap before audio can play automatically</div>
+<div id="unlock" class="gone" onclick="doUnlock()">
+  <div class="ui">👆</div>
+  <div class="ut">Tap to Enable Audio</div>
+  <div class="us">Your browser needs one tap before audio plays automatically</div>
 </div>
 
 <div id="app">
@@ -263,121 +162,138 @@ canvas{width:100%;height:54px;display:block;border-radius:6px;background:var(--b
       <div class="nav-icon">🌊</div>
       <div class="nav-name">WaveRoom</div>
     </div>
-    <div class="nav-badge">✦ DOLBY ENHANCED</div>
+    <div class="nav-badge">✦ DOLBY</div>
   </div>
 
-  <!-- ══════════ HOME ══════════ -->
+  <!-- HOME -->
   <div id="s-home" class="screen on">
     <div class="hero">
-      <div class="hero-badge">⚡ Zero-lag multi-device sync</div>
-      <h1>One Audio.<br><em>Every Device.</em><br>Same Moment.</h1>
-      <p class="hero-sub">
-        Host pastes a URL or shares tab audio.<br>
-        Everyone in the room hears the exact same second<br>
-        through their own speakers — with Dolby-style processing.
-      </p>
+      <div class="hero-chip">⚡ Zero-lag · All devices · Dolby sound</div>
+      <h1>One Audio.<br><em>Every Device.</em><br>Same Second.</h1>
+      <p class="hero-sub">Host pastes a YouTube link or any audio URL.<br>Every listener hears the exact same moment<br>on their own speaker — perfectly in sync.</p>
       <div class="home-cards">
-        <div class="hcard host-c" onclick="show('s-create')">
-          <div class="hcard-icon">🎙</div>
-          <div class="hcard-title">Host a Room</div>
-          <div class="hcard-desc">Load any audio URL. You control play/pause for everyone.</div>
+        <div class="hcard" onclick="show('s-create')">
+          <div class="hi">🎙</div>
+          <div class="ht">Host a Room</div>
+          <div class="hd">Paste any URL. Control play/pause for everyone.</div>
         </div>
-        <div class="hcard join-c" onclick="show('s-join')">
-          <div class="hcard-icon">🎧</div>
-          <div class="hcard-title">Join a Room</div>
-          <div class="hcard-desc">Enter a 6-letter code. Audio loads and syncs automatically.</div>
+        <div class="hcard" onclick="show('s-join')">
+          <div class="hi">🎧</div>
+          <div class="ht">Join a Room</div>
+          <div class="hd">Enter 6-letter code. Audio syncs automatically.</div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- ══════════ CREATE ══════════ -->
+  <!-- CREATE -->
   <div id="s-create" class="screen">
     <div class="fbox">
-      <button class="back-btn" onclick="show('s-home')">← Back</button>
-      <div class="f-title">Host a Room</div>
-      <div class="f-sub">Create a room. Load any audio. Everyone hears it in sync — no uploads needed from listeners.</div>
-      <label class="f-label">Room Name</label>
-      <input class="f-input" id="room-name" type="text" placeholder="Friday Night Session" maxlength="40">
-      <button class="btn btn-c" onclick="createRoom()">Create Room →</button>
+      <button class="back" onclick="show('s-home')">← Back</button>
+      <div class="ftitle">Host a Room</div>
+      <div class="fsub">Create a room. Load any audio. You control playback for everyone — no uploads needed for listeners.</div>
+      <label class="fl">Room Name (optional)</label>
+      <input class="fi" id="rname-input" type="text" placeholder="Friday Night Session" maxlength="40">
+      <button class="btn bc" onclick="createRoom()">Create Room →</button>
     </div>
   </div>
 
-  <!-- ══════════ JOIN ══════════ -->
+  <!-- JOIN -->
   <div id="s-join" class="screen">
     <div class="fbox">
-      <button class="back-btn" onclick="show('s-home')">← Back</button>
-      <div class="f-title">Join a Room</div>
-      <div class="f-sub">Enter the 6-letter code. Audio loads automatically — nothing to upload.</div>
-      <label class="f-label">Room Code</label>
-      <input class="f-input" id="join-code" type="text" placeholder="ABC123" maxlength="6" autocomplete="off">
-      <div class="f-err" id="join-err">Room not found. Check the code and try again.</div>
-      <button class="btn btn-p" onclick="joinRoom()">Join Room →</button>
+      <button class="back" onclick="show('s-home')">← Back</button>
+      <div class="ftitle">Join a Room</div>
+      <div class="fsub">Enter the 6-letter code. Audio loads and plays automatically in sync.</div>
+      <label class="fl">Room Code</label>
+      <input class="fi" id="join-code" type="text" placeholder="ABC123" maxlength="6" autocomplete="off" spellcheck="false">
+      <div class="ferr" id="join-err">Room not found. Make sure the host is still connected and the code is correct.</div>
+      <button class="btn bp" onclick="joinRoom()">Join Room →</button>
     </div>
   </div>
 
-  <!-- ══════════ HOST ROOM ══════════ -->
+  <!-- HOST ROOM -->
   <div id="s-host" class="screen">
-    <div class="room-head">
+    <div class="rhead">
       <div>
-        <div class="room-name" id="h-room-name">Room</div>
-        <div class="room-code" onclick="copyCode()">
+        <div class="rname" id="h-rname">Room</div>
+        <div class="rcode" onclick="copyCode()">
           <span id="h-code">------</span>
           <small>tap to copy</small>
         </div>
       </div>
-      <div id="h-pill" class="pill p-wait"><div class="dot d-m"></div><span>Paused</span></div>
+      <div id="h-pill" class="pill pw"><div class="dot dm"></div><span>Paused</span></div>
     </div>
 
-    <!-- Load Track Panel -->
-    <div class="panel">
+    <!-- Load Track -->
+    <div class="load-panel">
       <div class="ptitle">Load Audio for Everyone</div>
-      <div class="hint-box">
-        Paste any <b>audio URL</b> ending in .mp3 .wav .ogg — our server fetches it for everyone automatically.<br>
-        <strong>Free music:</strong> Go to <b>archive.org</b> → find any album → right-click an MP3 → Copy Link
+      <div class="src-tabs">
+        <button class="src-tab active" onclick="switchTab('youtube')">▶ YouTube</button>
+        <button class="src-tab" onclick="switchTab('url')">🔗 Direct URL</button>
+        <button class="src-tab" onclick="switchTab('file')">📁 File</button>
       </div>
-      <div class="url-row url-section">
-        <input class="f-input" id="h-url" type="url" placeholder="https://example.com/song.mp3" autocomplete="off">
-        <button class="btn btn-c" onclick="hostLoadUrl()">Load</button>
+
+      <!-- YouTube pane -->
+      <div class="src-pane on" id="pane-youtube">
+        <div class="url-row">
+          <input class="fi" id="yt-url" type="url" placeholder="Paste YouTube URL..." autocomplete="off">
+          <button class="btn bc" onclick="loadYoutube()">Load</button>
+        </div>
+        <div class="load-status" id="yt-status"></div>
       </div>
-      <div class="url-divider">— or pick from your device (only you hear local files) —</div>
-      <label class="btn btn-g" style="cursor:pointer" onclick="G('h-file').click()">
-        📁 Choose File
-      </label>
-      <input type="file" id="h-file" accept="audio/*" style="display:none" onchange="hostLoadFile()">
+
+      <!-- Direct URL pane -->
+      <div class="src-pane" id="pane-url">
+        <div class="url-row">
+          <input class="fi" id="direct-url" type="url" placeholder="https://example.com/song.mp3" autocomplete="off">
+          <button class="btn bc" onclick="loadDirectUrl()">Load</button>
+        </div>
+        <div class="load-status" id="url-status"></div>
+      </div>
+
+      <!-- File pane -->
+      <div class="src-pane" id="pane-file">
+        <button class="btn bg" onclick="G('file-input').click()" style="margin-bottom:8px">
+          📁 Choose Audio File
+        </button>
+        <input type="file" id="file-input" accept="audio/*" style="display:none" onchange="loadFile()">
+        <div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--m);line-height:1.65">
+          ⚠️ Local files only play on your device.<br>Use YouTube or URL tab so everyone hears it.
+        </div>
+        <div class="load-status" id="file-status"></div>
+      </div>
     </div>
 
-    <!-- Player (hidden until track loaded) -->
+    <!-- Player (hidden until loaded) -->
     <div class="panel" id="h-player" style="display:none">
-      <div class="dolby-badge">DOLBY ✦</div>
-      <div class="track-info">
-        <div class="track-art" id="h-art">🎵</div>
+      <div class="dbadge">DOLBY ✦</div>
+      <div class="tinfo">
+        <div class="tart" id="h-art">🎵</div>
         <div>
-          <div class="track-name" id="h-track-name">—</div>
-          <div class="track-sub" id="h-track-sub">—</div>
+          <div class="tname" id="h-tname">—</div>
+          <div class="tsub" id="h-tsub">—</div>
         </div>
       </div>
       <div class="seekbar" id="h-seekbar" onclick="hostSeek(event)">
-        <div class="seekbar-track"><div class="seekbar-fill" id="h-prog"></div></div>
-        <div class="seekbar-times"><span id="h-cur">0:00</span><span id="h-dur">0:00</span></div>
+        <div class="seek-track"><div class="seek-fill" id="h-fill"></div></div>
+        <div class="seek-times"><span id="h-cur">0:00</span><span id="h-dur">0:00</span></div>
       </div>
-      <div class="btn-row" style="margin-top:10px">
-        <button class="btn btn-c" onclick="hostPlay()">▶ Play</button>
-        <button class="btn btn-g" onclick="hostPause()">⏸ Pause</button>
-        <button class="btn btn-g" onclick="hostRestart()">⏮ Restart</button>
+      <div class="brow" style="margin-top:10px">
+        <button class="btn bc" onclick="hostPlay()">▶ Play</button>
+        <button class="btn bg" onclick="hostPause()">⏸ Pause</button>
+        <button class="btn bg" onclick="hostRestart()">⏮</button>
       </div>
-      <div class="vol-row">
-        <span class="vol-lbl">🔊 Volume</span>
-        <input type="range" min="0" max="1" step="0.01" value="0.9" oninput="setHostVol(this.value)">
+      <div class="vol">
+        <span class="vol-lbl">🔊 Vol</span>
+        <input type="range" min="0" max="1" step="0.01" value="0.9" id="h-vol" oninput="hostVolChange(this.value)">
       </div>
-      <!-- Dolby EQ presets -->
       <div class="eq-row">
-        <span class="eq-label">✦ Sound</span>
-        <button class="eq-btn active" id="eq-flat" onclick="setEQ('flat')">Flat</button>
-        <button class="eq-btn" id="eq-dolby" onclick="setEQ('dolby')">Dolby</button>
-        <button class="eq-btn" id="eq-bass" onclick="setEQ('bass')">Bass+</button>
-        <button class="eq-btn" id="eq-vocal" onclick="setEQ('vocal')">Vocal</button>
-        <button class="eq-btn" id="eq-spatial" onclick="setEQ('spatial')">Spatial</button>
+        <span class="eq-lbl">✦ Sound</span>
+        <button class="eq-btn on" id="heq-flat"    onclick="setEQ(this,'h')">Flat</button>
+        <button class="eq-btn"    id="heq-dolby"   onclick="setEQ(this,'h')">Dolby</button>
+        <button class="eq-btn"    id="heq-bass"    onclick="setEQ(this,'h')">Bass+</button>
+        <button class="eq-btn"    id="heq-vocal"   onclick="setEQ(this,'h')">Vocal</button>
+        <button class="eq-btn"    id="heq-spatial" onclick="setEQ(this,'h')">Spatial</button>
       </div>
     </div>
 
@@ -390,57 +306,54 @@ canvas{width:100%;height:54px;display:block;border-radius:6px;background:var(--b
     <!-- Listeners -->
     <div class="panel">
       <div class="ptitle" style="display:flex;justify-content:space-between">
-        <span>Listeners Connected</span><span class="l-count" id="h-l-count">0</span>
+        <span>Listeners</span><span class="lcnt" id="h-lcnt">0</span>
       </div>
-      <div id="h-listeners"><div class="no-listeners">No one joined yet — share your code!</div></div>
+      <div id="h-llist"><div class="nol">No one joined yet — share your code!</div></div>
     </div>
 
-    <div style="margin-top:10px"><button class="btn btn-g" onclick="leave()">Leave Room</button></div>
-    <audio id="h-audio" crossorigin="anonymous" style="display:none"></audio>
+    <div style="margin-top:10px"><button class="btn bg" onclick="leave()">Leave Room</button></div>
+    <audio id="h-audio" crossorigin="anonymous" style="display:none" preload="auto"></audio>
   </div>
 
-  <!-- ══════════ LISTENER ROOM ══════════ -->
+  <!-- LISTENER ROOM -->
   <div id="s-listen" class="screen">
-    <div class="room-head">
+    <div class="rhead">
       <div>
-        <div class="room-name" id="l-room-name">Room</div>
-        <div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--m);margin-top:3px" id="l-code-label"></div>
+        <div class="rname" id="l-rname">Room</div>
+        <div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--m);margin-top:3px" id="l-clabel"></div>
       </div>
-      <div id="l-pill" class="pill p-wait"><div class="dot d-m"></div><span>Waiting...</span></div>
+      <div id="l-pill" class="pill pw"><div class="dot dm"></div><span>Waiting...</span></div>
     </div>
 
     <div class="panel">
-      <div class="dolby-badge">DOLBY ✦</div>
-      <div class="track-info">
-        <div class="track-art" id="l-art">🎵</div>
+      <div class="dbadge">DOLBY ✦</div>
+      <div class="tinfo">
+        <div class="tart" id="l-art">🎵</div>
         <div>
-          <div class="track-name" id="l-track-name">Waiting for host...</div>
-          <div class="track-sub">Host controls playback — you control your own volume</div>
+          <div class="tname" id="l-tname">Waiting for host...</div>
+          <div class="tsub">Host controls playback • you control your volume</div>
         </div>
       </div>
       <div class="seekbar">
-        <div class="seekbar-track"><div class="seekbar-fill" id="l-prog"></div></div>
-        <div class="seekbar-times"><span id="l-cur">0:00</span><span id="l-dur">0:00</span></div>
+        <div class="seek-track"><div class="seek-fill" id="l-fill"></div></div>
+        <div class="seek-times"><span id="l-cur">0:00</span><span id="l-dur">0:00</span></div>
       </div>
-      <div class="vol-row" style="margin-top:10px">
+      <div class="vol" style="margin-top:10px">
         <span class="vol-lbl">🔊 Your Volume</span>
-        <input type="range" min="0" max="1" step="0.01" value="0.9" oninput="setListenerVol(this.value)">
+        <input type="range" min="0" max="1" step="0.01" value="0.9" oninput="listVolChange(this.value)">
       </div>
-      <!-- Dolby EQ for listener too -->
       <div class="eq-row">
-        <span class="eq-label">✦ Sound</span>
-        <button class="eq-btn active" id="leq-flat" onclick="setEQL('flat')">Flat</button>
-        <button class="eq-btn" id="leq-dolby" onclick="setEQL('dolby')">Dolby</button>
-        <button class="eq-btn" id="leq-bass" onclick="setEQL('bass')">Bass+</button>
-        <button class="eq-btn" id="leq-vocal" onclick="setEQL('vocal')">Vocal</button>
-        <button class="eq-btn" id="leq-spatial" onclick="setEQL('spatial')">Spatial</button>
+        <span class="eq-lbl">✦ Sound</span>
+        <button class="eq-btn on" id="leq-flat"    onclick="setEQ(this,'l')">Flat</button>
+        <button class="eq-btn"    id="leq-dolby"   onclick="setEQ(this,'l')">Dolby</button>
+        <button class="eq-btn"    id="leq-bass"    onclick="setEQ(this,'l')">Bass+</button>
+        <button class="eq-btn"    id="leq-vocal"   onclick="setEQ(this,'l')">Vocal</button>
+        <button class="eq-btn"    id="leq-spatial" onclick="setEQ(this,'l')">Spatial</button>
       </div>
     </div>
 
     <div class="panel">
-      <div class="sync-box" id="l-sync-box">
-        <b>Sync Status:</b> Waiting for host to load a track...
-      </div>
+      <div class="sbox" id="l-sync"><b>Sync Status:</b> Waiting for host to load a track...</div>
     </div>
 
     <div class="panel">
@@ -448,673 +361,587 @@ canvas{width:100%;height:54px;display:block;border-radius:6px;background:var(--b
       <canvas id="l-viz"></canvas>
     </div>
 
-    <div style="margin-top:10px"><button class="btn btn-g" onclick="leave()">Leave Room</button></div>
-    <audio id="l-audio" crossorigin="anonymous" style="display:none"></audio>
+    <div style="margin-top:10px"><button class="btn bg" onclick="leave()">Leave Room</button></div>
+    <audio id="l-audio" crossorigin="anonymous" style="display:none" preload="auto"></audio>
   </div>
 </div>
-
 <div id="toast" class="toast"></div>
 
 <script src="/socket.io/socket.io.js"></script>
 <script>
-// ═══════════════════════════════════════════════════
+// ═══════════════════════════════════════
 // CONFIG
-// ═══════════════════════════════════════════════════
-const NTP_ROUNDS  = 10;   // more rounds = more accurate clock
-const SCHED_MS    = 500;  // schedule play 500ms ahead — gives all devices time to prepare
-const DRIFT_TOL   = 0.05; // 50ms drift tolerance before correction
+// ═══════════════════════════════════════
+const NTP_ROUNDS = 10;
+const SCHED_MS   = 600;   // 600ms scheduling window
+const DRIFT_TOL  = 0.06;  // 60ms
 
-// ═══════════════════════════════════════════════════
+// ═══════════════════════════════════════
 // STATE
-// ═══════════════════════════════════════════════════
+// ═══════════════════════════════════════
 let sock=null, roomCode=null, amHost=false;
 let clockOffset=0, ntpSamples=[], ntpDone=false;
 let pendingPlay=null, progRaf=null;
 let listeners={};
+let hACtx=null, hEQ=null, hGain=null;
+let lACtx=null, lEQ=null, lGain=null;
+let vizAn=null, vizRaf=null;
+let currentTrack=null; // {url, title, streamUrl}
 
-// Audio nodes
-let hostACtx=null, hostSrc=null, hostGain=null, hostEQ=null;
-let listACtx=null, listSrc=null, listGain=null, listEQ=null;
+// EQ presets
+const EQ = {
+  flat:    [0,  0,  0,  0,  0,  false],
+  dolby:   [3,  4, -1,  3,  2,  true ],
+  bass:    [8,  7, -2,  0,  0,  true ],
+  vocal:   [-2,-1,  4,  5,  3,  true ],
+  spatial: [2,  2,  0,  5,  4,  true ],
+};
 
-// Visualizer
-let vizACtx=null, vizAnalyser=null, vizRaf=null;
-
-// ═══════════════════════════════════════════════════
-// DOM
-// ═══════════════════════════════════════════════════
 const G = id => document.getElementById(id);
 
 function show(id) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('on'));
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on'));
   G(id).classList.add('on');
 }
 
 function toast(msg, dur=3500) {
-  const t = G('toast'); t.textContent=msg; t.classList.add('on');
-  setTimeout(()=>t.classList.remove('on'), dur);
+  const t=G('toast'); t.textContent=msg; t.classList.add('on');
+  clearTimeout(t._t);
+  t._t=setTimeout(()=>t.classList.remove('on'), dur);
 }
 
 function fmt(s) {
-  if (!s||isNaN(s)) return '0:00';
+  if (!s||isNaN(s)||!isFinite(s)) return '0:00';
   return Math.floor(s/60)+':'+(('0'+Math.floor(s%60)).slice(-2));
 }
 
-// ═══════════════════════════════════════════════════
+function srvNow() { return Date.now()-clockOffset; }
+
+// ═══════════════════════════════════════
 // MOBILE UNLOCK
-// ═══════════════════════════════════════════════════
-function unlockTap() {
-  G('unlock-overlay').classList.add('gone');
-  if (vizACtx) vizACtx.resume();
-  if (listACtx) listACtx.resume();
-  const la = G('l-audio');
-  if (la && la.src && la.paused) la.play().catch(()=>{});
+// ═══════════════════════════════════════
+function doUnlock() {
+  G('unlock').classList.add('gone');
+  if (lACtx) lACtx.resume();
+  if (hACtx) hACtx.resume();
+  const la=G('l-audio');
+  if (la.src && la.paused) la.play().catch(()=>{});
 }
 
-// ═══════════════════════════════════════════════════
-// DOLBY-STYLE AUDIO PROCESSING
-// ═══════════════════════════════════════════════════
-// Creates: AudioContext → Source → EQ chain → Compressor → Gain → Destination
-// Each EQ preset applies different filter settings for Dolby-like effect
+// ═══════════════════════════════════════
+// TABS
+// ═══════════════════════════════════════
+function switchTab(name) {
+  document.querySelectorAll('.src-tab').forEach((t,i)=>{
+    const names=['youtube','url','file'];
+    t.classList.toggle('active', names[i]===name);
+    G('pane-'+names[i]).classList.toggle('on', names[i]===name);
+  });
+}
 
-const EQ_PRESETS = {
-  flat:    { sub:0,  bass:0,  mid:0,  high:0,  presence:0,  comp:false },
-  dolby:   { sub:3,  bass:4,  mid:-1, high:3,  presence:2,  comp:true  }, // warm + airy
-  bass:    { sub:8,  bass:7,  mid:-2, high:0,  presence:0,  comp:true  }, // heavy bass
-  vocal:   { sub:-2, bass:-1, mid:4,  high:5,  presence:3,  comp:true  }, // clear vocals
-  spatial: { sub:2,  bass:2,  mid:0,  high:5,  presence:4,  comp:true  }  // wide/open
-};
+// ═══════════════════════════════════════
+// LOAD FUNCTIONS
+// ═══════════════════════════════════════
+function setStatus(id, html) {
+  G(id).innerHTML = html;
+}
 
-function buildAudioChain(audioEl, isHost) {
+async function loadYoutube() {
+  const raw = G('yt-url').value.trim();
+  if (!raw) { toast('Paste a YouTube URL'); return; }
+  setStatus('yt-status', '<span class="spin">⟳</span> Fetching YouTube audio...');
   try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const src = ctx.createMediaElementSource(audioEl);
-
-    // 5-band EQ
-    const subFilter   = ctx.createBiquadFilter(); // sub bass ~60Hz
-    const bassFilter  = ctx.createBiquadFilter(); // bass ~200Hz
-    const midFilter   = ctx.createBiquadFilter(); // mids ~1kHz
-    const highFilter  = ctx.createBiquadFilter(); // highs ~8kHz
-    const presFilter  = ctx.createBiquadFilter(); // presence ~14kHz
-
-    subFilter.type   = 'lowshelf';   subFilter.frequency.value   = 60;
-    bassFilter.type  = 'peaking';    bassFilter.frequency.value  = 200;   bassFilter.Q.value = 0.8;
-    midFilter.type   = 'peaking';    midFilter.frequency.value   = 1000;  midFilter.Q.value = 0.8;
-    highFilter.type  = 'peaking';    highFilter.frequency.value  = 8000;  highFilter.Q.value = 0.8;
-    presFilter.type  = 'highshelf';  presFilter.frequency.value  = 14000;
-
-    // Compressor (for Dolby warmth)
-    const comp = ctx.createDynamicsCompressor();
-    comp.threshold.value = -20;
-    comp.knee.value = 10;
-    comp.ratio.value = 4;
-    comp.attack.value = 0.003;
-    comp.release.value = 0.1;
-
-    // Stereo widener (simple mid-side processing)
-    const splitter = ctx.createChannelSplitter(2);
-    const merger   = ctx.createChannelMerger(2);
-    const wideGainL = ctx.createGain();
-    const wideGainR = ctx.createGain();
-    wideGainL.gain.value = 1.15;
-    wideGainR.gain.value = 1.15;
-
-    // Master gain
-    const gain = ctx.createGain();
-    gain.gain.value = 0.9;
-
-    // Chain: src → sub → bass → mid → high → pres → comp → gain → dest
-    src.connect(subFilter);
-    subFilter.connect(bassFilter);
-    bassFilter.connect(midFilter);
-    midFilter.connect(highFilter);
-    highFilter.connect(presFilter);
-    presFilter.connect(comp);
-    comp.connect(gain);
-    gain.connect(ctx.destination);
-
-    const eqNodes = { subFilter, bassFilter, midFilter, highFilter, presFilter, comp, gain };
-
-    if (isHost) {
-      hostACtx=ctx; hostSrc=src; hostGain=gain; hostEQ=eqNodes;
-    } else {
-      listACtx=ctx; listSrc=src; listGain=gain; listEQ=eqNodes;
+    const res = await fetch('/yt-info?url='+encodeURIComponent(raw));
+    const data = await res.json();
+    if (!res.ok || data.error) {
+      setStatus('yt-status', '❌ '+data.error);
+      return;
     }
-
-    // Also connect to analyser for visualizer
-    if (!vizACtx) {
-      vizACtx = ctx;
-      vizAnalyser = ctx.createAnalyser();
-      vizAnalyser.fftSize = 512;
-      gain.connect(vizAnalyser);
-    }
-
-    return eqNodes;
+    // Stream through our server to avoid CORS
+    const streamUrl = '/yt-stream?url='+encodeURIComponent(raw);
+    setStatus('yt-status', '✅ '+data.title);
+    applyTrack(streamUrl, data.title, raw);
   } catch(e) {
-    console.warn('Audio chain error:', e);
-    return null;
+    setStatus('yt-status', '❌ Failed: '+e.message);
   }
 }
 
-function applyEQPreset(eqNodes, preset) {
-  if (!eqNodes) return;
-  const p = EQ_PRESETS[preset];
-  eqNodes.subFilter.gain.value  = p.sub;
-  eqNodes.bassFilter.gain.value = p.bass;
-  eqNodes.midFilter.gain.value  = p.mid;
-  eqNodes.highFilter.gain.value = p.high;
-  eqNodes.presFilter.gain.value = p.presence;
-  eqNodes.comp.ratio.value = p.comp ? 4 : 1;
+function loadDirectUrl() {
+  const raw = G('direct-url').value.trim();
+  if (!raw) { toast('Enter a URL'); return; }
+  setStatus('url-status', '<span class="spin">⟳</span> Loading...');
+  // Route through proxy to fix CORS
+  const proxyUrl = '/proxy?url='+encodeURIComponent(raw);
+  const title = raw.split('/').pop().split('?')[0].replace(/\.[^.]+$/,'') || 'Audio';
+  applyTrack(proxyUrl, title, raw);
+  setStatus('url-status', '⟳ Connecting...');
 }
 
-function setEQ(preset) {
-  applyEQPreset(hostEQ, preset);
-  ['flat','dolby','bass','vocal','spatial'].forEach(p => {
-    const btn = G('eq-'+p);
-    if (btn) btn.classList.toggle('active', p===preset);
-  });
+function loadFile() {
+  const f = G('file-input').files[0];
+  if (!f) return;
+  const url = URL.createObjectURL(f);
+  const title = f.name.replace(/\.[^.]+$/,'');
+  setStatus('file-status', '⚠️ Local file — only plays on your device');
+  applyTrack(url, title, null, true);
 }
 
-function setEQL(preset) {
-  applyEQPreset(listEQ, preset);
-  ['flat','dolby','bass','vocal','spatial'].forEach(p => {
-    const btn = G('leq-'+p);
-    if (btn) btn.classList.toggle('active', p===preset);
-  });
+function applyTrack(streamUrl, title, originalUrl, isLocal=false) {
+  const a = G('h-audio');
+  teardownAudio('h');
+
+  currentTrack = { streamUrl, title, originalUrl, isLocal };
+
+  a.src = streamUrl;
+  a.load();
+  G('h-tname').textContent = title;
+  G('h-tsub').textContent = 'Loading...';
+  G('h-player').style.display = 'block';
+
+  a.onloadedmetadata = () => {
+    G('h-dur').textContent = fmt(a.duration);
+    G('h-tsub').textContent = fmt(a.duration) + (isLocal?' (local only)':'');
+    buildChain(a, 'h');
+    startProg(a,'h-fill','h-cur','h-dur');
+    startViz('h-viz');
+    setStatus('yt-status','✅ Ready — press Play!');
+    setStatus('url-status','✅ Ready — press Play!');
+    setStatus('file-status','✅ '+title);
+    toast('✅ Track loaded — press Play! ▶');
+  };
+
+  a.onerror = (e) => {
+    const msg = a.error ? ['','ABORTED','NETWORK_ERROR','DECODE_ERROR','SRC_NOT_SUPPORTED'][a.error.code]||a.error.code : 'unknown';
+    console.error('Audio error:', msg, e);
+    setStatus('yt-status','❌ Could not load: '+msg);
+    setStatus('url-status','❌ Could not load: '+msg);
+    toast('❌ Audio failed: '+msg);
+  };
+
+  // Share with listeners (unless local file)
+  if (!isLocal && sock) {
+    sock.emit('track:set', { streamUrl, title, originalUrl });
+  }
 }
 
-// ═══════════════════════════════════════════════════
+// ═══════════════════════════════════════
+// DOLBY AUDIO CHAIN
+// ═══════════════════════════════════════
+function buildChain(audioEl, side) {
+  teardownAudio(side);
+  try {
+    const ctx = new (window.AudioContext||window.webkitAudioContext)();
+    const src = ctx.createMediaElementSource(audioEl);
+    const sub  = makeFilter(ctx,'lowshelf',60);
+    const bass = makeFilter(ctx,'peaking',200,0.8);
+    const mid  = makeFilter(ctx,'peaking',1000,0.8);
+    const hi   = makeFilter(ctx,'peaking',8000,0.8);
+    const pres = makeFilter(ctx,'highshelf',14000);
+    const comp = ctx.createDynamicsCompressor();
+    comp.threshold.value=-18; comp.knee.value=10; comp.ratio.value=4;
+    comp.attack.value=0.003; comp.release.value=0.1;
+    const gain = ctx.createGain();
+    gain.gain.value = 0.9;
+    const an = ctx.createAnalyser();
+    an.fftSize = 512;
+    src.connect(sub); sub.connect(bass); bass.connect(mid);
+    mid.connect(hi); hi.connect(pres); pres.connect(comp);
+    comp.connect(gain); gain.connect(an); an.connect(ctx.destination);
+    const eq = {sub,bass,mid,hi,pres,comp};
+    if (side==='h') { hACtx=ctx; hEQ=eq; hGain=gain; vizAn=an; }
+    else            { lACtx=ctx; lEQ=eq; lGain=gain; vizAn=an; }
+    return {ctx,eq,gain,an};
+  } catch(e) { console.warn('chain err',e); return null; }
+}
+
+function makeFilter(ctx,type,freq,q) {
+  const f=ctx.createBiquadFilter();
+  f.type=type; f.frequency.value=freq;
+  if (q) f.Q.value=q;
+  return f;
+}
+
+function teardownAudio(side) {
+  if (side==='h' && hACtx) { hACtx.close().catch(()=>{}); hACtx=null; hEQ=null; hGain=null; }
+  if (side==='l' && lACtx) { lACtx.close().catch(()=>{}); lACtx=null; lEQ=null; lGain=null; }
+}
+
+function setEQ(btn, side) {
+  const preset = btn.id.replace(/^[hl]eq-/,'');
+  const vals = EQ[preset];
+  const eq = side==='h' ? hEQ : lEQ;
+  if (eq) {
+    eq.sub.gain.value=vals[0]; eq.bass.gain.value=vals[1];
+    eq.mid.gain.value=vals[2]; eq.hi.gain.value=vals[3];
+    eq.pres.gain.value=vals[4]; eq.comp.ratio.value=vals[5]?4:1;
+  }
+  document.querySelectorAll(`[id^="${side}eq-"]`).forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+}
+
+// ═══════════════════════════════════════
 // SOCKET
-// ═══════════════════════════════════════════════════
+// ═══════════════════════════════════════
 function initSock() {
   if (sock && sock.connected) return;
-  sock = io({ transports: ['websocket','polling'] });
+  sock = io({ transports:['websocket','polling'], reconnectionAttempts: 10 });
 
   sock.on('connect', () => {
     console.log('Connected:', sock.id);
     doNTP();
-    // Keep Render from sleeping — ping every 10s
-    if (window._keepAliveTimer) clearInterval(window._keepAliveTimer);
-    window._keepAliveTimer = setInterval(() => {
-      if (sock && sock.connected) sock.emit('keepalive');
-    }, 10000);
+    clearInterval(window._ka);
+    window._ka = setInterval(()=>{ if(sock&&sock.connected) sock.emit('keepalive'); }, 10000);
   });
 
-  // If server restarted (Render woke up), rooms are gone — warn user
-  sock.on('disconnect', (reason) => {
-    console.warn('Disconnected:', reason);
-    if (reason === 'transport close' || reason === 'io server disconnect') {
-      toast('⚠️ Reconnecting to server...');
-    }
+  sock.on('disconnect', reason => {
+    console.warn('Disconnect:', reason);
+    if (roomCode) toast('⚠️ Connection lost — reconnecting...');
   });
 
   sock.on('reconnect', () => {
     toast('✅ Reconnected!');
     doNTP();
-    // If we were in a room, it's gone — send them back home
-    if (roomCode) {
-      toast('Session ended — server restarted. Please create a new room.');
-      setTimeout(leave, 2000);
+    if (roomCode && !amHost) {
+      toast('Session ended — server restarted. Rejoin the room.');
+      setTimeout(leave, 2500);
     }
   });
 
-  sock.on('connect_error', () => toast('Connection error — check your internet'));
+  sock.on('connect_error', ()=> toast('Cannot connect to server'));
 
-  sock.on('ntp:pong', ({ clientTime, serverTime }) => {
-    const now = Date.now();
-    const rtt = now - clientTime;
-    ntpSamples.push({ rtt, offset: now - (serverTime + rtt/2) });
-    if (ntpSamples.length < NTP_ROUNDS)
-      setTimeout(() => sock.emit('ntp:ping', { clientTime: Date.now() }), 50);
+  sock.on('ntp:pong', ({clientTime, serverTime}) => {
+    const now=Date.now(), rtt=now-clientTime;
+    ntpSamples.push({rtt, offset: now-(serverTime+rtt/2)});
+    if (ntpSamples.length<NTP_ROUNDS)
+      setTimeout(()=>sock.emit('ntp:ping',{clientTime:Date.now()}),50);
     else finishNTP();
   });
 
-  // HOST events
-  sock.on('room:listener_joined', ({ id }) => {
-    listeners[id] = true; renderListeners();
-    // Immediately sync new listener with current track + state
-    const a = G('h-audio');
-    if (a.src) {
-      // Re-send the track so they load it
-      if (window._currentTrackUrl) {
-        sock.emit('track:set', {
-          url: window._currentTrackUrl,
-          title: window._currentTrackTitle || 'Audio',
-          proxyUrl: window._currentProxyUrl || window._currentTrackUrl
-        });
+  // HOST
+  sock.on('room:listener_joined', ({id}) => {
+    listeners[id]=true; renderListeners();
+    // Send current track + state to new joiner
+    if (currentTrack && !currentTrack.isLocal) {
+      sock.emit('track:set',{
+        streamUrl: currentTrack.streamUrl,
+        title: currentTrack.title,
+        originalUrl: currentTrack.originalUrl
+      });
+      const a=G('h-audio');
+      if (a.src) {
+        setTimeout(()=>{
+          if (!a.paused) sock.emit('audio:play',{position:a.currentTime, serverPlayAt:srvNow()+SCHED_MS});
+          else sock.emit('audio:pause',{position:a.currentTime});
+        }, 800);
       }
-      setTimeout(() => {
-        if (!a.paused) {
-          const playAt = srvNow() + SCHED_MS;
-          sock.emit('audio:play', { position: a.currentTime, serverPlayAt: playAt });
-        } else {
-          sock.emit('audio:pause', { position: a.currentTime });
-        }
-      }, 500);
     }
   });
-  sock.on('room:listener_left', ({ id }) => { delete listeners[id]; renderListeners(); });
-  sock.on('room:count', n => G('h-l-count').textContent = n);
+  sock.on('room:listener_left', ({id})=>{ delete listeners[id]; renderListeners(); });
+  sock.on('room:count', n=>G('h-lcnt').textContent=n);
 
-  // LISTENER events — use proxyUrl if available for CORS-free loading
-  sock.on('track:set', ({ url, title, proxyUrl }) => {
-    loadListenerTrack(proxyUrl || url, title);
-  });
-
-  sock.on('audio:play', ({ position, serverPlayAt }) => schedPlay(position, serverPlayAt));
-
-  sock.on('audio:pause', ({ position }) => {
+  // LISTENER
+  sock.on('track:set', ({streamUrl, title}) => loadListenerTrack(streamUrl, title));
+  sock.on('audio:play', ({position, serverPlayAt}) => schedPlay(position, serverPlayAt));
+  sock.on('audio:pause', ({position}) => {
     cancelSched();
-    const a = G('l-audio');
-    if (!a.src) return;
-    a.pause(); a.currentTime = position;
-    setPill('l-pill', 'p-wait', 'd-m', 'Paused');
-    setSyncInfo('Host paused.');
+    const a=G('l-audio'); if(!a.src)return;
+    a.pause(); a.currentTime=position;
     G('l-art').classList.remove('spin');
+    setPill('l-pill','pw','dm','Paused');
+    setSyncInfo('Host paused.');
   });
-
-  sock.on('audio:seek', ({ position, playing, serverPlayAt }) => {
+  sock.on('audio:seek', ({position, playing, serverPlayAt}) => {
     cancelSched();
-    const a = G('l-audio');
-    if (!a.src) return;
-    a.currentTime = position;
+    const a=G('l-audio'); if(!a.src)return;
+    a.currentTime=position;
     if (playing) schedPlay(position, serverPlayAt);
     else { a.pause(); G('l-art').classList.remove('spin'); }
   });
-
-  sock.on('room:host_left', () => { toast('Host ended the session'); leave(); });
+  sock.on('room:host_left', ()=>{ toast('Host ended the session'); leave(); });
 }
 
-// ═══════════════════════════════════════════════════
-// NTP CLOCK SYNC
-// ═══════════════════════════════════════════════════
+// ═══════════════════════════════════════
+// NTP
+// ═══════════════════════════════════════
 function doNTP() {
   ntpSamples=[]; ntpDone=false;
-  sock.emit('ntp:ping', { clientTime: Date.now() });
+  sock.emit('ntp:ping',{clientTime:Date.now()});
 }
-
 function finishNTP() {
-  // Use best 3 samples (lowest RTT = least network jitter)
-  ntpSamples.sort((a,b) => a.rtt - b.rtt);
-  const best = ntpSamples.slice(0, 3);
-  clockOffset = best.reduce((s,x) => s + x.offset, 0) / best.length;
-  ntpDone = true;
-  console.log('NTP done. offset='+clockOffset.toFixed(1)+'ms bestRTT='+ntpSamples[0].rtt+'ms');
+  ntpSamples.sort((a,b)=>a.rtt-b.rtt);
+  const best=ntpSamples.slice(0,3);
+  clockOffset=best.reduce((s,x)=>s+x.offset,0)/best.length;
+  ntpDone=true;
+  console.log('NTP: offset='+clockOffset.toFixed(1)+'ms RTT='+ntpSamples[0].rtt+'ms');
 }
 
-function srvNow() {
-  return Date.now() - clockOffset; // our best estimate of server's current time
-}
-
-// ═══════════════════════════════════════════════════
+// ═══════════════════════════════════════
 // ZERO-LAG SCHEDULED PLAY
-// ═══════════════════════════════════════════════════
+// ═══════════════════════════════════════
 function schedPlay(position, serverPlayAt) {
   cancelSched();
-  const a = G('l-audio');
-  if (!a.src) { setSyncInfo('⚠️ Waiting for audio to load...'); return; }
+  const a=G('l-audio');
+  if (!a.src) { setSyncInfo('⚠️ Waiting for track to load...'); return; }
 
-  // Convert server timestamp → local time using our measured offset
   const localPlayAt = serverPlayAt + clockOffset;
   const msLeft = localPlayAt - Date.now();
 
-  console.log('schedPlay: msLeft='+msLeft.toFixed(0)+'ms pos='+position.toFixed(3));
-
   function doPlay() {
-    // Correct for any remaining latency
-    const late = Math.max(0, (Date.now() - localPlayAt)) / 1000;
-    const targetPos = Math.max(0, position + late);
-    const drift = Math.abs(a.currentTime - targetPos);
-    if (drift > DRIFT_TOL) a.currentTime = targetPos;
+    const late = Math.max(0,(Date.now()-localPlayAt))/1000;
+    const target = Math.max(0, position+late);
+    const drift = Math.abs(a.currentTime-target);
+    if (drift>DRIFT_TOL) a.currentTime=target;
 
-    a.play().then(() => {
+    a.play().then(()=>{
       G('l-art').classList.add('spin');
-      setPill('l-pill', 'p-sync', 'd-c', '● In Sync');
-      setSyncInfo('🎧 Playing in sync — drift: <b>'+Math.round(drift*1000)+'ms</b>');
-      G('unlock-overlay').classList.add('gone');
-      if (!vizACtx) buildAudioChain(a, false);
-      if (listACtx) listACtx.resume();
-      startProg(a, 'l-prog', 'l-cur', 'l-dur');
+      setPill('l-pill','ps','dc','● In Sync');
+      setSyncInfo('🎧 In sync — drift corrected: <b>'+Math.round(drift*1000)+'ms</b>');
+      G('unlock').classList.add('gone');
+      if (!lACtx) buildChain(a,'l');
+      if (lACtx) lACtx.resume();
+      startProg(a,'l-fill','l-cur','l-dur');
       startViz('l-viz');
-    }).catch(() => {
-      // Autoplay blocked — show tap overlay
-      G('unlock-overlay').classList.remove('gone');
-      setSyncInfo('👆 Tap the screen once to start audio');
-      G('unlock-overlay').onclick = () => {
-        a.play().then(() => {
-          unlockTap();
+    }).catch(()=>{
+      G('unlock').classList.remove('gone');
+      setSyncInfo('👆 Tap the screen to start audio');
+      G('unlock').onclick=()=>{
+        a.play().then(()=>{
+          doUnlock();
           G('l-art').classList.add('spin');
-          setPill('l-pill', 'p-sync', 'd-c', '● In Sync');
-          if (!vizACtx) buildAudioChain(a, false);
+          setPill('l-pill','ps','dc','● In Sync');
+          if (!lACtx) buildChain(a,'l');
           startViz('l-viz');
         });
       };
     });
   }
 
-  if (msLeft > 15) {
-    // Pre-seek slightly before target and wait
-    a.currentTime = Math.max(0, position - 0.01);
+  if (msLeft>15) {
+    a.currentTime = Math.max(0,position-0.01);
     pendingPlay = setTimeout(doPlay, msLeft);
   } else {
-    // Already late — compensate position
-    const elapsed = (-msLeft) / 1000;
-    a.currentTime = Math.max(0, position + elapsed);
+    a.currentTime = Math.max(0, position+Math.max(0,-msLeft/1000));
     doPlay();
   }
 }
 
 function cancelSched() {
-  if (pendingPlay) { clearTimeout(pendingPlay); pendingPlay = null; }
+  if (pendingPlay) { clearTimeout(pendingPlay); pendingPlay=null; }
 }
 
-// ═══════════════════════════════════════════════════
+// ═══════════════════════════════════════
 // CREATE / JOIN
-// ═══════════════════════════════════════════════════
+// ═══════════════════════════════════════
 function createRoom() {
-  const name = G('room-name').value.trim() || 'Audio Room';
-  initSock(); amHost = true;
-  sock.emit('room:create', { name }, res => {
-    if (!res.ok) { toast('Could not create room'); return; }
-    roomCode = res.code;
-    G('h-room-name').textContent = res.name;
-    G('h-code').textContent = res.code;
+  const name = G('rname-input').value.trim() || 'Audio Room';
+  initSock(); amHost=true;
+  const go=()=>sock.emit('room:create',{name},res=>{
+    if(!res.ok){toast('Could not create room');return;}
+    roomCode=res.code;
+    G('h-rname').textContent=res.name;
+    G('h-code').textContent=res.code;
     show('s-host');
-    toast('Room created! Share code: ' + res.code + ' 🎉');
+    toast('Room created! Share code: '+res.code+' 🎉');
   });
+  if (sock.connected) go();
+  else { toast('Connecting...'); sock.once('connect',()=>setTimeout(go,200)); }
 }
 
 function joinRoom() {
   const code = G('join-code').value.trim().toUpperCase();
-  if (!code) { toast('Enter a room code'); return; }
-  if (code.length < 6) { toast('Code must be 6 characters'); return; }
+  if (!code||code.length<6) { toast('Enter the full 6-letter code'); return; }
   G('join-err').classList.remove('on');
-  initSock(); amHost = false;
+  initSock(); amHost=false;
 
-  function doJoin() {
-    console.log('Attempting join:', code);
-    sock.emit('room:join', { code }, res => {
-      console.log('Join response:', JSON.stringify(res));
-      if (!res || !res.ok) {
-        G('join-err').textContent = 'Room not found. Check the code — host must still be in the room.';
+  const go=()=>{
+    console.log('joining room:', code);
+    sock.emit('room:join',{code},res=>{
+      console.log('join result:', JSON.stringify(res));
+      if (!res||!res.ok) {
         G('join-err').classList.add('on');
         return;
       }
-      G('join-err').classList.remove('on');
-      roomCode = code;
-      G('l-room-name').textContent = res.name;
-      G('l-code-label').textContent = 'Room: ' + code;
+      roomCode=code;
+      G('l-rname').textContent=res.name;
+      G('l-clabel').textContent='Room code: '+code;
       show('s-listen');
-      toast('Joined! 🎧');
-      if (res.track) {
-        const trackUrl = res.track.proxyUrl || res.track.url;
-        loadListenerTrack(trackUrl, res.track.title, () => {
-          if (res.state && res.state.playing && res.state.serverPlayAt) {
-            const elapsed = (srvNow() - res.state.serverPlayAt) / 1000;
-            schedPlay(Math.max(0, res.state.position + elapsed), srvNow() + SCHED_MS);
+      toast('Joined! Syncing with host 🎧');
+      if (res.track && res.track.streamUrl) {
+        loadListenerTrack(res.track.streamUrl, res.track.title, ()=>{
+          if (res.state&&res.state.playing&&res.state.serverPlayAt) {
+            const elapsed=(srvNow()-res.state.serverPlayAt)/1000;
+            schedPlay(Math.max(0,res.state.position+elapsed), srvNow()+SCHED_MS);
           } else if (res.state) {
-            G('l-audio').currentTime = res.state.position || 0;
+            G('l-audio').currentTime=res.state.position||0;
           }
         });
       }
     });
-  }
-
-  if (sock.connected) {
-    doJoin();
-  } else {
-    toast('Connecting to server...');
-    sock.once('connect', () => setTimeout(doJoin, 200));
-  }
+  };
+  if (sock.connected) go();
+  else { toast('Connecting...'); sock.once('connect',()=>setTimeout(go,300)); }
 }
 
-// ═══════════════════════════════════════════════════
-// LOAD TRACK
-// ═══════════════════════════════════════════════════
-function hostLoadUrl() {
-  const rawUrl = G('h-url').value.trim();
-  if (!rawUrl) { toast('Enter an audio URL'); return; }
-
-  // Always route through our proxy — fixes ALL CORS issues
-  const proxyUrl = '/proxy?url=' + encodeURIComponent(rawUrl);
-  const title = rawUrl.split('/').pop().split('?')[0].replace(/\.[^.]+$/,'') || 'Audio';
-
-  loadHostAudio(rawUrl, proxyUrl, title);
-}
-
-function hostLoadFile() {
-  const f = G('h-file').files[0];
-  if (!f) return;
-  const localUrl = URL.createObjectURL(f);
-  const title = f.name.replace(/\.[^.]+$/,'');
-  // Local files can't be proxied — they only play on host device
-  // We still need a shareable URL for listeners — warn the host
-  window._currentTrackUrl = localUrl;
-  window._currentTrackTitle = title;
-  window._currentProxyUrl = null;
-  loadHostAudio(localUrl, localUrl, title, true);
-}
-
-function loadHostAudio(originalUrl, proxyUrl, title, isLocal=false) {
-  const a = G('h-audio');
-  if (hostACtx) { hostACtx.close().catch(()=>{}); hostACtx=null; hostSrc=null; hostGain=null; hostEQ=null; }
-
-  // Store for late-joining listeners
-  window._currentTrackUrl = originalUrl;
-  window._currentProxyUrl = isLocal ? null : proxyUrl;
-  window._currentTrackTitle = title;
-
-  // Host loads via proxy (fixes CORS for host too)
-  a.src = proxyUrl; a.load();
-  G('h-track-name').textContent = title;
-  G('h-track-sub').textContent = 'Loading...';
-  G('h-player').style.display = 'block';
-
-  a.addEventListener('loadedmetadata', () => {
-    G('h-dur').textContent = fmt(a.duration);
-    G('h-track-sub').textContent = fmt(a.duration);
-    buildAudioChain(a, true);
-    startProg(a, 'h-prog', 'h-cur', 'h-dur');
-    startViz('h-viz');
-    if (isLocal) {
-      toast('🎵 File loaded — only you can hear local files');
-    } else {
-      toast('✅ Track loaded — press Play! ▶');
-    }
-  }, { once: true });
-
-  a.addEventListener('error', (e) => {
-    console.error('Audio load error:', e);
-    toast('❌ Could not load — try a direct .mp3 link from archive.org');
-  }, { once: true });
-
-  // Tell all listeners to load via proxy URL
-  if (!isLocal) {
-    sock.emit('track:set', { url: originalUrl, title, proxyUrl });
-  }
-}
-
+// ═══════════════════════════════════════
+// LISTENER TRACK LOAD
+// ═══════════════════════════════════════
 function loadListenerTrack(url, title, cb) {
-  const a = G('l-audio');
-  if (listACtx) { listACtx.close().catch(()=>{}); listACtx=null; listSrc=null; listGain=null; listEQ=null; vizACtx=null; vizAnalyser=null; }
+  const a=G('l-audio');
+  teardownAudio('l');
+  vizAn=null; if(vizRaf){cancelAnimationFrame(vizRaf);vizRaf=null;}
 
-  a.src = url; a.load();
-  G('l-track-name').textContent = title || 'Loading...';
-  setSyncInfo('Loading track...');
+  a.src=url; a.load();
+  G('l-tname').textContent=title||'Loading...';
+  setSyncInfo('⟳ Loading track...');
 
-  a.addEventListener('canplay', () => {
-    if (a.duration) G('l-dur').textContent = fmt(a.duration);
+  a.oncanplay=()=>{
+    if (a.duration) G('l-dur').textContent=fmt(a.duration);
     setSyncInfo('✅ Track ready — waiting for host to play');
-    buildAudioChain(a, false);
+    buildChain(a,'l');
+    a.oncanplay=null;
     if (cb) cb();
-  }, { once: true });
-
-  a.addEventListener('error', (e) => {
-    console.error('Listener audio error:', e);
-    setSyncInfo('❌ Could not load track. Ask host to use a direct .mp3 URL.');
-  }, { once: true });
+  };
+  a.onerror=()=>{
+    const c=a.error?a.error.code:0;
+    const msgs=['','Aborted','Network error','Decode error','Not supported'];
+    setSyncInfo('❌ Track load failed: '+(msgs[c]||'Unknown error'));
+  };
 }
 
-// ═══════════════════════════════════════════════════
-// HOST PLAYBACK CONTROLS
-// ═══════════════════════════════════════════════════
+// ═══════════════════════════════════════
+// HOST CONTROLS
+// ═══════════════════════════════════════
 function hostPlay() {
-  const a = G('h-audio');
-  if (!a.src) { toast('Load a track first'); return; }
-  if (hostACtx) hostACtx.resume();
-  const pos = a.currentTime;
-  const playAt = srvNow() + SCHED_MS;
-  // Host also schedules its own play at the same time
-  setTimeout(() => { a.play(); G('h-art').classList.add('spin'); }, SCHED_MS);
-  setPill('h-pill', 'p-live', 'd-g', '● Playing');
-  sock.emit('audio:play', { position: pos, serverPlayAt: playAt });
+  const a=G('h-audio');
+  if (!a.src){toast('Load a track first');return;}
+  if (hACtx) hACtx.resume();
+  const pos=a.currentTime, playAt=srvNow()+SCHED_MS;
+  setTimeout(()=>{ a.play(); G('h-art').classList.add('spin'); }, SCHED_MS);
+  setPill('h-pill','pl','dg','● Playing');
+  sock.emit('audio:play',{position:pos, serverPlayAt:playAt});
 }
 
 function hostPause() {
-  const a = G('h-audio');
+  const a=G('h-audio');
   a.pause(); G('h-art').classList.remove('spin');
-  setPill('h-pill', 'p-wait', 'd-m', 'Paused');
-  sock.emit('audio:pause', { position: a.currentTime });
+  setPill('h-pill','pw','dm','Paused');
+  sock.emit('audio:pause',{position:a.currentTime});
 }
 
 function hostRestart() {
-  const a = G('h-audio');
-  a.currentTime = 0;
-  if (hostACtx) hostACtx.resume();
-  const playAt = srvNow() + SCHED_MS;
-  setTimeout(() => { a.play(); G('h-art').classList.add('spin'); }, SCHED_MS);
-  setPill('h-pill', 'p-live', 'd-g', '● Playing');
-  sock.emit('audio:play', { position: 0, serverPlayAt: playAt });
+  const a=G('h-audio');
+  a.currentTime=0;
+  if (hACtx) hACtx.resume();
+  const playAt=srvNow()+SCHED_MS;
+  setTimeout(()=>{ a.play(); G('h-art').classList.add('spin'); }, SCHED_MS);
+  setPill('h-pill','pl','dg','● Playing');
+  sock.emit('audio:play',{position:0, serverPlayAt:playAt});
 }
 
 function hostSeek(e) {
-  const a = G('h-audio');
-  if (!a.duration) return;
-  const bar = e.currentTarget.querySelector('.seekbar-track');
-  const rect = bar.getBoundingClientRect();
-  const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-  const seekTo = ratio * a.duration;
-  a.currentTime = seekTo;
-  const playing = !a.paused;
-  const playAt = srvNow() + SCHED_MS;
-  if (playing) setTimeout(() => a.play(), SCHED_MS);
-  sock.emit('audio:seek', { position: seekTo, playing, serverPlayAt: playAt });
+  const a=G('h-audio'); if(!a.duration)return;
+  const bar=e.currentTarget.querySelector('.seek-track');
+  const rect=bar.getBoundingClientRect();
+  const ratio=Math.max(0,Math.min(1,(e.clientX-rect.left)/rect.width));
+  const seekTo=ratio*a.duration;
+  a.currentTime=seekTo;
+  const playing=!a.paused, playAt=srvNow()+SCHED_MS;
+  if (playing) setTimeout(()=>a.play(), SCHED_MS);
+  sock.emit('audio:seek',{position:seekTo, playing, serverPlayAt:playAt});
 }
 
-function setHostVol(v) {
-  const a = G('h-audio'); a.volume = parseFloat(v);
-  if (hostGain) hostGain.gain.value = parseFloat(v);
+function hostVolChange(v) {
+  G('h-audio').volume=parseFloat(v);
+  if (hGain) hGain.gain.value=parseFloat(v);
+}
+function listVolChange(v) {
+  G('l-audio').volume=parseFloat(v);
+  if (lGain) lGain.gain.value=parseFloat(v);
 }
 
-function setListenerVol(v) {
-  const a = G('l-audio'); a.volume = parseFloat(v);
-  if (listGain) listGain.gain.value = parseFloat(v);
-}
-
-// ═══════════════════════════════════════════════════
+// ═══════════════════════════════════════
 // LEAVE
-// ═══════════════════════════════════════════════════
+// ═══════════════════════════════════════
 function leave() {
   cancelSched();
-  if (progRaf) { cancelAnimationFrame(progRaf); progRaf=null; }
-  stopViz();
-  ['h-audio','l-audio'].forEach(id => { const a=G(id); if(a){a.pause();a.src='';} });
-  if (hostACtx) { hostACtx.close().catch(()=>{}); hostACtx=null; }
-  if (listACtx) { listACtx.close().catch(()=>{}); listACtx=null; }
-  vizACtx=null; vizAnalyser=null;
-  if (sock) { sock.disconnect(); sock=null; }
-  roomCode=null; listeners={};
+  clearInterval(window._ka);
+  if (progRaf){cancelAnimationFrame(progRaf);progRaf=null;}
+  if (vizRaf){cancelAnimationFrame(vizRaf);vizRaf=null;}
+  ['h-audio','l-audio'].forEach(id=>{const a=G(id);if(a){a.pause();a.src='';}});
+  teardownAudio('h'); teardownAudio('l');
+  if (sock){sock.disconnect();sock=null;}
+  roomCode=null; listeners={}; currentTrack=null; vizAn=null;
   show('s-home');
 }
 
-// ═══════════════════════════════════════════════════
+// ═══════════════════════════════════════
 // UI HELPERS
-// ═══════════════════════════════════════════════════
+// ═══════════════════════════════════════
 function copyCode() {
-  navigator.clipboard.writeText(G('h-code').textContent).then(() => toast('Code copied! 📋'));
+  navigator.clipboard.writeText(G('h-code').textContent).then(()=>toast('Code copied! 📋'));
 }
-
-function setSyncInfo(html) {
-  G('l-sync-box').innerHTML = '<b>Sync Status:</b> ' + html;
+function setSyncInfo(html) { G('l-sync').innerHTML='<b>Sync Status:</b> '+html; }
+function setPill(id,cls,dotCls,lbl) {
+  const el=G(id);
+  el.className='pill '+cls;
+  el.innerHTML='<div class="dot '+dotCls+'"></div><span>'+lbl+'</span>';
 }
-
-function setPill(id, cls, dotCls, label) {
-  const el = G(id);
-  el.className = 'pill ' + cls;
-  el.innerHTML = '<div class="dot '+dotCls+'"></div><span>'+label+'</span>';
-}
-
 function renderListeners() {
-  const ids = Object.keys(listeners);
-  G('h-l-count').textContent = ids.length;
-  const el = G('h-listeners');
-  if (!ids.length) { el.innerHTML='<div class="no-listeners">No one joined yet — share your code!</div>'; return; }
-  el.innerHTML = ids.map((id,i) =>
-    '<div class="listener-item"><div class="listener-av">🎧</div><span>Listener '+(i+1)+'</span>'+
+  const ids=Object.keys(listeners);
+  G('h-lcnt').textContent=ids.length;
+  const el=G('h-llist');
+  if(!ids.length){el.innerHTML='<div class="nol">No one joined yet — share your code!</div>';return;}
+  el.innerHTML=ids.map((id,i)=>
+    '<div class="litem"><div class="lav">🎧</div><span>Listener '+(i+1)+'</span>'+
     '<span style="margin-left:auto;font-size:9px;color:var(--g)">● synced</span></div>'
   ).join('');
 }
-
-function startProg(audio, fillId, curId, durId) {
-  if (progRaf) { cancelAnimationFrame(progRaf); progRaf=null; }
-  function tick() {
-    progRaf = requestAnimationFrame(tick);
-    const pct = audio.duration ? (audio.currentTime/audio.duration*100) : 0;
-    G(fillId).style.width = pct + '%';
-    G(curId).textContent = fmt(audio.currentTime);
-    if (audio.duration) G(durId).textContent = fmt(audio.duration);
+function startProg(audio,fillId,curId,durId) {
+  if(progRaf){cancelAnimationFrame(progRaf);progRaf=null;}
+  function tick(){
+    progRaf=requestAnimationFrame(tick);
+    const p=audio.duration?(audio.currentTime/audio.duration*100):0;
+    G(fillId).style.width=p+'%';
+    G(curId).textContent=fmt(audio.currentTime);
+    if(audio.duration)G(durId).textContent=fmt(audio.duration);
   }
   tick();
 }
 
-// ═══════════════════════════════════════════════════
-// VISUALIZER — frequency bars with glow
-// ═══════════════════════════════════════════════════
+// ═══════════════════════════════════════
+// VISUALIZER
+// ═══════════════════════════════════════
 function startViz(canvasId) {
-  if (vizRaf) { cancelAnimationFrame(vizRaf); vizRaf=null; }
-  if (!vizAnalyser) return;
-  const canvas = G(canvasId);
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-  const W = canvas.offsetWidth || 700, H = canvas.offsetHeight || 54;
-  canvas.width = W; canvas.height = H;
-  const buf = new Uint8Array(vizAnalyser.frequencyBinCount);
-  const barW = (W / buf.length) * 2.5;
-
-  function frame() {
-    vizRaf = requestAnimationFrame(frame);
-    vizAnalyser.getByteFrequencyData(buf);
-    ctx.clearRect(0,0,W,H);
-    ctx.fillStyle = '#07080d';
-    ctx.fillRect(0,0,W,H);
+  if(vizRaf){cancelAnimationFrame(vizRaf);vizRaf=null;}
+  if(!vizAn)return;
+  const cv=G(canvasId);if(!cv)return;
+  const ctx=cv.getContext('2d');
+  const W=cv.offsetWidth||700,H=cv.offsetHeight||52;
+  cv.width=W;cv.height=H;
+  const buf=new Uint8Array(vizAn.frequencyBinCount);
+  const bw=(W/buf.length)*2.4;
+  function frame(){
+    vizRaf=requestAnimationFrame(frame);
+    vizAn.getByteFrequencyData(buf);
+    ctx.fillStyle='#07080d';ctx.fillRect(0,0,W,H);
     let x=0;
-    for (let i=0; i<buf.length; i++) {
-      const ratio = buf[i]/255;
-      const h = ratio * H;
-      const hue = 170 + (i/buf.length) * 120;
-      const alpha = 0.7 + ratio * 0.3;
-      // Bar
-      ctx.fillStyle = `hsla(${hue},100%,60%,${alpha})`;
-      ctx.fillRect(x, H-h, barW, h);
-      // Glow top
-      if (ratio > 0.5) {
-        ctx.fillStyle = `hsla(${hue},100%,80%,0.6)`;
-        ctx.fillRect(x, H-h-2, barW, 2);
-      }
-      x += barW + 1;
+    for(let i=0;i<buf.length;i++){
+      const r=buf[i]/255, h=r*H;
+      const hue=170+i/buf.length*110;
+      ctx.fillStyle='hsla('+hue+',100%,60%,'+(0.65+r*0.35)+')';
+      ctx.fillRect(x,H-h,bw,h);
+      if(r>0.55){ctx.fillStyle='hsla('+hue+',100%,85%,0.7)';ctx.fillRect(x,H-h-2,bw,2);}
+      x+=bw+1;
     }
   }
   frame();
 }
 
-function stopViz() {
-  if (vizRaf) { cancelAnimationFrame(vizRaf); vizRaf=null; }
-}
-
-// ═══════════════════════════════════════════════════
+// ═══════════════════════════════════════
 // INPUT FORMATTING
-// ═══════════════════════════════════════════════════
-G('join-code').addEventListener('input', function() {
-  this.value = this.value.toUpperCase().replace(/[^A-Z0-9]/g,'');
+// ═══════════════════════════════════════
+G('join-code').addEventListener('input',function(){
+  this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'');
 });
 </script>
 </body>
