@@ -492,385 +492,446 @@ canvas{width:100%;height:58px;display:block;border-radius:7px;background:var(--b
 <script src="/socket.io/socket.io.js"></script>
 <script>
 'use strict';
-// ══════════════════════════════════════════════════════
+// ════════════════════════════════════════════
 // CONFIG
-// ══════════════════════════════════════════════════════
+// ════════════════════════════════════════════
 const NTP_ROUNDS = 12;
-const SCHED_MS   = 600;
-const DRIFT_TOL  = 0.045;
-const DRIFT_HARD = 0.3;
+const SCHED_LEAD = 700;   // ms ahead we schedule play
+const DRIFT_TOL  = 0.05;  // seconds — soft correction threshold
+const DRIFT_HARD = 0.35;  // seconds — hard resync threshold
 
-// ══════════════════════════════════════════════════════
-// AI SPATIAL AUDIO PRESETS
-// 7-band EQ + Convolution Reverb + Compression
-// ══════════════════════════════════════════════════════
+// ════════════════════════════════════════════
+// AI SPATIAL PRESETS
+// ════════════════════════════════════════════
 const PRESETS = {
-  flat:   {sub:0,  bass:0,  lo:0,  mid:0,  hi:0,  pres:0,  air:0,  ratio:2,  thr:-24, knee:8,  rev:0,    depth:0,  label:'Flat'},
-  atmos:  {sub:4,  bass:3,  lo:-2, mid:1,  hi:5,  pres:6,  air:7,  ratio:4,  thr:-18, knee:10, rev:0.18, depth:85, label:'Atmos 3D'},
-  cinema: {sub:6,  bass:5,  lo:1,  mid:2,  hi:4,  pres:5,  air:5,  ratio:5,  thr:-20, knee:12, rev:0.28, depth:95, label:'Cinema'},
-  bass:   {sub:10, bass:8,  lo:3,  mid:-2, hi:1,  pres:2,  air:1,  ratio:6,  thr:-22, knee:8,  rev:0.06, depth:20, label:'Bass+'},
-  vocal:  {sub:-3, bass:-2, lo:1,  mid:5,  hi:4,  pres:3,  air:2,  ratio:3,  thr:-16, knee:6,  rev:0.12, depth:30, label:'Vocal'},
+  flat:   {sub:0,  bass:0,  lo:0,  mid:0,  hi:0,  pres:0,  air:0,  ratio:2, thr:-24, knee:8,  rev:0,    depth:0,  label:'Flat'},
+  atmos:  {sub:4,  bass:3,  lo:-2, mid:1,  hi:5,  pres:6,  air:7,  ratio:4, thr:-18, knee:10, rev:0.18, depth:85, label:'Atmos 3D'},
+  cinema: {sub:6,  bass:5,  lo:1,  mid:2,  hi:4,  pres:5,  air:5,  ratio:5, thr:-20, knee:12, rev:0.28, depth:95, label:'Cinema'},
+  bass:   {sub:10, bass:8,  lo:3,  mid:-2, hi:1,  pres:2,  air:1,  ratio:6, thr:-22, knee:8,  rev:0.06, depth:20, label:'Bass+'},
+  vocal:  {sub:-3, bass:-2, lo:1,  mid:5,  hi:4,  pres:3,  air:2,  ratio:3, thr:-16, knee:6,  rev:0.12, depth:30, label:'Vocal'},
 };
 
-// ══════════════════════════════════════════════════════
+// ════════════════════════════════════════════
 // STATE
-// ══════════════════════════════════════════════════════
+// ════════════════════════════════════════════
 let sock=null, roomCode=null, amHost=false;
-let clockOffset=0, ntpSamples=[], ntpDone=false, bestRTT=0;
-let pendingPlay=null, progRaf=null, vizRaf=null;
+let clockOffset=0, ntpSamples=[], bestRTT=0;
+let pendingPlay=null, progRaf=null, vizRaf=null, driftTimer=null;
 let listeners={};
-let hCtx=null, hChain=null;
-let lCtx=null, lChain=null;
-let vizAn=null;
+let hAudioCtx=null, hChain=null;
+let lAudioCtx=null, lChain=null;
+let vizAnalyser=null;
 let currentTrack=null;
-let currentEQ={h:'flat',l:'flat'};
-let driftWatcher=null;
+let currentEQ={h:'flat', l:'flat'};
+let currentMode='screen';
 
-// Screen share state
-let screenStream=null;
-let mediaRecorder=null;
-let screenAudioCtx=null;
+// Screen share (host side)
+let screenStream=null, mediaRec=null, screenVizCtx=null;
 
-// Listener live stream state  
-let lMediaSource=null, lSourceBuf=null, lQueue=[], lBusy=false;
+// MSE stream (listener side)
+let lMS=null, lSB=null, lChunks=[], lMime='audio/webm;codecs=opus', lPlaying=false;
+
+// KEY FIX: track whether listener audio is ready to play
+let lAudioReady=false;
+let lPendingSchedPlay=null; // if audio:play arrives before canplay, store it
 
 const G = id => document.getElementById(id);
-function show(s){document.querySelectorAll('.screen').forEach(x=>x.classList.remove('on'));G(s).classList.add('on');}
-function toast(m,d=3500){const t=G('toast');t.textContent=m;t.classList.add('on');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('on'),d);}
-function fmt(s){if(!s||isNaN(s)||!isFinite(s))return'0:00';return Math.floor(s/60)+':'+(('0'+Math.floor(s%60)).slice(-2));}
-function srvNow(){return Date.now()-clockOffset;}
-function setConn(on){const b=G('conn-badge');b.className='badge badge-conn'+(on?' on':'');G('conn-txt').textContent=on?'Online':'Offline';}
+function srvNow(){ return Date.now() - clockOffset; }
 
-// ══════════════════════════════════════════════════════
-// UNLOCK
-// ══════════════════════════════════════════════════════
-function doUnlock(){
-  G('unlock').classList.add('gone');
-  [lCtx,hCtx].forEach(c=>{if(c)c.resume();});
-  ['l-audio','h-audio','l-stream-audio'].forEach(id=>{const a=G(id);if(a&&a.src&&a.paused)a.play().catch(()=>{});});
+// ════════════════════════════════════════════
+// UI UTILS
+// ════════════════════════════════════════════
+function show(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on'));
+  G(id).classList.add('on');
+}
+function toast(msg, dur=3500){
+  const t=G('toast'); t.textContent=msg; t.classList.add('on');
+  clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('on'), dur);
+}
+function fmt(s){
+  if(!s||!isFinite(s)) return '0:00';
+  return Math.floor(s/60)+':'+(('0'+Math.floor(s%60)).slice(-2));
+}
+function setConn(on){
+  const b=G('conn-badge');
+  b.className='badge badge-conn'+(on?' on':'');
+  G('conn-txt').textContent=on?'Online':'Offline';
+}
+function setStatus(id,html){ const e=G(id); if(e) e.innerHTML=html; }
+function setSyncInfo(html){ G('l-sync').innerHTML='<b>Status:</b> '+html; }
+function setPill(id,cls,dot,lbl){
+  const e=G(id); if(!e) return;
+  e.className='pill '+cls;
+  e.innerHTML='<div class="dot '+dot+'"></div><span>'+lbl+'</span>';
+}
+function renderListeners(){
+  const ids=Object.keys(listeners);
+  G('h-lcnt').textContent=ids.length;
+  const el=G('h-llist');
+  if(!ids.length){ el.innerHTML='<div class="nol">No one yet — share your code!</div>'; return; }
+  el.innerHTML=ids.map((id,i)=>`<div class="litem"><div class="lav">🎧</div><span>Listener ${i+1}</span><span style="margin-left:auto;font-family:'Space Mono',monospace;font-size:9px;color:var(--g)">● live</span></div>`).join('');
+}
+function copyCode(){
+  const code=G('h-code').textContent;
+  navigator.clipboard?.writeText(code).then(()=>toast('📋 Copied: '+code)) || (() => {
+    const e=document.createElement('input');e.value=code;document.body.appendChild(e);e.select();document.execCommand('copy');document.body.removeChild(e);toast('📋 Copied: '+code);
+  })();
 }
 
-// ══════════════════════════════════════════════════════
+// ════════════════════════════════════════════
+// UNLOCK OVERLAY (mobile autoplay fix)
+// ════════════════════════════════════════════
+function doUnlock(){
+  G('unlock').classList.add('gone');
+  [lAudioCtx, hAudioCtx].forEach(c=>{ if(c) c.resume(); });
+  // Try playing pending audio
+  const la=G('l-audio');
+  if(la && la.src && la.paused && lAudioReady){
+    la.play().catch(()=>{});
+  }
+}
+
+// ════════════════════════════════════════════
 // MODE / TAB SWITCHING
-// ══════════════════════════════════════════════════════
-let currentMode='screen';
+// ════════════════════════════════════════════
 function switchMode(m){
   currentMode=m;
   G('tab-screen').className='mode-tab'+(m==='screen'?' active-screen':'');
   G('tab-url').className='mode-tab'+(m==='url'?' active-url':'');
-  G('pane-screen').classList.toggle('on',m==='screen');
-  G('pane-url').classList.toggle('on',m==='url');
+  G('pane-screen').classList.toggle('on', m==='screen');
+  G('pane-url').classList.toggle('on', m==='url');
 }
 function switchSrc(s){
   ['yt','direct','file'].forEach(n=>{
-    G('tab-'+n).classList.toggle('active',n===s);
-    G('pane-'+n).classList.toggle('on',n===s);
+    G('tab-'+n).classList.toggle('active', n===s);
+    G('pane-'+n).classList.toggle('on', n===s);
   });
 }
-function setStatus(id,html){const e=G(id);if(e)e.innerHTML=html;}
 
-// ══════════════════════════════════════════════════════
-// SCREEN SHARE — Google Meet style
-// Captures tab/screen audio via getDisplayMedia
-// Encodes as WebM/Opus chunks → sends over socket → listeners decode + play
-// ══════════════════════════════════════════════════════
+// ════════════════════════════════════════════
+// NTP CLOCK SYNC
+// ════════════════════════════════════════════
+function doNTP(){ ntpSamples=[]; sock.emit('ntp:ping',{clientTime:Date.now()}); }
+function finishNTP(){
+  ntpSamples.sort((a,b)=>a.rtt-b.rtt);
+  const best=ntpSamples.slice(0, Math.ceil(NTP_ROUNDS/3));
+  clockOffset=best.reduce((s,x)=>s+x.offset,0)/best.length;
+  bestRTT=ntpSamples[0].rtt;
+  console.log(`[NTP] offset=${clockOffset.toFixed(1)}ms RTT=${bestRTT}ms`);
+  if(G('l-offset')) G('l-offset').textContent=Math.round(Math.abs(clockOffset))+'ms';
+  if(G('l-rtt'))    G('l-rtt').textContent=bestRTT+'ms';
+}
+
+// ════════════════════════════════════════════
+// SCREEN SHARE — HOST SIDE
+// Google Meet style: capture tab audio via getDisplayMedia
+// encode WebM/Opus chunks → send to server → relay to listeners
+// ════════════════════════════════════════════
 async function startScreenShare(){
   try{
-    // Request screen with audio
     screenStream = await navigator.mediaDevices.getDisplayMedia({
-      video: true,   // Chrome requires video:true to offer audio checkbox
-      audio: {
-        echoCancellation: false,
-        noiseSuppression: false,
-        sampleRate: 48000,
-        channelCount: 2,
-      }
+      video: {width:1, height:1, frameRate:1}, // Chrome needs video:true to offer audio
+      audio: {echoCancellation:false, noiseSuppression:false, autoGainControl:false, sampleRate:48000, channelCount:2}
     });
-
-    // Check audio track was actually shared
-    const audioTracks = screenStream.getAudioTracks();
-    if(audioTracks.length === 0){
+    const aTracks = screenStream.getAudioTracks();
+    if(!aTracks.length){
       screenStream.getTracks().forEach(t=>t.stop());
-      toast('❌ No audio track! Tick "Share tab audio" in Chrome\'s dialog',7000);
+      toast('❌ No audio captured. Tick "Share tab audio" in Chrome dialog.',7000);
       return;
     }
+    // Stop video track immediately — we only need audio
+    screenStream.getVideoTracks().forEach(t=>t.stop());
 
-    const title = audioTracks[0].label || 'Screen Audio';
-    console.log('[SHARE] Audio track:', title);
+    // Host hears own audio
+    const localAud=new Audio();
+    localAud.srcObject=new MediaStream([...aTracks]);
+    localAud.volume=parseFloat(G('h-vol').value)||0.85;
+    localAud.play().catch(()=>{});
 
-    // Play locally so host hears it too
-    const localAudio = new Audio();
-    localAudio.srcObject = new MediaStream(audioTracks);
-    localAudio.volume = parseFloat(G('h-vol').value);
-    localAudio.play().catch(()=>{});
+    // Visualizer for host
+    if(screenVizCtx){ screenVizCtx.close(); screenVizCtx=null; }
+    screenVizCtx=new(window.AudioContext||window.webkitAudioContext)();
+    const srcN=screenVizCtx.createMediaStreamSource(new MediaStream([...aTracks]));
+    const anN=screenVizCtx.createAnalyser(); anN.fftSize=1024;
+    srcN.connect(anN); vizAnalyser=anN; startViz('h-viz');
 
-    // Build audio chain for host visualizer
-    screenAudioCtx = new(window.AudioContext||window.webkitAudioContext)({sampleRate:48000});
-    const src = screenAudioCtx.createMediaStreamSource(new MediaStream(audioTracks));
-    const an  = screenAudioCtx.createAnalyser();
-    an.fftSize = 1024;
-    src.connect(an);
-    // Don't connect to destination — host's local audio handles playback
-    vizAn = an;
-    startViz('h-viz');
+    // Pick best MIME type
+    const mime=['audio/webm;codecs=opus','audio/webm','audio/ogg;codecs=opus']
+      .find(m=>MediaRecorder.isTypeSupported(m)) || '';
+    lMime=mime; // share mime with listeners
 
-    // MediaRecorder: encode audio as WebM/Opus in small chunks (~100ms)
-    const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-      ? 'audio/webm;codecs=opus'
-      : MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/ogg;codecs=opus';
-
-    mediaRecorder = new MediaRecorder(new MediaStream(audioTracks), {
-      mimeType,
-      audioBitsPerSecond: 128000,
-    });
-
-    let chunkSeq = 0;
-    mediaRecorder.ondataavailable = e => {
-      if(e.data && e.data.size > 0 && sock){
-        // Convert Blob to ArrayBuffer then send as binary
-        e.data.arrayBuffer().then(buf => {
-          sock.emit('stream:chunk', {seq: chunkSeq++, data: buf, mimeType});
-        });
-      }
+    mediaRec=new MediaRecorder(new MediaStream([...aTracks]),{mimeType:mime, audioBitsPerSecond:128000});
+    let seq=0;
+    mediaRec.ondataavailable=async e=>{
+      if(!e.data||e.data.size===0||!sock||!roomCode) return;
+      const buf=await e.data.arrayBuffer();
+      sock.emit('stream:chunk',{seq:seq++, mime, data:buf});
     };
+    mediaRec.start(80); // 80ms chunks
 
-    // Emit chunks every 80ms — low latency like Google Meet
-    mediaRecorder.start(80);
+    sock.emit('stream:start',{title:aTracks[0].label||'Screen Audio', mime});
 
-    // Tell server & all listeners we're going live
-    sock.emit('stream:start', {title});
-
-    // Update UI
     G('screen-live-indicator').style.display='block';
     G('share-btn').style.display='none';
     G('stop-share-btn').style.display='';
     setPill('h-pill','po','do','● Live');
-    toast('🔴 Live! Everyone hears your audio');
-
-    // Handle host stopping via browser chrome (X button)
-    screenStream.getTracks().forEach(t=>{
-      t.onended = () => stopScreenShare();
-    });
+    toast('🔴 Live! Everyone hears your audio.');
+    aTracks[0].onended=()=>stopScreenShare();
 
   }catch(e){
-    console.error('[SHARE] Error:', e);
-    if(e.name==='NotAllowedError') toast('❌ Permission denied — allow screen access',5000);
-    else if(e.name==='NotSupportedError') toast('❌ Screen share not supported in this browser',5000);
-    else toast('❌ Screen share failed: '+e.message, 5000);
+    if(e.name==='NotAllowedError') toast('❌ Permission denied.',5000);
+    else toast('❌ '+e.message, 5000);
+    console.error('[SHARE]',e);
   }
 }
 
 function stopScreenShare(){
-  if(mediaRecorder && mediaRecorder.state!=='inactive') mediaRecorder.stop();
-  if(screenStream) screenStream.getTracks().forEach(t=>t.stop());
-  if(screenAudioCtx) screenAudioCtx.close().catch(()=>{});
-  screenStream=null; mediaRecorder=null; screenAudioCtx=null;
+  try{ if(mediaRec&&mediaRec.state!=='inactive') mediaRec.stop(); }catch(e){}
+  try{ if(screenStream) screenStream.getTracks().forEach(t=>t.stop()); }catch(e){}
+  try{ if(screenVizCtx){ screenVizCtx.close(); screenVizCtx=null; } }catch(e){}
+  screenStream=null; mediaRec=null;
+  if(vizRaf){ cancelAnimationFrame(vizRaf); vizRaf=null; vizAnalyser=null; }
   if(sock) sock.emit('stream:stop');
   G('screen-live-indicator').style.display='none';
   G('share-btn').style.display='';
   G('stop-share-btn').style.display='none';
   setPill('h-pill','pw','dm','Ready');
-  if(vizRaf){cancelAnimationFrame(vizRaf);vizRaf=null;vizAn=null;}
   toast('⏹ Stream stopped');
 }
 
-// ══════════════════════════════════════════════════════
-// LISTENER: receive & play live stream chunks
-// Uses MediaSource Extensions (MSE) — same tech as YouTube/Netflix
-// Buffers chunks and plays them with minimal latency
-// ══════════════════════════════════════════════════════
-function initListenerStream(mimeType){
-  const audio = G('l-stream-audio');
-  // Reset
-  if(lMediaSource && lMediaSource.readyState==='open') lMediaSource.endOfStream();
-  lMediaSource=null; lSourceBuf=null; lQueue=[]; lBusy=false;
+// ════════════════════════════════════════════
+// MSE STREAM — LISTENER SIDE
+// MediaSource Extensions: buffer WebM/Opus chunks
+// same tech as YouTube / Netflix streaming
+// ════════════════════════════════════════════
+function initMSE(mime){
+  lPlaying=false; lChunks=[];
+  const audio=G('l-stream-audio');
 
-  try{
-    // Check MSE support
-    if(!window.MediaSource || !MediaSource.isTypeSupported(mimeType)){
-      // Fallback: collect chunks and use blob URL
-      console.warn('[STREAM] MSE not supported for',mimeType,'— using blob fallback');
-      return false;
-    }
+  // Clean up previous MSE
+  try{ if(lMS&&lMS.readyState==='open') lMS.endOfStream(); }catch(e){}
+  if(audio.src&&audio.src.startsWith('blob:')) URL.revokeObjectURL(audio.src);
+  audio.pause(); audio.removeAttribute('src'); audio.load();
 
-    lMediaSource = new MediaSource();
-    audio.src = URL.createObjectURL(lMediaSource);
+  if(!window.MediaSource){ console.error('[MSE] not supported'); return; }
 
-    lMediaSource.addEventListener('sourceopen', ()=>{
-      try{
-        lSourceBuf = lMediaSource.addSourceBuffer(mimeType);
-        lSourceBuf.mode = 'sequence';
-        lSourceBuf.addEventListener('updateend', flushQueue);
-        // Flush any queued chunks
-        flushQueue();
-      }catch(e){ console.error('[MSE] sourceopen error:', e); }
-    });
-
-    audio.volume = parseFloat(G('l-vol').value)||0.85;
-    audio.play().catch(()=>{G('unlock').classList.remove('gone');});
-    return true;
-  }catch(e){
-    console.error('[STREAM] MSE init error:', e);
-    return false;
+  const supported=MediaSource.isTypeSupported(mime);
+  if(!supported){
+    // Try plain webm
+    if(MediaSource.isTypeSupported('audio/webm')) mime='audio/webm';
+    else{ console.error('[MSE] no supported mime'); return; }
   }
+  lMime=mime;
+  lMS=new MediaSource();
+  audio.src=URL.createObjectURL(lMS);
+
+  lMS.addEventListener('sourceopen',()=>{
+    console.log('[MSE] sourceopen mime='+lMime);
+    try{
+      lSB=lMS.addSourceBuffer(lMime);
+      lSB.mode='sequence';
+      lSB.addEventListener('updateend',flushMSE);
+      lSB.addEventListener('error',e=>console.error('[MSE SB error]',e));
+      flushMSE(); // drain any chunks that arrived early
+    }catch(e){ console.error('[MSE addSourceBuffer]',e); }
+  },{once:true});
 }
 
-function appendChunk(arrayBuf){
-  lQueue.push(arrayBuf);
-  flushQueue();
-}
-
-function flushQueue(){
-  if(!lSourceBuf || lBusy || lQueue.length===0) return;
-  if(lSourceBuf.updating) return;
-  lBusy=true;
+function flushMSE(){
+  if(!lSB||lSB.updating||!lChunks.length) return;
   try{
-    const buf = lQueue.shift();
-    lSourceBuf.appendBuffer(buf);
-    // Keep buffer small — remove old data to prevent memory growth
-    if(lSourceBuf.buffered.length > 0){
-      const end = lSourceBuf.buffered.end(0);
-      const start = lSourceBuf.buffered.start(0);
-      if(end - start > 10){ // Keep only 10s buffer
-        lSourceBuf.remove(start, end - 8);
+    lSB.appendBuffer(lChunks.shift());
+    // Start playing as soon as first chunk appended
+    const audio=G('l-stream-audio');
+    if(!lPlaying && lSB.buffered.length>0 && lSB.buffered.end(0)>0.1){
+      lPlaying=true;
+      audio.volume=parseFloat(G('l-vol').value)||0.85;
+      audio.play().catch(()=>{
+        G('unlock').classList.remove('gone');
+        G('unlock').onclick=()=>{
+          doUnlock();
+          audio.play().catch(()=>{});
+        };
+      });
+    }
+    // Trim old buffer (keep last 10s to save memory)
+    if(lSB.buffered.length>0){
+      const s=lSB.buffered.start(0), e=lSB.buffered.end(0);
+      const audio=G('l-stream-audio');
+      const trim=audio.currentTime-6;
+      if(trim>s && !lSB.updating){
+        try{ lSB.remove(s, trim); }catch(ex){}
       }
     }
   }catch(e){
-    console.warn('[MSE] append error:', e.message);
+    if(e.name==='QuotaExceededError'){
+      lChunks=[];
+      try{ if(lSB.buffered.length>0) lSB.remove(lSB.buffered.start(0),lSB.buffered.end(0)); }catch(ex){}
+    } else {
+      console.warn('[MSE appendBuffer]',e.message);
+    }
   }
-  lBusy=false;
 }
 
-// ══════════════════════════════════════════════════════
-// YOUTUBE LOAD
-// ══════════════════════════════════════════════════════
+function pushStreamChunk(rawData){
+  let ab;
+  if(rawData instanceof ArrayBuffer)      ab=rawData;
+  else if(rawData?.buffer)               ab=rawData.buffer.slice(rawData.byteOffset, rawData.byteOffset+rawData.byteLength);
+  else if(Array.isArray(rawData))        ab=new Uint8Array(rawData).buffer;
+  else{ console.warn('[MSE] unknown chunk type',typeof rawData); return; }
+  lChunks.push(ab);
+  flushMSE();
+}
+
+// ════════════════════════════════════════════
+// YOUTUBE / URL LOAD — HOST
+// ════════════════════════════════════════════
 async function loadYoutube(){
-  const raw = G('yt-url').value.trim();
-  if(!raw){toast('Paste a YouTube URL');return;}
+  const raw=G('yt-url').value.trim();
+  if(!raw){ toast('Paste a YouTube URL'); return; }
   const btn=G('yt-btn');
   btn.disabled=true; btn.textContent='...';
-  setStatus('yt-status','<span class="spin">⟳</span> Fetching via yt-dlp (10-20s first time)...');
+  setStatus('yt-status','<span class="spin">⟳</span> Fetching via yt-dlp...');
   try{
     const ctrl=new AbortController();
     const tid=setTimeout(()=>ctrl.abort(),45000);
-    let res, data;
+    let res,data;
     try{
       res=await fetch('/yt-info?url='+encodeURIComponent(raw),{signal:ctrl.signal});
       data=await res.json();
-    }finally{clearTimeout(tid);}
+    }finally{ clearTimeout(tid); }
     if(!res.ok||data.error){
-      setStatus('yt-status','❌ '+data.error);
-      if(data.error&&data.error.includes('Screen Share')){
-        setStatus('yt-status','❌ '+data.error+' — <a href="#" onclick="switchMode(\'screen\');return false;" style="color:var(--orange)">Switch to Screen Share ↗</a>');
-      }
-      btn.disabled=false;btn.textContent='Load';
-      return;
+      setStatus('yt-status',`❌ ${data.error} — <a href="#" onclick="switchMode('screen');return false;" style="color:var(--orange)">Use Screen Share instead →</a>`);
+      btn.disabled=false; btn.textContent='Load'; return;
     }
     setStatus('yt-status','✅ '+data.title);
     applyTrack('/yt-stream?url='+encodeURIComponent(raw), data.title, raw);
   }catch(e){
-    const m=e.name==='AbortError'?'Timed out. Use Screen Share instead!':e.message;
+    const m=e.name==='AbortError'?'Timed out — use Screen Share!':e.message;
     setStatus('yt-status','❌ '+m);
-    toast('❌ '+m, 6000);
   }
   btn.disabled=false; btn.textContent='Load';
 }
 
 function loadDirectUrl(){
   const raw=G('direct-url').value.trim();
-  if(!raw){toast('Enter a URL');return;}
-  setStatus('url-status','<span class="spin">⟳</span> Loading...');
+  if(!raw){ toast('Enter a URL'); return; }
   const title=decodeURIComponent(raw.split('/').pop().split('?')[0].replace(/\.[^.]+$/,'')||'Audio');
-  applyTrack('/proxy?url='+encodeURIComponent(raw),title,raw);
+  applyTrack('/proxy?url='+encodeURIComponent(raw), title, raw);
+  setStatus('url-status','<span class="spin">⟳</span> Loading...');
 }
 
 function loadFile(){
-  const f=G('file-input').files[0]; if(!f)return;
-  setStatus('file-status','⚠️ Local file — use Screen Share so everyone hears it');
-  applyTrack(URL.createObjectURL(f),f.name.replace(/\.[^.]+$/,''),null,true);
+  const f=G('file-input').files[0]; if(!f) return;
+  setStatus('file-status','⚠️ Local only — use Screen Share so everyone hears it');
+  applyTrack(URL.createObjectURL(f), f.name.replace(/\.[^.]+$/,''), null, true);
 }
 
-function applyTrack(streamUrl,title,originalUrl,isLocal=false){
+function applyTrack(streamUrl, title, originalUrl, isLocal=false){
   const a=G('h-audio');
-  teardown('h');
+  // Tear down host chain first
+  if(hAudioCtx){ hAudioCtx.close().catch(()=>{}); hAudioCtx=null; hChain=null; }
+  if(vizRaf&&currentMode!=='screen'){ cancelAnimationFrame(vizRaf); vizRaf=null; }
   currentTrack={streamUrl,title,originalUrl,isLocal};
+
+  a.pause(); a.src=''; a.load(); // full reset
   a.src=streamUrl; a.load();
   G('h-tname').textContent=title;
   G('h-tsub').textContent='Loading...';
   G('h-player').style.display='block';
   G('h-play-btn').disabled=true;
 
-  a.addEventListener('loadedmetadata',function onM(){
-    a.removeEventListener('loadedmetadata',onM);
+  a.addEventListener('loadedmetadata', function onMeta(){
+    a.removeEventListener('loadedmetadata',onMeta);
     G('h-dur').textContent=fmt(a.duration);
     G('h-tsub').textContent=fmt(a.duration)+(isLocal?' · local only':' · ready');
     G('h-play-btn').disabled=false;
-    buildChain(a,'h');
+    if(!hAudioCtx) buildAudioChain(a,'h');
     startProg(a,'h-fill','h-cur','h-dur');
     startViz('h-viz');
     toast('✅ Loaded — press Play ▶');
     setStatus('yt-status','✅ Ready');
     setStatus('url-status','✅ Ready');
   });
-  a.addEventListener('error',function onE(){
-    a.removeEventListener('error',onE);
+  a.addEventListener('error', function onErr(){
+    a.removeEventListener('error',onErr);
     const codes=['','ABORTED','NETWORK','DECODE','NOT_SUPPORTED'];
-    const msg=a.error?(codes[a.error.code]||'ERR_'+a.error.code):'UNKNOWN';
-    setStatus('yt-status','❌ '+msg); setStatus('url-status','❌ '+msg);
-    toast('❌ Audio error: '+msg+' — Try Screen Share instead',6000);
+    const m=a.error?(codes[a.error.code]||'ERR_'+a.error.code):'UNKNOWN';
+    setStatus('yt-status','❌ '+m); setStatus('url-status','❌ '+m);
+    toast('❌ '+m+' — Try Screen Share',6000);
     G('h-play-btn').disabled=false;
   });
 
-  // Seekbar
-  const bar=G('h-seekbar');
-  const nb=bar.cloneNode(true);
-  bar.parentNode.replaceChild(nb,bar);
-  let drag=false;
-  function getR(e){const rc=nb.querySelector('.seek-track').getBoundingClientRect();return Math.max(0,Math.min(1,((e.touches?e.touches[0].clientX:e.clientX)-rc.left)/rc.width));}
-  function doSeek(e){if(!a.duration)return;const r=getR(e),pos=r*a.duration;a.currentTime=pos;G('h-fill').style.width=(r*100)+'%';const playing=!a.paused,playAt=srvNow()+SCHED_MS;if(playing)setTimeout(()=>a.play().catch(()=>{}),SCHED_MS);sock.emit('audio:seek',{position:pos,playing,serverPlayAt:playAt});}
-  nb.addEventListener('mousedown',e=>{drag=true;doSeek(e);});
-  nb.addEventListener('touchstart',e=>{drag=true;doSeek(e);},{passive:true});
-  document.addEventListener('mousemove',e=>{if(drag)doSeek(e);});
-  document.addEventListener('touchmove',e=>{if(drag)doSeek(e);},{passive:true});
-  document.addEventListener('mouseup',()=>drag=false);
-  document.addEventListener('touchend',()=>drag=false);
-
-  if(!isLocal&&sock) sock.emit('track:set',{streamUrl,title,originalUrl});
+  setupSeekbar(a);
+  if(!isLocal && sock) sock.emit('track:set',{streamUrl,title,originalUrl});
 }
 
-// ══════════════════════════════════════════════════════
-// AI AUDIO CHAIN — 7-band EQ + Reverb + Compression
-// ══════════════════════════════════════════════════════
-function buildChain(el,side){
-  teardown(side);
+function setupSeekbar(audio){
+  const oldBar=G('h-seekbar');
+  const bar=oldBar.cloneNode(true);
+  oldBar.parentNode.replaceChild(bar,oldBar);
+  let drag=false;
+  const getR=e=>{
+    const rc=bar.querySelector('.seek-track').getBoundingClientRect();
+    return Math.max(0,Math.min(1,((e.touches?e.touches[0].clientX:e.clientX)-rc.left)/rc.width));
+  };
+  const doSeek=e=>{
+    if(!audio.duration) return;
+    const r=getR(e), pos=r*audio.duration;
+    audio.currentTime=pos;
+    G('h-fill').style.width=(r*100)+'%';
+    const playing=!audio.paused, playAt=srvNow()+SCHED_LEAD;
+    if(playing) setTimeout(()=>audio.play().catch(()=>{}),SCHED_LEAD);
+    if(sock) sock.emit('audio:seek',{position:pos,playing,serverPlayAt:playAt});
+  };
+  bar.addEventListener('mousedown', e=>{drag=true;doSeek(e);});
+  bar.addEventListener('touchstart',e=>{drag=true;doSeek(e);},{passive:true});
+  document.addEventListener('mousemove',e=>{if(drag)doSeek(e);});
+  document.addEventListener('touchmove',e=>{if(drag)doSeek(e);},{passive:true});
+  document.addEventListener('mouseup',  ()=>{drag=false;});
+  document.addEventListener('touchend', ()=>{drag=false;});
+}
+
+// ════════════════════════════════════════════
+// AI AUDIO CHAIN
+// 7-band EQ + Convolution Reverb + Compressor
+// ════════════════════════════════════════════
+function buildAudioChain(el, side){
+  if(side==='h'&&hAudioCtx) return hChain;
+  if(side==='l'&&lAudioCtx) return lChain;
   try{
-    const ctx=new(window.AudioContext||window.webkitAudioContext)({sampleRate:48000,latencyHint:'playback'});
+    const ctx=new(window.AudioContext||window.webkitAudioContext)({sampleRate:48000, latencyHint:'playback'});
     const src=ctx.createMediaElementSource(el);
-    const f1=mkF(ctx,'lowshelf',40);
-    const f2=mkF(ctx,'peaking',120,1.0);
-    const f3=mkF(ctx,'peaking',400,0.9);
-    const f4=mkF(ctx,'peaking',1200,0.9);
-    const f5=mkF(ctx,'peaking',4000,1.0);
-    const f6=mkF(ctx,'peaking',8000,1.1);
+    const f1=mkF(ctx,'lowshelf', 40);
+    const f2=mkF(ctx,'peaking', 120, 1.0);
+    const f3=mkF(ctx,'peaking', 400, 0.9);
+    const f4=mkF(ctx,'peaking',1200, 0.9);
+    const f5=mkF(ctx,'peaking',4000, 1.0);
+    const f6=mkF(ctx,'peaking',8000, 1.1);
     const f7=mkF(ctx,'highshelf',16000);
     const comp=ctx.createDynamicsCompressor();
-    comp.threshold.value=-24;comp.knee.value=8;comp.ratio.value=2;comp.attack.value=0.003;comp.release.value=0.15;
+    Object.assign(comp,{});
+    comp.threshold.value=-24; comp.knee.value=8; comp.ratio.value=2;
+    comp.attack.value=0.003; comp.release.value=0.15;
     const rev=ctx.createConvolver(); rev.buffer=makeIR(ctx,2.2,3);
-    const rG=ctx.createGain(); rG.gain.value=0;
-    const dG=ctx.createGain(); dG.gain.value=1;
-    const master=ctx.createGain(); master.gain.value=0.85;
+    const revG=ctx.createGain(); revG.gain.value=0;
+    const dryG=ctx.createGain(); dryG.gain.value=1;
+    const master=ctx.createGain(); master.gain.value=parseFloat(side==='h'?G('h-vol').value:G('l-vol').value)||0.85;
     const an=ctx.createAnalyser(); an.fftSize=1024; an.smoothingTimeConstant=0.82;
-    src.connect(f1);f1.connect(f2);f2.connect(f3);f3.connect(f4);f4.connect(f5);f5.connect(f6);f6.connect(f7);
-    f7.connect(dG); f7.connect(rev); rev.connect(rG);
-    dG.connect(comp); rG.connect(comp);
+    src.connect(f1); f1.connect(f2); f2.connect(f3); f3.connect(f4);
+    f4.connect(f5); f5.connect(f6); f6.connect(f7);
+    f7.connect(dryG); f7.connect(rev); rev.connect(revG);
+    dryG.connect(comp); revG.connect(comp);
     comp.connect(master); master.connect(an); an.connect(ctx.destination);
-    const chain={f1,f2,f3,f4,f5,f6,f7,comp,rev,rG,dG,master,an};
-    if(side==='h'){hCtx=ctx;hChain=chain;vizAn=an;}
-    else{lCtx=ctx;lChain=chain;vizAn=an;}
-    applyPreset(PRESETS[currentEQ[side]||'flat'],chain);
+    const chain={f1,f2,f3,f4,f5,f6,f7,comp,rev,revG,dryG,master,an};
+    if(side==='h'){ hAudioCtx=ctx; hChain=chain; }
+    else          { lAudioCtx=ctx; lChain=chain; }
+    vizAnalyser=an;
+    applyPreset(PRESETS[currentEQ[side]||'flat'], chain);
     ctx.resume();
     return chain;
-  }catch(e){console.warn('chain:',e);return null;}
+  }catch(e){ console.error('[chain]',e); return null; }
 }
 
 function makeIR(ctx,dur,decay){
@@ -879,352 +940,456 @@ function makeIR(ctx,dur,decay){
   for(let ch=0;ch<2;ch++){
     const d=buf.getChannelData(ch);
     for(let i=0;i<len;i++){
-      const t=i/ctx.sampleRate,env=Math.pow(Math.max(0,1-t/dur),decay);
+      const t=i/ctx.sampleRate, env=Math.pow(Math.max(0,1-t/dur),decay);
       d[i]=(Math.random()*2-1)*env*0.4;
-      if(i<ctx.sampleRate*0.04)d[i]*=1.8;
+      if(i<ctx.sampleRate*0.04) d[i]*=1.8;
     }
   }
   return buf;
 }
 
-function mkF(ctx,type,freq,q){const f=ctx.createBiquadFilter();f.type=type;f.frequency.value=freq;if(q!==undefined)f.Q.value=q;return f;}
-
-function teardown(side){
-  if(side==='h'&&hCtx){hCtx.close().catch(()=>{});hCtx=null;hChain=null;}
-  if(side==='l'&&lCtx){lCtx.close().catch(()=>{});lCtx=null;lChain=null;}
-  if(vizRaf){cancelAnimationFrame(vizRaf);vizRaf=null;}
-  vizAn=null;
+function mkF(ctx,type,freq,q){
+  const f=ctx.createBiquadFilter(); f.type=type; f.frequency.value=freq;
+  if(q!==undefined) f.Q.value=q; return f;
 }
 
-function applyPreset(p,chain){
-  if(!chain)return;
+function applyPreset(p, chain){
+  if(!chain) return;
   chain.f1.gain.value=p.sub; chain.f2.gain.value=p.bass;
   chain.f3.gain.value=p.lo;  chain.f4.gain.value=p.mid;
   chain.f5.gain.value=p.hi;  chain.f6.gain.value=p.pres;
   chain.f7.gain.value=p.air;
   chain.comp.ratio.value=p.ratio; chain.comp.threshold.value=p.thr; chain.comp.knee.value=p.knee;
-  chain.rG.gain.value=p.rev; chain.dG.gain.value=1-(p.rev*0.5);
+  chain.revG.gain.value=p.rev; chain.dryG.gain.value=1-(p.rev*0.4);
 }
 
-function setEQ(btn,side){
-  const preset=btn.id.replace(/^[hl]eq-/,'');
-  const p=PRESETS[preset]; if(!p)return;
-  applyPreset(p,side==='h'?hChain:lChain);
-  currentEQ[side]=preset;
-  document.querySelectorAll('[id^="'+side+'eq-"]').forEach(b=>b.classList.remove('on'));
+function setEQ(btn, side){
+  const key=btn.id.replace(/^[hl]eq-/,'');
+  const p=PRESETS[key]; if(!p) return;
+  applyPreset(p, side==='h'?hChain:lChain);
+  currentEQ[side]=key;
+  document.querySelectorAll(`[id^="${side}eq-"]`).forEach(b=>b.classList.remove('on'));
   btn.classList.add('on');
-  const df=G(side+'-depth'),dv=G(side+'-depth-val');
-  if(df){df.style.width=(p.depth||0)+'%';dv.textContent=(p.depth||0)+'%';}
+  const df=G(side+'-depth'), dv=G(side+'-depth-val');
+  if(df){ df.style.width=(p.depth||0)+'%'; dv.textContent=(p.depth||0)+'%'; }
   toast('✦ '+p.label);
 }
 
-// ══════════════════════════════════════════════════════
+// ════════════════════════════════════════════
 // SOCKET
-// ══════════════════════════════════════════════════════
+// ════════════════════════════════════════════
 function initSock(){
-  if(sock&&sock.connected)return;
-  sock=io({transports:['websocket','polling'],reconnectionAttempts:20,reconnectionDelay:1000,reconnectionDelayMax:5000,timeout:20000});
-  sock.on('connect',()=>{setConn(true);doNTP();clearInterval(window._ka);window._ka=setInterval(()=>{if(sock&&sock.connected)sock.emit('keepalive');},15000);});
-  sock.on('disconnect',()=>{setConn(false);if(roomCode)toast('⚠️ Reconnecting...');});
-  sock.on('reconnect',()=>{setConn(true);toast('✅ Reconnected');doNTP();});
+  if(sock&&sock.connected) return;
+  sock=io({transports:['websocket','polling'],reconnectionAttempts:20,reconnectionDelay:1000,timeout:20000});
+
+  sock.on('connect',()=>{
+    console.log('[WS] connected',sock.id);
+    setConn(true); doNTP();
+    clearInterval(window._ka);
+    window._ka=setInterval(()=>{ if(sock?.connected) sock.emit('keepalive'); }, 15000);
+  });
+  sock.on('disconnect',()=>{ setConn(false); if(roomCode) toast('⚠️ Reconnecting...'); });
+  sock.on('reconnect', ()=>{ setConn(true); toast('✅ Reconnected'); doNTP(); });
   sock.on('connect_error',()=>setConn(false));
 
   sock.on('ntp:pong',({clientTime,serverTime})=>{
-    const now=Date.now(),rtt=now-clientTime;
-    ntpSamples.push({rtt,offset:now-(serverTime+rtt/2)});
-    if(ntpSamples.length<NTP_ROUNDS)setTimeout(()=>sock.emit('ntp:ping',{clientTime:Date.now()}),40);
+    const now=Date.now(), rtt=now-clientTime;
+    ntpSamples.push({rtt, offset: now-(serverTime+rtt/2)});
+    if(ntpSamples.length<NTP_ROUNDS) setTimeout(()=>sock.emit('ntp:ping',{clientTime:Date.now()}),40);
     else finishNTP();
   });
 
-  // HOST events
+  // ── HOST EVENTS ─────────────────────────────
   sock.on('room:listener_joined',({id})=>{
-    listeners[id]={};renderListeners();
-    if(currentMode==='screen'&&mediaRecorder) return; // screen share handles it
-    if(currentTrack&&!currentTrack.isLocal){
-      sock.emit('track:set',{streamUrl:currentTrack.streamUrl,title:currentTrack.title,originalUrl:currentTrack.originalUrl});
-      const a=G('h-audio');
-      if(a.src) setTimeout(()=>{
-        if(!a.paused) sock.emit('audio:play',{position:a.currentTime,serverPlayAt:srvNow()+SCHED_MS});
-        else sock.emit('audio:pause',{position:a.currentTime});
-      },900);
-    }
+    listeners[id]={}; renderListeners();
+    // Push current state to new joiner after small delay
+    setTimeout(()=>{
+      if(currentMode==='url'&&currentTrack&&!currentTrack.isLocal&&sock){
+        sock.emit('track:set',{streamUrl:currentTrack.streamUrl,title:currentTrack.title,originalUrl:currentTrack.originalUrl});
+        const a=G('h-audio');
+        setTimeout(()=>{
+          if(!a.paused) sock.emit('audio:play',{position:a.currentTime, serverPlayAt:srvNow()+SCHED_LEAD});
+          else          sock.emit('audio:pause',{position:a.currentTime});
+        }, 1000);
+      }
+    }, 300);
   });
-  sock.on('room:listener_left',({id})=>{delete listeners[id];renderListeners();});
+  sock.on('room:listener_left',({id})=>{ delete listeners[id]; renderListeners(); });
   sock.on('room:count',n=>G('h-lcnt').textContent=n);
 
-  // LISTENER events
-  sock.on('track:set',({streamUrl,title})=>loadListenerTrack(streamUrl,title));
-  sock.on('audio:play',({position,serverPlayAt})=>schedPlay(position,serverPlayAt));
+  // ── LISTENER URL EVENTS ─────────────────────
+  // KEY FIX: track:set → load audio → wait for canplay → THEN apply any pending play
+  sock.on('track:set',({streamUrl,title})=>{
+    console.log('[L] track:set',title);
+    G('l-stream-panel').style.display='none';
+    G('l-url-panel').style.display='block';
+    lPendingSchedPlay=null; // clear any stale pending
+    loadListenerTrack(streamUrl, title);
+  });
+
+  sock.on('audio:play',({position,serverPlayAt})=>{
+    console.log('[L] audio:play pos='+position.toFixed(2));
+    if(!lAudioReady){
+      // Audio not ready yet — store the command, fire when canplay triggers
+      console.log('[L] audio not ready yet, queuing play command');
+      lPendingSchedPlay={position, serverPlayAt};
+    } else {
+      schedPlay(position, serverPlayAt);
+    }
+  });
+
   sock.on('audio:pause',({position})=>{
-    cancelSched();clearInterval(driftWatcher);
-    const a=G('l-audio'); if(!a.src)return;
-    a.pause(); if(Math.abs(a.currentTime-position)>0.5)a.currentTime=position;
+    console.log('[L] audio:pause');
+    lPendingSchedPlay=null;
+    cancelSched(); clearInterval(driftTimer);
+    const a=G('l-audio'); if(!a.src) return;
+    a.pause();
+    if(Math.abs(a.currentTime-position)>0.5) a.currentTime=position;
     G('l-art').classList.remove('spin');
     setPill('l-pill','pw','dm','Paused');
     setSyncInfo('Host paused.');
   });
-  sock.on('audio:seek',({position,playing,serverPlayAt})=>{
-    cancelSched(); const a=G('l-audio'); if(!a.src)return;
-    a.currentTime=position;
-    if(playing)schedPlay(position,serverPlayAt);
-    else{a.pause();G('l-art').classList.remove('spin');}
-  });
-  sock.on('room:host_left',()=>{toast('🚪 Host ended session');setTimeout(leave,1500);});
 
-  // LIVE STREAM events
-  let streamMime='audio/webm;codecs=opus';
-  sock.on('stream:start',({title,serverTime})=>{
-    console.log('[STREAM] Starting live:',title);
+  sock.on('audio:seek',({position,playing,serverPlayAt})=>{
+    lPendingSchedPlay=null;
+    cancelSched();
+    const a=G('l-audio'); if(!a.src) return;
+    a.currentTime=position;
+    if(playing) schedPlay(position, serverPlayAt);
+    else { a.pause(); G('l-art').classList.remove('spin'); }
+  });
+
+  // ── LISTENER STREAM EVENTS ──────────────────
+  sock.on('stream:start',({title,mime})=>{
+    console.log('[L] stream:start mime='+mime);
+    const useMime=mime||'audio/webm;codecs=opus';
     G('l-stream-panel').style.display='block';
     G('l-url-panel').style.display='none';
     G('l-stream-title').textContent=title||'Live Stream';
-    G('l-mode-val').textContent='LIVE';
-    G('l-stats').style.display='flex';
     setPill('l-pill','po','do','● Live');
-    setSyncInfo('🔴 Receiving live stream from host...');
-    initListenerStream(streamMime);
+    setSyncInfo('🔴 Receiving live audio from host...');
+    if(G('l-stats'))G('l-stats').style.display='flex';
+    if(G('l-mode-val'))G('l-mode-val').textContent='LIVE';
+    initMSE(useMime);
   });
 
-  sock.on('stream:chunk',({seq,data,mimeType})=>{
-    if(mimeType&&mimeType!==streamMime){
-      streamMime=mimeType;
-      initListenerStream(streamMime);
-    }
-    appendChunk(data instanceof ArrayBuffer ? data : new Uint8Array(data).buffer);
-    // Build audio chain on stream audio for EQ
-    const sa=G('l-stream-audio');
-    if(!lCtx&&sa.srcObject===null&&sa.src){
-      // slight delay to let MSE buffer
-      setTimeout(()=>{buildChain(sa,'l');startViz('l-viz');},500);
-    }
+  sock.on('stream:chunk',({seq,mime,data})=>{
+    if(mime&&mime!==lMime){ lMime=mime; initMSE(mime); }
+    pushStreamChunk(data);
   });
 
   sock.on('stream:stop',()=>{
+    console.log('[L] stream:stop');
     G('l-stream-panel').style.display='none';
     G('l-url-panel').style.display='block';
-    setPill('l-pill','pw','dm','Stream Ended');
-    setSyncInfo('Host stopped the stream.');
+    setPill('l-pill','pw','dm','Stream ended');
+    setSyncInfo('Host stopped streaming.');
+    lPlaying=false; lChunks=[];
+    try{ if(lMS&&lMS.readyState==='open') lMS.endOfStream(); }catch(e){}
     toast('Stream ended');
   });
+
+  sock.on('room:host_left',()=>{ toast('🚪 Host ended the session'); setTimeout(leave,1500); });
 }
 
-// ══════════════════════════════════════════════════════
-// NTP
-// ══════════════════════════════════════════════════════
-function doNTP(){ntpSamples=[];ntpDone=false;sock.emit('ntp:ping',{clientTime:Date.now()});}
-function finishNTP(){
-  ntpSamples.sort((a,b)=>a.rtt-b.rtt);
-  const best=ntpSamples.slice(0,Math.ceil(NTP_ROUNDS/3));
-  clockOffset=best.reduce((s,x)=>s+x.offset,0)/best.length;
-  bestRTT=ntpSamples[0].rtt; ntpDone=true;
-  if(G('l-offset'))G('l-offset').textContent=Math.round(Math.abs(clockOffset))+'ms';
-  if(G('l-rtt'))G('l-rtt').textContent=bestRTT+'ms';
-  console.log('[NTP] offset='+clockOffset.toFixed(1)+'ms RTT='+bestRTT+'ms');
+// ════════════════════════════════════════════
+// LOAD LISTENER TRACK
+// The KEY fix: use canplay event properly, then fire pending schedPlay
+// ════════════════════════════════════════════
+function loadListenerTrack(url, title, onReadyCb){
+  lAudioReady=false;
+  lPendingSchedPlay=null;
+
+  // Kill previous audio chain
+  if(lAudioCtx){ lAudioCtx.close().catch(()=>{}); lAudioCtx=null; lChain=null; }
+
+  const a=G('l-audio');
+  a.pause();
+  a.src=''; a.load(); // fully reset src so new events fire
+  G('l-tname').textContent=title||'Loading...';
+  G('l-dur').textContent='0:00';
+  setSyncInfo('<span class="spin">⟳</span> Loading track...');
+
+  a.src=url;
+  a.preload='auto';
+  a.load();
+
+  function onCanPlay(){
+    a.removeEventListener('canplay',  onCanPlay);
+    a.removeEventListener('error',    onError);
+    lAudioReady=true;
+    console.log('[L] canplay fired, duration=',a.duration);
+    if(a.duration) G('l-dur').textContent=fmt(a.duration);
+    setSyncInfo('✅ Ready — waiting for host to play...');
+
+    // Build audio chain now that media element has data
+    if(!lAudioCtx) buildAudioChain(a,'l');
+
+    if(onReadyCb) onReadyCb();
+
+    // Fire any play command that arrived before we were ready
+    if(lPendingSchedPlay){
+      console.log('[L] firing queued play command');
+      const {position,serverPlayAt}=lPendingSchedPlay;
+      lPendingSchedPlay=null;
+      schedPlay(position, serverPlayAt);
+    }
+  }
+
+  function onError(){
+    a.removeEventListener('canplay', onCanPlay);
+    a.removeEventListener('error',   onError);
+    lAudioReady=false;
+    const codes=['','Aborted','Network error','Decode error','Not supported'];
+    const msg=codes[a.error?.code]||'Load failed';
+    console.error('[L] audio error:',msg);
+    setSyncInfo('❌ '+msg);
+    toast('❌ Audio error: '+msg, 4000);
+  }
+
+  a.addEventListener('canplay', onCanPlay);
+  a.addEventListener('error',   onError);
 }
 
-// ══════════════════════════════════════════════════════
-// SCHEDULED PLAY (URL mode)
-// ══════════════════════════════════════════════════════
-function schedPlay(position,serverPlayAt){
+// ════════════════════════════════════════════
+// SCHEDULED PLAY
+// ════════════════════════════════════════════
+function schedPlay(position, serverPlayAt){
   cancelSched();
-  const a=G('l-audio'); if(!a.src)return;
-  const localPlayAt=serverPlayAt+clockOffset;
-  const msLeft=localPlayAt-Date.now();
+  const a=G('l-audio');
+  if(!a.src){ console.warn('[sched] no src'); return; }
+  if(!lAudioReady){ console.warn('[sched] audio not ready'); lPendingSchedPlay={position,serverPlayAt}; return; }
+
+  const localPlayAt = serverPlayAt + clockOffset;
+  const msLeft      = localPlayAt - Date.now();
+
+  setPill('l-pill','pw','dm','Buffering...');
+  setSyncInfo(`⟳ Syncing in ${Math.max(0,Math.round(msLeft))}ms...`);
+
+  // Pre-seek
+  const preSeekTarget = Math.max(0, position + Math.max(0, -msLeft/1000));
+  if(Math.abs(a.currentTime - preSeekTarget) > DRIFT_TOL) a.currentTime=preSeekTarget;
 
   function execute(){
-    const late=Math.max(0,(Date.now()-localPlayAt))/1000;
-    const target=Math.max(0,position+late);
-    const drift=Math.abs(a.currentTime-target);
-    if(drift>DRIFT_TOL)a.currentTime=target;
+    const late  = Math.max(0,(Date.now()-localPlayAt))/1000;
+    const target= Math.max(0, position+late);
+    if(Math.abs(a.currentTime-target)>DRIFT_TOL) a.currentTime=target;
+
     a.play().then(()=>{
+      console.log('[L] playing ✅ at',a.currentTime.toFixed(2));
       G('l-art').classList.add('spin');
       setPill('l-pill','ps','dc','● In Sync');
-      setSyncInfo('🎧 In sync');
+      setSyncInfo('🎧 Playing in sync');
       G('unlock').classList.add('gone');
-      G('l-stats').style.display='flex';
-      if(G('l-drift'))G('l-drift').textContent=Math.round(drift*1000)+'ms';
+      if(G('l-stats'))G('l-stats').style.display='flex';
       if(G('l-mode-val'))G('l-mode-val').textContent='URL';
-      if(!lCtx){buildChain(a,'l');setTimeout(()=>startViz('l-viz'),200);}
-      if(lCtx)lCtx.resume();
+
+      // Audio chain should already exist from canplay, but build if missing
+      if(!lAudioCtx){ buildAudioChain(a,'l'); }
+      if(lAudioCtx) lAudioCtx.resume();
       startProg(a,'l-fill','l-cur','l-dur');
-      clearInterval(driftWatcher);
-      driftWatcher=setInterval(()=>{
-        if(a.paused)return;
+      setTimeout(()=>startViz('l-viz'), 100);
+
+      // Continuous drift correction
+      clearInterval(driftTimer);
+      driftTimer=setInterval(()=>{
+        if(a.paused) return;
         const elapsed=(srvNow()-serverPlayAt)/1000;
-        const exp=position+elapsed;
-        const d=Math.abs(a.currentTime-exp);
-        if(d>DRIFT_HARD){a.currentTime=exp;console.warn('[SYNC] Corrected',d.toFixed(3)+'s');}
-        if(G('l-drift'))G('l-drift').textContent=Math.round(d*1000)+'ms';
-      },3000);
-    }).catch(()=>{
+        const expected=position+elapsed;
+        const d=Math.abs(a.currentTime-expected);
+        if(d>DRIFT_HARD){ a.currentTime=expected; console.warn('[SYNC] corrected',d.toFixed(3)+'s'); }
+        if(G('l-drift')) G('l-drift').textContent=Math.round(d*1000)+'ms';
+      }, 3000);
+    }).catch(err=>{
+      console.warn('[play] blocked:',err.message);
       G('unlock').classList.remove('gone');
-      G('unlock').onclick=()=>{doUnlock();a.play().then(()=>{G('l-art').classList.add('spin');setPill('l-pill','ps','dc','● In Sync');if(!lCtx)buildChain(a,'l');if(lCtx)lCtx.resume();startViz('l-viz');startProg(a,'l-fill','l-cur','l-dur');});};
+      setSyncInfo('👆 Tap to play');
+      G('unlock').onclick=()=>{
+        doUnlock();
+        a.currentTime=Math.max(0,position+(srvNow()-serverPlayAt)/1000);
+        a.play().then(()=>{
+          G('l-art').classList.add('spin');
+          setPill('l-pill','ps','dc','● In Sync');
+          if(!lAudioCtx) buildAudioChain(a,'l');
+          if(lAudioCtx) lAudioCtx.resume();
+          startViz('l-viz');
+          startProg(a,'l-fill','l-cur','l-dur');
+        });
+      };
     });
   }
-  if(msLeft>20){a.currentTime=Math.max(0,position);setPill('l-pill','pw','dm','Buffering...');setSyncInfo('⟳ Syncing...');pendingPlay=setTimeout(execute,msLeft);}
-  else{a.currentTime=Math.max(0,position+Math.max(0,-msLeft/1000));execute();}
-}
-function cancelSched(){if(pendingPlay){clearTimeout(pendingPlay);pendingPlay=null;}}
 
-// ══════════════════════════════════════════════════════
+  if(msLeft>20) pendingPlay=setTimeout(execute, msLeft);
+  else execute();
+}
+
+function cancelSched(){
+  if(pendingPlay){ clearTimeout(pendingPlay); pendingPlay=null; }
+}
+
+// ════════════════════════════════════════════
 // CREATE / JOIN
-// ══════════════════════════════════════════════════════
+// ════════════════════════════════════════════
 function createRoom(){
   const name=G('rname-input').value.trim()||'Audio Room';
-  initSock(); amHost=true;
-  function go(){sock.emit('room:create',{name},res=>{
-    if(!res||!res.ok){toast('❌ Could not create room');return;}
+  amHost=true; initSock();
+  const go=()=>sock.emit('room:create',{name},res=>{
+    if(!res?.ok){ toast('❌ Could not create room'); return; }
     roomCode=res.code;
     G('h-rname').textContent=res.name;
     G('h-code').textContent=res.code;
     show('s-host');
     toast('🎉 Room ready! Share: '+res.code);
-  });}
-  if(sock.connected)go();else{toast('Connecting...');sock.once('connect',()=>setTimeout(go,300));}
+  });
+  if(sock.connected) go();
+  else sock.once('connect',()=>setTimeout(go,300));
 }
 
 function joinRoom(){
   const code=G('join-code').value.trim().toUpperCase();
-  if(code.length<6){toast('Enter the full 6-letter code');return;}
+  if(code.length<6){ toast('Enter the full 6-letter code'); return; }
   G('join-err').classList.remove('on');
-  initSock(); amHost=false;
-  function go(){sock.emit('room:join',{code},res=>{
-    if(!res||!res.ok){G('join-err').classList.add('on');return;}
+  amHost=false; initSock();
+  const go=()=>sock.emit('room:join',{code},res=>{
+    if(!res?.ok){ G('join-err').classList.add('on'); return; }
     roomCode=code;
     G('l-rname').textContent=res.name;
     G('l-clabel').textContent='Room: '+code;
     show('s-listen');
-    toast('🎧 Joined! Waiting for host...');
-    if(res.track&&res.track.streamUrl){
-      loadListenerTrack(res.track.streamUrl,res.track.title,()=>{
-        if(res.state&&res.state.playing&&res.state.serverPlayAt){
+    toast('🎧 Joined — waiting for host...');
+
+    if(res.track?.streamUrl){
+      loadListenerTrack(res.track.streamUrl, res.track.title, ()=>{
+        if(res.state?.playing && res.state.serverPlayAt){
           const elapsed=(srvNow()-res.state.serverPlayAt)/1000;
-          schedPlay(Math.max(0,(res.state.position||0)+elapsed),srvNow()+SCHED_MS);
-        }else if(res.state){
-          G('l-audio').currentTime=res.state.position||0;
-          setSyncInfo('Track loaded. Waiting for host...');
+          schedPlay(Math.max(0,(res.state.position||0)+elapsed), srvNow()+SCHED_LEAD);
+        } else {
+          G('l-audio').currentTime=res.state?.position||0;
+          setSyncInfo('Ready — waiting for host to play.');
         }
       });
     }
-  });}
-  if(sock.connected)go();else{toast('Connecting...');sock.once('connect',()=>setTimeout(go,400));}
+  });
+  if(sock.connected) go();
+  else sock.once('connect',()=>setTimeout(go,400));
 }
 
-// ══════════════════════════════════════════════════════
-// LISTENER TRACK LOAD
-// ══════════════════════════════════════════════════════
-function loadListenerTrack(url,title,cb){
-  const a=G('l-audio'); teardown('l');
-  a.src=url; a.load();
-  G('l-tname').textContent=title||'Loading...';
-  setSyncInfo('<span class="spin">⟳</span> Loading track...');
-  function onReady(){a.removeEventListener('canplay',onReady);if(a.duration)G('l-dur').textContent=fmt(a.duration);setSyncInfo('✅ Ready — waiting for host...');buildChain(a,'l');if(cb)cb();}
-  function onErr(){a.removeEventListener('error',onErr);const msgs=['','Aborted','Network','Decode','Not supported'];setSyncInfo('❌ '+(msgs[a.error?.code]||'Load failed'));toast('❌ Track load failed',4000);}
-  a.addEventListener('canplay',onReady);
-  a.addEventListener('error',onErr);
-}
-
-// ══════════════════════════════════════════════════════
+// ════════════════════════════════════════════
 // HOST CONTROLS
-// ══════════════════════════════════════════════════════
+// ════════════════════════════════════════════
 function hostPlay(){
-  const a=G('h-audio'); if(!a.src){toast('Load a track first');return;}
-  if(hCtx)hCtx.resume();
-  const pos=a.currentTime, playAt=srvNow()+SCHED_MS;
-  setTimeout(()=>{a.play().catch(()=>{});G('h-art').classList.add('spin');},SCHED_MS);
+  const a=G('h-audio'); if(!a.src){ toast('Load a track first'); return; }
+  if(hAudioCtx) hAudioCtx.resume();
+  const pos=a.currentTime, playAt=srvNow()+SCHED_LEAD;
+  setTimeout(()=>a.play().catch(()=>{}), SCHED_LEAD);
+  G('h-art').classList.add('spin');
   setPill('h-pill','pl','dg','● Playing');
-  sock.emit('audio:play',{position:pos,serverPlayAt:playAt});
-  startViz('h-viz');
+  sock.emit('audio:play',{position:pos, serverPlayAt:playAt});
 }
-function hostPause(){const a=G('h-audio');a.pause();G('h-art').classList.remove('spin');setPill('h-pill','pw','dm','Paused');sock.emit('audio:pause',{position:a.currentTime});}
+function hostPause(){
+  const a=G('h-audio');
+  a.pause(); G('h-art').classList.remove('spin');
+  setPill('h-pill','pw','dm','Paused');
+  sock.emit('audio:pause',{position:a.currentTime});
+}
 function hostRestart(){
-  const a=G('h-audio'); if(!a.src)return;
-  if(hCtx)hCtx.resume();a.currentTime=0;
-  const playAt=srvNow()+SCHED_MS;
-  setTimeout(()=>{a.play().catch(()=>{});G('h-art').classList.add('spin');},SCHED_MS);
+  const a=G('h-audio'); if(!a.src) return;
+  if(hAudioCtx) hAudioCtx.resume();
+  a.currentTime=0;
+  const playAt=srvNow()+SCHED_LEAD;
+  setTimeout(()=>a.play().catch(()=>{}), SCHED_LEAD);
+  G('h-art').classList.add('spin');
   setPill('h-pill','pl','dg','● Playing');
-  sock.emit('audio:play',{position:0,serverPlayAt:playAt});
+  sock.emit('audio:play',{position:0, serverPlayAt:playAt});
 }
-function hostVol(v){const val=parseFloat(v);G('h-audio').volume=val;if(hChain)hChain.master.gain.value=val;G('h-vol-val').textContent=Math.round(val*100)+'%';}
-function listVol(v){const val=parseFloat(v);['l-audio','l-stream-audio'].forEach(id=>{const a=G(id);if(a)a.volume=val;});if(lChain)lChain.master.gain.value=val;G('l-vol-val').textContent=Math.round(val*100)+'%';}
+function hostVol(v){
+  const val=parseFloat(v);
+  G('h-audio').volume=val;
+  if(hChain) hChain.master.gain.value=val;
+  G('h-vol-val').textContent=Math.round(val*100)+'%';
+}
+function listVol(v){
+  const val=parseFloat(v);
+  G('l-audio').volume=val;
+  G('l-stream-audio').volume=val;
+  if(lChain) lChain.master.gain.value=val;
+  G('l-vol-val').textContent=Math.round(val*100)+'%';
+}
 
-// ══════════════════════════════════════════════════════
+// ════════════════════════════════════════════
 // LEAVE
-// ══════════════════════════════════════════════════════
+// ════════════════════════════════════════════
 function leave(){
-  if(mediaRecorder&&mediaRecorder.state!=='inactive')mediaRecorder.stop();
-  if(screenStream)screenStream.getTracks().forEach(t=>t.stop());
-  if(screenAudioCtx)screenAudioCtx.close().catch(()=>{});
-  screenStream=null;mediaRecorder=null;screenAudioCtx=null;
-  cancelSched();clearInterval(window._ka);clearInterval(driftWatcher);
-  if(progRaf){cancelAnimationFrame(progRaf);progRaf=null;}
-  if(vizRaf){cancelAnimationFrame(vizRaf);vizRaf=null;}
-  ['h-audio','l-audio','l-stream-audio'].forEach(id=>{const a=G(id);if(a){a.pause();a.src='';a.load();}});
-  teardown('h');teardown('l');
-  if(sock){sock.disconnect();sock=null;}
-  roomCode=null;listeners={};currentTrack=null;
-  setConn(false);show('s-home');
+  try{ if(mediaRec&&mediaRec.state!=='inactive') mediaRec.stop(); }catch(e){}
+  try{ if(screenStream) screenStream.getTracks().forEach(t=>t.stop()); }catch(e){}
+  try{ if(screenVizCtx){ screenVizCtx.close(); screenVizCtx=null; } }catch(e){}
+  screenStream=null; mediaRec=null;
+  cancelSched(); clearInterval(window._ka); clearInterval(driftTimer);
+  if(progRaf){ cancelAnimationFrame(progRaf); progRaf=null; }
+  if(vizRaf){  cancelAnimationFrame(vizRaf);  vizRaf=null; vizAnalyser=null; }
+  ['h-audio','l-audio','l-stream-audio'].forEach(id=>{
+    const a=G(id); if(a){ a.pause(); a.src=''; a.load(); }
+  });
+  try{ if(hAudioCtx){ hAudioCtx.close(); hAudioCtx=null; hChain=null; } }catch(e){}
+  try{ if(lAudioCtx){ lAudioCtx.close(); lAudioCtx=null; lChain=null; } }catch(e){}
+  try{ if(lMS&&lMS.readyState==='open') lMS.endOfStream(); }catch(e){}
+  lMS=null; lSB=null; lChunks=[]; lPlaying=false; lAudioReady=false; lPendingSchedPlay=null;
+  if(sock){ sock.disconnect(); sock=null; }
+  roomCode=null; listeners={}; currentTrack=null;
+  setConn(false); show('s-home');
 }
 
-// ══════════════════════════════════════════════════════
-// UI HELPERS
-// ══════════════════════════════════════════════════════
-function copyCode(){
-  const code=G('h-code').textContent;
-  if(navigator.clipboard)navigator.clipboard.writeText(code).then(()=>toast('📋 Copied: '+code));
-  else{const e=document.createElement('input');e.value=code;document.body.appendChild(e);e.select();document.execCommand('copy');document.body.removeChild(e);toast('📋 Copied: '+code);}
-}
-function setSyncInfo(html){G('l-sync').innerHTML='<b>Status:</b> '+html;}
-function setPill(id,cls,dot,lbl){const e=G(id);if(!e)return;e.className='pill '+cls;e.innerHTML='<div class="dot '+dot+'"></div><span>'+lbl+'</span>';}
-function renderListeners(){
-  const ids=Object.keys(listeners);
-  G('h-lcnt').textContent=ids.length;
-  const el=G('h-llist');
-  if(!ids.length){el.innerHTML='<div class="nol">No one yet — share your code!</div>';return;}
-  el.innerHTML=ids.map((id,i)=>'<div class="litem"><div class="lav">🎧</div><span>Listener '+(i+1)+'</span><span style="margin-left:auto;font-family:\'Space Mono\',monospace;font-size:9px;color:var(--g)">● live</span></div>').join('');
-}
-function startProg(audio,fillId,curId,durId){
-  if(progRaf){cancelAnimationFrame(progRaf);progRaf=null;}
-  function tick(){progRaf=requestAnimationFrame(tick);const p=audio.duration?(audio.currentTime/audio.duration*100):0;const f=G(fillId);if(f)f.style.width=p+'%';if(G(curId))G(curId).textContent=fmt(audio.currentTime);if(G(durId)&&audio.duration)G(durId).textContent=fmt(audio.duration);}
+// ════════════════════════════════════════════
+// VISUALIZER + PROGRESS
+// ════════════════════════════════════════════
+function startProg(audio, fillId, curId, durId){
+  if(progRaf){ cancelAnimationFrame(progRaf); progRaf=null; }
+  function tick(){
+    progRaf=requestAnimationFrame(tick);
+    const p=audio.duration?(audio.currentTime/audio.duration*100):0;
+    const f=G(fillId); if(f) f.style.width=p+'%';
+    if(G(curId)) G(curId).textContent=fmt(audio.currentTime);
+    if(G(durId)&&audio.duration) G(durId).textContent=fmt(audio.duration);
+  }
   tick();
 }
+
 function startViz(cvId){
-  if(vizRaf){cancelAnimationFrame(vizRaf);vizRaf=null;}
-  if(!vizAn)return;
-  const cv=G(cvId); if(!cv)return;
+  if(vizRaf){ cancelAnimationFrame(vizRaf); vizRaf=null; }
+  if(!vizAnalyser) return;
+  const cv=G(cvId); if(!cv) return;
   const dpr=window.devicePixelRatio||1;
-  const W=cv.offsetWidth||800,H=cv.offsetHeight||58;
-  cv.width=W*dpr;cv.height=H*dpr;
-  const ctx=cv.getContext('2d');ctx.scale(dpr,dpr);
-  const bins=vizAn.frequencyBinCount;
-  const buf=new Uint8Array(bins);
-  const peaks=new Float32Array(bins);
-  const dec=0.984,bw=(W/bins)*2.2;
+  const W=cv.offsetWidth||800, H=cv.offsetHeight||58;
+  cv.width=W*dpr; cv.height=H*dpr;
+  const ctx=cv.getContext('2d'); ctx.scale(dpr,dpr);
+  const bins=vizAnalyser.frequencyBinCount;
+  const buf=new Uint8Array(bins), peaks=new Float32Array(bins);
+  const dec=0.984, bw=(W/bins)*2.2;
   function draw(){
     vizRaf=requestAnimationFrame(draw);
-    vizAn.getByteFrequencyData(buf);
-    ctx.fillStyle='#06070c';ctx.fillRect(0,0,W,H);
+    vizAnalyser.getByteFrequencyData(buf);
+    ctx.fillStyle='#06070c'; ctx.fillRect(0,0,W,H);
     let x=0;
     for(let i=0;i<bins;i++){
-      const r=buf[i]/255,h=r*H*0.9;
-      if(r>peaks[i])peaks[i]=r;else peaks[i]*=dec;
-      const hue=175+i/bins*100,a=0.6+r*0.4;
-      ctx.fillStyle='hsla('+hue+',90%,60%,'+a+')';
-      ctx.fillRect(x,H-h,bw,h);
-      if(peaks[i]>0.05){ctx.fillStyle='hsla('+hue+',100%,85%,.7)';ctx.fillRect(x,H-peaks[i]*H*0.9-1,bw,1.5);}
+      const r=buf[i]/255, h=r*H*0.9;
+      if(r>peaks[i]) peaks[i]=r; else peaks[i]*=dec;
+      const hue=175+i/bins*100, al=0.6+r*0.4;
+      ctx.fillStyle=`hsla(${hue},90%,60%,${al})`;
+      ctx.fillRect(x, H-h, bw, h);
+      if(peaks[i]>0.05){ ctx.fillStyle=`hsla(${hue},100%,85%,.7)`; ctx.fillRect(x,H-peaks[i]*H*0.9-1,bw,1.5); }
       x+=bw+0.5;
     }
   }
   draw();
 }
 
-// ══════════════════════════════════════════════════════
+// ════════════════════════════════════════════
 // INIT
-// ══════════════════════════════════════════════════════
-G('join-code').addEventListener('input',function(){this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'');});
-G('join-code').addEventListener('keydown',e=>{if(e.key==='Enter')joinRoom();});
-G('rname-input').addEventListener('keydown',e=>{if(e.key==='Enter')createRoom();});
-window.addEventListener('load',()=>initSock());
+// ════════════════════════════════════════════
+G('join-code').addEventListener('input',function(){ this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,''); });
+G('join-code').addEventListener('keydown',e=>{ if(e.key==='Enter') joinRoom(); });
+G('rname-input').addEventListener('keydown',e=>{ if(e.key==='Enter') createRoom(); });
+window.addEventListener('load', ()=>initSock());
 </script>
 </body>
 </html>
