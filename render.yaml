@@ -2,9 +2,12 @@ services:
   - type: web
     name: waveroom
     env: node
-    buildCommand: npm install
+    plan: free
+    buildCommand: npm install && npm run build
     startCommand: node server.js
+    healthCheckPath: /health
     envVars:
       - key: NODE_ENV
         value: production
-    healthCheckPath: /health
+      - key: NODE_OPTIONS
+        value: --max-old-space-size=512
