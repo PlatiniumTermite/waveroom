@@ -1,3 +1,7 @@
+
+Index · HTML
+Copy
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -329,8 +333,8 @@ canvas{width:100%;height:54px;display:block;border-radius:6px;background:var(--b
     <div class="panel">
       <div class="ptitle">Load Audio for Everyone</div>
       <div class="hint-box">
-        Paste a <b>direct audio URL</b> (.mp3 .wav .ogg) — all listeners load it on their own device simultaneously.<br>
-        <strong>Try:</strong> Search "site:archive.org mp3" for free music
+        Paste any <b>audio URL</b> ending in .mp3 .wav .ogg — our server fetches it for everyone automatically.<br>
+        <strong>Free music:</strong> Go to <b>archive.org</b> → find any album → right-click an MP3 → Copy Link
       </div>
       <div class="url-row url-section">
         <input class="f-input" id="h-url" type="url" placeholder="https://example.com/song.mp3" autocomplete="off">
@@ -625,8 +629,35 @@ function initSock() {
   if (sock && sock.connected) return;
   sock = io({ transports: ['websocket','polling'] });
 
-  sock.on('connect', () => { console.log('Connected:', sock.id); doNTP(); });
-  sock.on('connect_error', () => toast('Connection error — refresh page'));
+  sock.on('connect', () => {
+    console.log('Connected:', sock.id);
+    doNTP();
+    // Keep Render from sleeping — ping every 10s
+    if (window._keepAliveTimer) clearInterval(window._keepAliveTimer);
+    window._keepAliveTimer = setInterval(() => {
+      if (sock && sock.connected) sock.emit('keepalive');
+    }, 10000);
+  });
+
+  // If server restarted (Render woke up), rooms are gone — warn user
+  sock.on('disconnect', (reason) => {
+    console.warn('Disconnected:', reason);
+    if (reason === 'transport close' || reason === 'io server disconnect') {
+      toast('⚠️ Reconnecting to server...');
+    }
+  });
+
+  sock.on('reconnect', () => {
+    toast('✅ Reconnected!');
+    doNTP();
+    // If we were in a room, it's gone — send them back home
+    if (roomCode) {
+      toast('Session ended — server restarted. Please create a new room.');
+      setTimeout(leave, 2000);
+    }
+  });
+
+  sock.on('connect_error', () => toast('Connection error — check your internet'));
 
   sock.on('ntp:pong', ({ clientTime, serverTime }) => {
     const now = Date.now();
@@ -640,22 +671,34 @@ function initSock() {
   // HOST events
   sock.on('room:listener_joined', ({ id }) => {
     listeners[id] = true; renderListeners();
-    // Immediately sync new listener
+    // Immediately sync new listener with current track + state
     const a = G('h-audio');
     if (a.src) {
-      if (!a.paused) {
-        const playAt = srvNow() + SCHED_MS;
-        sock.emit('audio:play', { position: a.currentTime, serverPlayAt: playAt });
-      } else {
-        sock.emit('audio:pause', { position: a.currentTime });
+      // Re-send the track so they load it
+      if (window._currentTrackUrl) {
+        sock.emit('track:set', {
+          url: window._currentTrackUrl,
+          title: window._currentTrackTitle || 'Audio',
+          proxyUrl: window._currentProxyUrl || window._currentTrackUrl
+        });
       }
+      setTimeout(() => {
+        if (!a.paused) {
+          const playAt = srvNow() + SCHED_MS;
+          sock.emit('audio:play', { position: a.currentTime, serverPlayAt: playAt });
+        } else {
+          sock.emit('audio:pause', { position: a.currentTime });
+        }
+      }, 500);
     }
   });
   sock.on('room:listener_left', ({ id }) => { delete listeners[id]; renderListeners(); });
   sock.on('room:count', n => G('h-l-count').textContent = n);
 
-  // LISTENER events
-  sock.on('track:set', ({ url, title }) => loadListenerTrack(url, title));
+  // LISTENER events — use proxyUrl if available for CORS-free loading
+  sock.on('track:set', ({ url, title, proxyUrl }) => {
+    loadListenerTrack(proxyUrl || url, title);
+  });
 
   sock.on('audio:play', ({ position, serverPlayAt }) => schedPlay(position, serverPlayAt));
 
@@ -783,57 +826,85 @@ function createRoom() {
 function joinRoom() {
   const code = G('join-code').value.trim().toUpperCase();
   if (!code) { toast('Enter a room code'); return; }
+  if (code.length < 6) { toast('Code must be 6 characters'); return; }
+  G('join-err').classList.remove('on');
   initSock(); amHost = false;
-  sock.emit('room:join', { code }, res => {
-    if (!res.ok) { G('join-err').classList.add('on'); return; }
-    G('join-err').classList.remove('on');
-    roomCode = code;
-    G('l-room-name').textContent = res.name;
-    G('l-code-label').textContent = 'Room: ' + code;
-    show('s-listen');
-    toast('Joined! Audio will sync automatically 🎧');
 
-    // If host already has a track loaded, load it now
-    if (res.track) {
-      loadListenerTrack(res.track.url, res.track.title, () => {
-        if (res.state && res.state.playing && res.state.serverPlayAt) {
-          // Resync from current position
-          const elapsed = (srvNow() - res.state.serverPlayAt) / 1000;
-          const pos = res.state.position + elapsed;
-          schedPlay(Math.max(0, pos), srvNow() + SCHED_MS);
-        } else if (res.state) {
-          G('l-audio').currentTime = res.state.position || 0;
-        }
-      });
-    }
-  });
+  function doJoin() {
+    console.log('Attempting join:', code);
+    sock.emit('room:join', { code }, res => {
+      console.log('Join response:', JSON.stringify(res));
+      if (!res || !res.ok) {
+        G('join-err').textContent = 'Room not found. Check the code — host must still be in the room.';
+        G('join-err').classList.add('on');
+        return;
+      }
+      G('join-err').classList.remove('on');
+      roomCode = code;
+      G('l-room-name').textContent = res.name;
+      G('l-code-label').textContent = 'Room: ' + code;
+      show('s-listen');
+      toast('Joined! 🎧');
+      if (res.track) {
+        const trackUrl = res.track.proxyUrl || res.track.url;
+        loadListenerTrack(trackUrl, res.track.title, () => {
+          if (res.state && res.state.playing && res.state.serverPlayAt) {
+            const elapsed = (srvNow() - res.state.serverPlayAt) / 1000;
+            schedPlay(Math.max(0, res.state.position + elapsed), srvNow() + SCHED_MS);
+          } else if (res.state) {
+            G('l-audio').currentTime = res.state.position || 0;
+          }
+        });
+      }
+    });
+  }
+
+  if (sock.connected) {
+    doJoin();
+  } else {
+    toast('Connecting to server...');
+    sock.once('connect', () => setTimeout(doJoin, 200));
+  }
 }
 
 // ═══════════════════════════════════════════════════
 // LOAD TRACK
 // ═══════════════════════════════════════════════════
 function hostLoadUrl() {
-  const url = G('h-url').value.trim();
-  if (!url) { toast('Enter an audio URL'); return; }
-  const title = url.split('/').pop().split('?')[0].replace(/\.[^.]+$/,'') || 'Audio';
-  loadHostAudio(url, title);
+  const rawUrl = G('h-url').value.trim();
+  if (!rawUrl) { toast('Enter an audio URL'); return; }
+
+  // Always route through our proxy — fixes ALL CORS issues
+  const proxyUrl = '/proxy?url=' + encodeURIComponent(rawUrl);
+  const title = rawUrl.split('/').pop().split('?')[0].replace(/\.[^.]+$/,'') || 'Audio';
+
+  loadHostAudio(rawUrl, proxyUrl, title);
 }
 
 function hostLoadFile() {
   const f = G('h-file').files[0];
   if (!f) return;
-  const url = URL.createObjectURL(f);
+  const localUrl = URL.createObjectURL(f);
   const title = f.name.replace(/\.[^.]+$/,'');
-  loadHostAudio(url, title);
-  toast('⚠️ Local file: only you can hear it. Use a URL so everyone hears it.');
+  // Local files can't be proxied — they only play on host device
+  // We still need a shareable URL for listeners — warn the host
+  window._currentTrackUrl = localUrl;
+  window._currentTrackTitle = title;
+  window._currentProxyUrl = null;
+  loadHostAudio(localUrl, localUrl, title, true);
 }
 
-function loadHostAudio(url, title) {
+function loadHostAudio(originalUrl, proxyUrl, title, isLocal=false) {
   const a = G('h-audio');
-  // Tear down old chain
   if (hostACtx) { hostACtx.close().catch(()=>{}); hostACtx=null; hostSrc=null; hostGain=null; hostEQ=null; }
 
-  a.src = url; a.load();
+  // Store for late-joining listeners
+  window._currentTrackUrl = originalUrl;
+  window._currentProxyUrl = isLocal ? null : proxyUrl;
+  window._currentTrackTitle = title;
+
+  // Host loads via proxy (fixes CORS for host too)
+  a.src = proxyUrl; a.load();
   G('h-track-name').textContent = title;
   G('h-track-sub').textContent = 'Loading...';
   G('h-player').style.display = 'block';
@@ -844,13 +915,22 @@ function loadHostAudio(url, title) {
     buildAudioChain(a, true);
     startProg(a, 'h-prog', 'h-cur', 'h-dur');
     startViz('h-viz');
-    toast('Track loaded — press Play to start! ▶');
+    if (isLocal) {
+      toast('🎵 File loaded — only you can hear local files');
+    } else {
+      toast('✅ Track loaded — press Play! ▶');
+    }
   }, { once: true });
 
-  a.addEventListener('error', () => toast('❌ Could not load audio — check the URL'), { once: true });
+  a.addEventListener('error', (e) => {
+    console.error('Audio load error:', e);
+    toast('❌ Could not load — try a direct .mp3 link from archive.org');
+  }, { once: true });
 
-  // Tell all listeners to load the same URL
-  sock.emit('track:set', { url, title });
+  // Tell all listeners to load via proxy URL
+  if (!isLocal) {
+    sock.emit('track:set', { url: originalUrl, title, proxyUrl });
+  }
 }
 
 function loadListenerTrack(url, title, cb) {
@@ -858,18 +938,19 @@ function loadListenerTrack(url, title, cb) {
   if (listACtx) { listACtx.close().catch(()=>{}); listACtx=null; listSrc=null; listGain=null; listEQ=null; vizACtx=null; vizAnalyser=null; }
 
   a.src = url; a.load();
-  G('l-track-name').textContent = title;
+  G('l-track-name').textContent = title || 'Loading...';
   setSyncInfo('Loading track...');
 
-  a.addEventListener('canplaythrough', () => {
-    G('l-dur').textContent = fmt(a.duration);
-    setSyncInfo('Track ready — waiting for host to play');
+  a.addEventListener('canplay', () => {
+    if (a.duration) G('l-dur').textContent = fmt(a.duration);
+    setSyncInfo('✅ Track ready — waiting for host to play');
     buildAudioChain(a, false);
     if (cb) cb();
   }, { once: true });
 
-  a.addEventListener('error', () => {
-    setSyncInfo('❌ Could not load track — URL may block cross-origin requests');
+  a.addEventListener('error', (e) => {
+    console.error('Listener audio error:', e);
+    setSyncInfo('❌ Could not load track. Ask host to use a direct .mp3 URL.');
   }, { once: true });
 }
 
