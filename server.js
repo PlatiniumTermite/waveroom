@@ -12,6 +12,56 @@ const io = new Server(server, {
 
 app.use(express.static(path.join(__dirname, 'public')));
 
+// ── PROXY ENDPOINT ─────────────────────────────────────────────
+// Fetches audio from any URL and streams it back with correct CORS headers
+// This bypasses CORS restrictions on audio URLs
+app.get('/proxy', async (req, res) => {
+  const url = req.query.url;
+  if (!url) return res.status(400).send('No URL');
+
+  try {
+    // Use built-in fetch (Node 18+)
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; WaveRoom/1.0)',
+        'Range': req.headers.range || ''
+      }
+    });
+
+    if (!response.ok) return res.status(response.status).send('Upstream error');
+
+    // Forward relevant headers
+    const contentType = response.headers.get('content-type') || 'audio/mpeg';
+    const contentLength = response.headers.get('content-length');
+    const acceptRanges = response.headers.get('accept-ranges');
+    const contentRange = response.headers.get('content-range');
+
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Content-Type', contentType);
+    if (contentLength) res.setHeader('Content-Length', contentLength);
+    if (acceptRanges) res.setHeader('Accept-Ranges', acceptRanges);
+    if (contentRange) res.setHeader('Content-Range', contentRange);
+    res.status(response.status === 206 ? 206 : 200);
+
+    // Stream the body
+    const reader = response.body.getReader();
+    const pump = async () => {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) { res.end(); break; }
+        if (!res.write(value)) {
+          await new Promise(r => res.once('drain', r));
+        }
+      }
+    };
+    pump().catch(() => res.end());
+
+  } catch (e) {
+    console.error('Proxy error:', e.message);
+    res.status(500).send('Proxy failed: ' + e.message);
+  }
+});
+
 const rooms = {};
 
 function makeCode() {
@@ -20,12 +70,16 @@ function makeCode() {
 
 io.on('connection', (socket) => {
 
-  // NTP clock sync — client pings multiple times for accuracy
+  // NTP clock sync
   socket.on('ntp:ping', ({ clientTime }) => {
     socket.emit('ntp:pong', { clientTime, serverTime: Date.now() });
   });
 
-  // Host creates room
+  // Keep-alive ping so Render doesn't sleep mid-session
+  socket.on('keepalive', () => {
+    socket.emit('keepalive-ack');
+  });
+
   socket.on('room:create', ({ name }, cb) => {
     const code = makeCode();
     rooms[code] = {
@@ -38,34 +92,35 @@ io.on('connection', (socket) => {
     socket.join(code);
     socket.data.code = code;
     socket.data.isHost = true;
+    console.log('Room created:', code, '| Total rooms:', Object.keys(rooms).length);
     cb({ ok: true, code, name: rooms[code].name });
   });
 
-  // Listener joins room
   socket.on('room:join', ({ code }, cb) => {
     const room = rooms[code];
-    if (!room) return cb({ ok: false });
+    if (!room) {
+      console.log('Room not found:', code, '| Available:', Object.keys(rooms));
+      return cb({ ok: false, error: 'Room not found' });
+    }
     room.listeners.push(socket.id);
     socket.join(code);
     socket.data.code = code;
     socket.data.isHost = false;
     io.to(room.host).emit('room:listener_joined', { id: socket.id });
     io.to(code).emit('room:count', room.listeners.length);
-    // Send full state so late joiners sync immediately
+    console.log(socket.id, 'joined room', code);
     cb({ ok: true, name: room.name, track: room.track, state: room.state });
   });
 
-  // Host sets track URL — broadcast to all listeners
-  socket.on('track:set', ({ url, title }) => {
+  socket.on('track:set', ({ url, title, proxyUrl }) => {
     const code = socket.data.code;
     const room = rooms[code];
     if (!room || room.host !== socket.id) return;
-    room.track = { url, title };
+    room.track = { url, title, proxyUrl };
     room.state = { playing: false, position: 0, serverPlayAt: null };
-    socket.to(code).emit('track:set', { url, title });
+    socket.to(code).emit('track:set', { url, title, proxyUrl });
   });
 
-  // Host plays — precise server timestamp scheduling
   socket.on('audio:play', ({ position, serverPlayAt }) => {
     const code = socket.data.code;
     const room = rooms[code];
@@ -74,7 +129,6 @@ io.on('connection', (socket) => {
     socket.to(code).emit('audio:play', { position, serverPlayAt });
   });
 
-  // Host pauses
   socket.on('audio:pause', ({ position }) => {
     const code = socket.data.code;
     const room = rooms[code];
@@ -83,7 +137,6 @@ io.on('connection', (socket) => {
     socket.to(code).emit('audio:pause', { position });
   });
 
-  // Host seeks
   socket.on('audio:seek', ({ position, playing, serverPlayAt }) => {
     const code = socket.data.code;
     const room = rooms[code];
@@ -98,6 +151,7 @@ io.on('connection', (socket) => {
     if (socket.data.isHost) {
       io.to(code).emit('room:host_left');
       delete rooms[code];
+      console.log('Room deleted:', code);
     } else {
       rooms[code].listeners = rooms[code].listeners.filter(id => id !== socket.id);
       if (rooms[code]) {
@@ -109,4 +163,4 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`WaveRoom running on port ${PORT}`));;
+server.listen(PORT, () => console.log(`WaveRoom running on port ${PORT}`));
