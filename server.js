@@ -1,275 +1,312 @@
-const express = require('express');
-const http = require('http');
-const { Server } = require('socket.io');
-const path = require('path');
+'use strict';
 
-const app = express();
+const express  = require('express');
+const http     = require('http');
+const { Server } = require('socket.io');
+const path     = require('path');
+
+const app    = express();
 const server = http.createServer(app);
 
+// ──────────────────────────────────────────────────────────────────
+// Socket.IO — tuned for reliability on cloud hosts (Render, Railway)
+// ──────────────────────────────────────────────────────────────────
 const io = new Server(server, {
-  cors: { origin: '*', methods: ['GET', 'POST', 'OPTIONS'] },
+  cors: { origin: '*', methods: ['GET','POST','OPTIONS'] },
   transports: ['websocket', 'polling'],
-  pingTimeout: 60000,
-  pingInterval: 25000,
-  upgradeTimeout: 30000,
-  allowUpgrades: true,
-  perMessageDeflate: false,
-  httpCompression: false,
-  maxHttpBufferSize: 1e8,
+  pingInterval: 10000,       // probe every 10 s
+  pingTimeout:  25000,       // drop after 25 s silence
+  upgradeTimeout: 10000,
+  maxHttpBufferSize: 1e6,
+  allowEIO3: true,
+});
+
+// ──────────────────────────────────────────────────────────────────
+// Middleware
+// ──────────────────────────────────────────────────────────────────
+app.use((req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin',  '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Origin,Content-Type,Accept,Range');
+  res.setHeader('Access-Control-Expose-Headers','Content-Length,Content-Range,Accept-Ranges');
+  if (req.method === 'OPTIONS') return res.sendStatus(200);
+  next();
 });
 
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
 
-// ─── CORS HEADERS ────────────────────────────────────────────────
-app.use((req, res, next) => {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Range');
-  res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Range, Accept-Ranges');
-  if (req.method === 'OPTIONS') return res.sendStatus(200);
-  next();
-});
+// ──────────────────────────────────────────────────────────────────
+// YouTube helpers — try @distube/ytdl-core first, fall back to ytdl-core
+// ──────────────────────────────────────────────────────────────────
+function getYtdl() {
+  try { return require('@distube/ytdl-core'); } catch (_) {}
+  try { return require('ytdl-core'); }           catch (_) {}
+  return null;
+}
 
-// ─── YOUTUBE INFO ENDPOINT ────────────────────────────────────────
+const YT_HEADERS = {
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+    + 'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+  'Accept-Language': 'en-US,en;q=0.9',
+  'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+};
+
+// GET /yt-info?url=… → { title, duration }
 app.get('/yt-info', async (req, res) => {
   const url = req.query.url;
-  if (!url) return res.status(400).json({ error: 'No URL provided' });
+  if (!url) return res.status(400).json({ error: 'No URL' });
+  const ytdl = getYtdl();
+  if (!ytdl) return res.status(500).json({ error: 'ytdl not installed' });
 
   try {
-    let ytdl;
-    try { ytdl = require('@distube/ytdl-core'); }
-    catch(e) { ytdl = require('ytdl-core'); }
-
     if (!ytdl.validateURL(url)) return res.status(400).json({ error: 'Invalid YouTube URL' });
 
-    const info = await ytdl.getInfo(url, {
-      requestOptions: {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Accept-Language': 'en-US,en;q=0.9',
-        }
-      }
-    });
-
-    const title = info.videoDetails.title;
-    const duration = info.videoDetails.lengthSeconds;
-    const formats = ytdl.filterFormats(info.formats, 'audioonly');
-
-    // Prefer webm/opus or mp4a formats
-    const best = formats
+    const info = await ytdl.getInfo(url, { requestOptions: { headers: YT_HEADERS } });
+    const fmts = ytdl.filterFormats(info.formats, 'audioonly')
       .filter(f => f.audioBitrate)
-      .sort((a, b) => (b.audioBitrate || 0) - (a.audioBitrate || 0))[0];
+      .sort((a, b) => (b.audioBitrate||0) - (a.audioBitrate||0));
 
-    if (!best) return res.status(400).json({ error: 'No audio format found for this video' });
+    if (!fmts.length) return res.status(400).json({ error: 'No audio format found' });
 
-    res.json({ title, duration, mimeType: best.mimeType || 'audio/webm' });
+    return res.json({
+      title:    info.videoDetails.title,
+      duration: Number(info.videoDetails.lengthSeconds),
+    });
   } catch (e) {
-    console.error('[YT-INFO] Error:', e.message);
-    res.status(500).json({ error: 'YouTube error: ' + e.message });
+    console.error('[YT-INFO]', e.message);
+    return res.status(500).json({ error: e.message });
   }
 });
 
-// ─── YOUTUBE STREAM ENDPOINT ─────────────────────────────────────
+// GET /yt-stream?url=… — streams audio through server (fixes CORS + range issues)
 app.get('/yt-stream', async (req, res) => {
   const url = req.query.url;
-  if (!url) return res.status(400).send('No URL');
+  if (!url) return res.status(400).end('No URL');
+  const ytdl = getYtdl();
+  if (!ytdl) return res.status(500).end('ytdl not installed');
 
   try {
-    let ytdl;
-    try { ytdl = require('@distube/ytdl-core'); }
-    catch(e) { ytdl = require('ytdl-core'); }
+    if (!ytdl.validateURL(url)) return res.status(400).end('Invalid URL');
 
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Content-Type', 'audio/mpeg');
-    res.setHeader('Accept-Ranges', 'bytes');
-    res.setHeader('Transfer-Encoding', 'chunked');
+    // Need full info for best audio format
+    const info = await ytdl.getInfo(url, { requestOptions: { headers: YT_HEADERS } });
+    const fmts = ytdl.filterFormats(info.formats, 'audioonly')
+      .filter(f => f.audioBitrate)
+      .sort((a, b) => (b.audioBitrate||0) - (a.audioBitrate||0));
+
+    if (!fmts.length) return res.status(400).end('No audio format');
+    const best = fmts[0];
+
+    // Prefer mp4a (AAC) because browsers decode it without needing a codec
+    const aac = fmts.find(f => f.mimeType && f.mimeType.includes('mp4a'));
+    const chosen = aac || best;
+
+    const mime = (chosen.mimeType || 'audio/mp4').split(';')[0];
+
+    res.setHeader('Content-Type', mime);
+    res.setHeader('Accept-Ranges', 'none');           // we don't support range on stream
     res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
 
-    const stream = ytdl(url, {
-      filter: 'audioonly',
-      quality: 'highestaudio',
-      highWaterMark: 1 << 25,
-      requestOptions: {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        }
-      }
+    const stream = ytdl.downloadFromInfo(info, {
+      format: chosen,
+      highWaterMark: 1 << 24, // 16 MB buffer
+      requestOptions: { headers: YT_HEADERS },
     });
 
-    stream.on('error', e => {
-      console.error('[YT-STREAM] Error:', e.message);
-      if (!res.headersSent) res.status(500).send(e.message);
-      else res.end();
+    stream.on('error', err => {
+      console.error('[YT-STREAM]', err.message);
+      if (!res.headersSent) res.status(500).end(err.message);
+      else res.destroy();
     });
 
     req.on('close', () => stream.destroy());
     stream.pipe(res);
+
   } catch (e) {
-    console.error('[YT-STREAM] Fatal:', e.message);
-    if (!res.headersSent) res.status(500).send(e.message);
+    console.error('[YT-STREAM] fatal', e.message);
+    if (!res.headersSent) res.status(500).end(e.message);
   }
 });
 
-// ─── GENERIC AUDIO PROXY ─────────────────────────────────────────
+// GET /proxy?url=… — generic CORS proxy for direct audio URLs, supports Range
 app.get('/proxy', async (req, res) => {
-  const url = req.query.url;
-  if (!url) return res.status(400).send('No URL');
+  const rawUrl = req.query.url;
+  if (!rawUrl) return res.status(400).end('No URL');
+
+  // Basic SSRF protection — block private/localhost addresses
+  try {
+    const u = new URL(rawUrl);
+    if (/^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/i.test(u.hostname))
+      return res.status(403).end('Forbidden');
+  } catch (_) {
+    return res.status(400).end('Invalid URL');
+  }
 
   try {
     const fetch = require('node-fetch');
-    const reqHeaders = {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36',
-      'Accept': 'audio/*,*/*;q=0.9',
-      'Accept-Language': 'en-US,en;q=0.9',
+    const upHeaders = {
+      'User-Agent': 'Mozilla/5.0 (compatible; AudioProxy/1.0)',
+      'Accept':     'audio/*,*/*;q=0.8',
     };
-    if (req.headers.range) reqHeaders['Range'] = req.headers.range;
+    if (req.headers.range) upHeaders['Range'] = req.headers.range;
 
-    const upstream = await fetch(url, { headers: reqHeaders });
-    if (!upstream.ok && upstream.status !== 206) {
-      return res.status(upstream.status).send('Upstream error: ' + upstream.status);
-    }
+    const up = await fetch(rawUrl, { headers: upHeaders, timeout: 15000 });
+    if (!up.ok && up.status !== 206) return res.status(up.status).end(`Upstream ${up.status}`);
 
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Content-Type', upstream.headers.get('content-type') || 'audio/mpeg');
-    res.setHeader('Accept-Ranges', 'bytes');
-    const cl = upstream.headers.get('content-length');
-    const cr = upstream.headers.get('content-range');
-    const ar = upstream.headers.get('accept-ranges');
+    const ct = up.headers.get('content-type') || 'audio/mpeg';
+    const cl = up.headers.get('content-length');
+    const cr = up.headers.get('content-range');
+    const ar = up.headers.get('accept-ranges');
+
+    res.status(up.status === 206 ? 206 : 200);
+    res.setHeader('Content-Type', ct);
+    res.setHeader('Accept-Ranges', ar || 'bytes');
     if (cl) res.setHeader('Content-Length', cl);
     if (cr) res.setHeader('Content-Range', cr);
-    if (ar) res.setHeader('Accept-Ranges', ar);
-    res.status(upstream.status === 206 ? 206 : 200);
-    upstream.body.pipe(res);
+
+    up.body.pipe(res);
+    req.on('close', () => up.body.destroy && up.body.destroy());
   } catch (e) {
-    console.error('[PROXY] Error:', e.message);
-    if (!res.headersSent) res.status(500).send('Proxy error: ' + e.message);
+    console.error('[PROXY]', e.message);
+    if (!res.headersSent) res.status(500).end('Proxy error: ' + e.message);
   }
 });
 
-// ─── ROOMS ───────────────────────────────────────────────────────
-const rooms = {};
-const ROOM_TTL = 6 * 60 * 60 * 1000; // 6 hours
+// ──────────────────────────────────────────────────────────────────
+// Room state
+// ──────────────────────────────────────────────────────────────────
+const rooms = new Map(); // code → Room
 
 function makeCode() {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let code = '';
-  for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
-  return code;
+  const alpha = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let s = '';
+  for (let i = 0; i < 6; i++) s += alpha[Math.random() * alpha.length | 0];
+  return s;
 }
 
-// Clean up stale rooms every 30 minutes
+function uniqueCode() {
+  let c, tries = 0;
+  do { c = makeCode(); } while (rooms.has(c) && ++tries < 200);
+  return c;
+}
+
+// Prune rooms idle > 8 h
 setInterval(() => {
-  const now = Date.now();
-  let cleaned = 0;
-  for (const [code, room] of Object.entries(rooms)) {
-    if (now - room.createdAt > ROOM_TTL) {
-      delete rooms[code];
-      cleaned++;
-    }
-  }
-  if (cleaned > 0) console.log(`[GC] Cleaned ${cleaned} stale rooms. Active: ${Object.keys(rooms).length}`);
+  const limit = Date.now() - 8 * 3600 * 1000;
+  for (const [code, room] of rooms)
+    if (room.createdAt < limit) { rooms.delete(code); console.log('[GC] pruned', code); }
 }, 30 * 60 * 1000);
 
-io.on('connection', (socket) => {
-  console.log(`[+] Socket connected: ${socket.id}`);
+// ──────────────────────────────────────────────────────────────────
+// Socket.IO handlers
+// ──────────────────────────────────────────────────────────────────
+io.on('connection', socket => {
+  console.log('[+]', socket.id, socket.handshake.address);
 
-  // NTP time sync
-  socket.on('ntp:ping', ({ clientTime }) => {
-    socket.emit('ntp:pong', { clientTime, serverTime: Date.now() });
+  // ── NTP sub-millisecond clock sync ──────────────────────────────
+  // We record serverTime with high-res timer so the offset calculation
+  // on the client is as accurate as possible.
+  socket.on('ntp:ping', ({ id, t0 }) => {
+    socket.emit('ntp:pong', { id, t0, t1: Date.now() });
   });
 
-  socket.on('keepalive', () => {
-    socket.emit('keepalive-ack');
-  });
+  socket.on('keepalive', () => socket.emit('keepalive-ack'));
 
+  // ── Create room ────────────────────────────────────────────────
   socket.on('room:create', ({ name }, cb) => {
-    let code = makeCode();
-    let tries = 0;
-    while (rooms[code] && tries++ < 100) code = makeCode();
-
-    rooms[code] = {
-      host: socket.id,
-      name: name || 'Audio Room',
-      listeners: [],
-      track: null,
-      state: { playing: false, position: 0, serverPlayAt: null },
+    if (typeof cb !== 'function') return;
+    const code = uniqueCode();
+    rooms.set(code, {
+      host:      socket.id,
+      name:      (name || 'Audio Room').slice(0, 50),
+      listeners: new Set(),
+      track:     null,
+      // state persists so late-joiners can sync
+      state:     { playing: false, position: 0, serverPlayAt: null, updatedAt: Date.now() },
       createdAt: Date.now(),
-    };
+    });
     socket.join(code);
-    socket.data.code = code;
+    socket.data.code   = code;
     socket.data.isHost = true;
-    console.log(`[ROOM] Created ${code} by ${socket.id}. Total: ${Object.keys(rooms).length}`);
-    cb({ ok: true, code, name: rooms[code].name });
+    console.log('[CREATE]', code, 'by', socket.id);
+    cb({ ok: true, code, name: rooms.get(code).name });
   });
 
+  // ── Join room ──────────────────────────────────────────────────
   socket.on('room:join', ({ code }, cb) => {
-    const room = rooms[code];
-    console.log(`[ROOM] Join attempt: ${code} | Found: ${!!room}`);
+    if (typeof cb !== 'function') return;
+    const room = rooms.get(code);
     if (!room) return cb({ ok: false, error: 'Room not found' });
-    room.listeners.push(socket.id);
+
+    room.listeners.add(socket.id);
     socket.join(code);
-    socket.data.code = code;
+    socket.data.code   = code;
     socket.data.isHost = false;
+
+    // Tell host a listener joined
     io.to(room.host).emit('room:listener_joined', { id: socket.id });
-    io.to(code).emit('room:count', room.listeners.length);
+    io.to(code).emit('room:count', room.listeners.size);
+
+    // Send current state — client will compute correct position from serverPlayAt
     cb({ ok: true, name: room.name, track: room.track, state: room.state });
+    console.log('[JOIN]', code, socket.id);
   });
 
+  // ── Track loaded by host ───────────────────────────────────────
   socket.on('track:set', ({ streamUrl, title, originalUrl }) => {
-    const code = socket.data.code;
-    const room = rooms[code];
+    const room = rooms.get(socket.data.code);
     if (!room || room.host !== socket.id) return;
     room.track = { streamUrl, title, originalUrl };
-    room.state = { playing: false, position: 0, serverPlayAt: null };
-    socket.to(code).emit('track:set', { streamUrl, title, originalUrl });
-    console.log(`[TRACK] Set in ${code}: "${title}"`);
+    room.state = { playing: false, position: 0, serverPlayAt: null, updatedAt: Date.now() };
+    socket.to(socket.data.code).emit('track:set', { streamUrl, title });
+    console.log('[TRACK]', socket.data.code, title);
   });
 
+  // ── Play ───────────────────────────────────────────────────────
   socket.on('audio:play', ({ position, serverPlayAt }) => {
-    const code = socket.data.code;
-    const room = rooms[code];
+    const room = rooms.get(socket.data.code);
     if (!room || room.host !== socket.id) return;
-    room.state = { playing: true, position, serverPlayAt };
-    socket.to(code).emit('audio:play', { position, serverPlayAt });
+    room.state = { playing: true, position, serverPlayAt, updatedAt: Date.now() };
+    socket.to(socket.data.code).emit('audio:play', { position, serverPlayAt });
   });
 
+  // ── Pause ──────────────────────────────────────────────────────
   socket.on('audio:pause', ({ position }) => {
-    const code = socket.data.code;
-    const room = rooms[code];
+    const room = rooms.get(socket.data.code);
     if (!room || room.host !== socket.id) return;
-    room.state = { playing: false, position, serverPlayAt: null };
-    socket.to(code).emit('audio:pause', { position });
+    room.state = { playing: false, position, serverPlayAt: null, updatedAt: Date.now() };
+    socket.to(socket.data.code).emit('audio:pause', { position });
   });
 
+  // ── Seek ───────────────────────────────────────────────────────
   socket.on('audio:seek', ({ position, playing, serverPlayAt }) => {
-    const code = socket.data.code;
-    const room = rooms[code];
+    const room = rooms.get(socket.data.code);
     if (!room || room.host !== socket.id) return;
-    room.state = { playing, position, serverPlayAt: playing ? serverPlayAt : null };
-    socket.to(code).emit('audio:seek', { position, playing, serverPlayAt });
+    room.state = { playing, position, serverPlayAt: playing ? serverPlayAt : null, updatedAt: Date.now() };
+    socket.to(socket.data.code).emit('audio:seek', { position, playing, serverPlayAt });
   });
 
-  socket.on('disconnect', (reason) => {
+  // ── Disconnect ─────────────────────────────────────────────────
+  socket.on('disconnect', reason => {
     const code = socket.data.code;
-    console.log(`[-] Socket disconnected: ${socket.id} | reason: ${reason}`);
-    if (!code || !rooms[code]) return;
+    if (!code) return;
+    const room = rooms.get(code);
+    if (!room) return;
 
     if (socket.data.isHost) {
       io.to(code).emit('room:host_left');
-      delete rooms[code];
-      console.log(`[ROOM] Deleted ${code}. Total: ${Object.keys(rooms).length}`);
+      rooms.delete(code);
+      console.log('[DEL]', code, reason);
     } else {
-      rooms[code].listeners = rooms[code].listeners.filter(id => id !== socket.id);
-      if (rooms[code]) {
-        io.to(rooms[code].host).emit('room:listener_left', { id: socket.id });
-        io.to(code).emit('room:count', rooms[code].listeners.length);
-      }
+      room.listeners.delete(socket.id);
+      io.to(room.host).emit('room:listener_left', { id: socket.id });
+      io.to(code).emit('room:count', room.listeners.size);
     }
   });
 });
 
+// ──────────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, '0.0.0.0', () => {
-  console.log(`🌊 WaveRoom running on port ${PORT}`);
-});
+server.listen(PORT, '0.0.0.0', () => console.log(`🌊 WaveRoom :${PORT}`));
