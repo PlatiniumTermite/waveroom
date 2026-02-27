@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>WaveRoom — AI Spatial Sync Audio</title>
-<meta name="description" content="Synchronized audio streaming with AI-powered spatial sound processing">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
 <style>
@@ -13,7 +12,7 @@
 html,body{background:var(--bg);color:var(--t);font-family:'Syne',sans-serif;min-height:100vh;overscroll-behavior:none;-webkit-tap-highlight-color:transparent}
 body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(var(--b) 1px,transparent 1px),linear-gradient(90deg,var(--b) 1px,transparent 1px);background-size:48px 48px;opacity:.08;pointer-events:none;z-index:0}
 #app{position:relative;z-index:1;max-width:820px;margin:0 auto;padding:24px 16px 80px}
-.nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:44px}
+.nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:40px}
 .nav-left{display:flex;align-items:center;gap:10px}
 .nav-icon{width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,var(--c),var(--p));display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 0 20px rgba(0,229,255,.15)}
 .nav-name{font-size:20px;font-weight:800;background:linear-gradient(135deg,var(--c),var(--p));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
@@ -26,18 +25,15 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 @keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
 .hero{text-align:center;padding:8px 0 32px}
 .hero-chip{display:inline-flex;align-items:center;gap:6px;font-family:'Space Mono',monospace;font-size:10px;color:var(--c);border:1px solid rgba(0,229,255,.18);border-radius:20px;padding:4px 13px;margin-bottom:18px;background:rgba(0,229,255,.05)}
-.hero h1{font-size:clamp(28px,6.5vw,62px);font-weight:800;letter-spacing:-2px;line-height:1.04;margin-bottom:14px}
+.hero h1{font-size:clamp(28px,6.5vw,58px);font-weight:800;letter-spacing:-2px;line-height:1.05;margin-bottom:14px}
 .hero h1 em{font-style:normal;background:linear-gradient(135deg,var(--c),var(--p));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
 .hero-sub{font-family:'Space Mono',monospace;font-size:11.5px;color:var(--m);max-width:400px;margin:0 auto 32px;line-height:1.9}
 .home-cards{display:grid;grid-template-columns:1fr 1fr;gap:12px;max-width:520px;margin:0 auto 28px}
 @media(max-width:440px){.home-cards{grid-template-columns:1fr}}
 .hcard{background:var(--s);border:1px solid var(--b);border-radius:14px;padding:22px 18px;cursor:pointer;text-align:left;transition:all .25s;overflow:hidden;position:relative}
 .hcard:hover{border-color:rgba(0,229,255,.4);transform:translateY(-3px);box-shadow:0 8px 30px rgba(0,229,255,.08)}
-.hcard::after{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(0,229,255,.03),rgba(139,92,246,.03));opacity:0;transition:opacity .25s}
-.hcard:hover::after{opacity:1}
-.hi{font-size:26px;margin-bottom:10px;position:relative;z-index:1}
-.ht{font-size:15px;font-weight:700;margin-bottom:5px;position:relative;z-index:1}
-.hd{font-size:11px;color:var(--m);font-family:'Space Mono',monospace;line-height:1.6;position:relative;z-index:1}
+.hi{font-size:26px;margin-bottom:10px}.ht{font-size:15px;font-weight:700;margin-bottom:5px}
+.hd{font-size:11px;color:var(--m);font-family:'Space Mono',monospace;line-height:1.6}
 .feature-strip{display:flex;justify-content:center;gap:18px;flex-wrap:wrap;max-width:520px;margin:0 auto}
 .feat{display:flex;align-items:center;gap:5px;font-family:'Space Mono',monospace;font-size:10px;color:var(--m)}
 .ai-features{margin:24px auto 0;max-width:520px;display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
@@ -71,9 +67,9 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 .rhead{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:15px}
 .rname{font-size:21px;font-weight:800;letter-spacing:-.5px}
 .rcode{display:inline-flex;align-items:center;gap:7px;margin-top:5px;background:var(--s);border:1px solid var(--b);border-radius:8px;padding:6px 12px;font-family:'Space Mono',monospace;font-size:18px;font-weight:700;letter-spacing:5px;color:var(--c);cursor:pointer;transition:all .2s;user-select:none}
-.rcode:hover{border-color:var(--c);box-shadow:0 0 12px rgba(0,229,255,.15)}
+.rcode:hover{border-color:var(--c)}
 .rcode small{font-size:9px;color:var(--m);letter-spacing:0;font-weight:400}
-.pill{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:100px;font-family:'Space Mono',monospace;font-size:10px;font-weight:700;white-space:nowrap;transition:all .3s}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:100px;font-family:'Space Mono',monospace;font-size:10px;font-weight:700;white-space:nowrap}
 .pl{background:rgba(0,255,136,.08);color:var(--g);border:1px solid rgba(0,255,136,.2)}
 .pw{background:rgba(74,85,120,.1);color:var(--m);border:1px solid var(--b)}
 .ps{background:rgba(0,229,255,.08);color:var(--c);border:1px solid rgba(0,229,255,.2)}
@@ -119,16 +115,14 @@ input[type=range]{flex:1;accent-color:var(--c);cursor:pointer;height:18px}
 .eq-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:5px;margin-bottom:8px}
 .eq-btn{padding:7px 3px;border-radius:6px;font-family:'Space Mono',monospace;font-size:9px;font-weight:700;cursor:pointer;border:1px solid rgba(255,255,255,.06);background:rgba(255,255,255,.02);color:var(--m);transition:all .15s;text-align:center;line-height:1.4}
 .eq-btn:hover,.eq-btn.on{background:rgba(255,215,0,.1);color:var(--gold);border-color:rgba(255,215,0,.3)}
-.eq-btn.ai-selected{background:rgba(0,229,255,.08);color:var(--c);border-color:rgba(0,229,255,.3);box-shadow:0 0 8px rgba(0,229,255,.1)}
+.eq-btn.ai-selected{box-shadow:0 0 8px rgba(0,229,255,.15)}
 .spatial-indicator{display:flex;align-items:center;gap:6px;margin-top:8px;font-family:'Space Mono',monospace;font-size:9px;color:var(--m)}
 .spatial-bar{flex:1;height:3px;background:var(--b);border-radius:10px;overflow:hidden}
 .spatial-fill{height:100%;width:0%;background:linear-gradient(90deg,var(--c),var(--gold));transition:width .5s ease;border-radius:10px}
 .ai-analysis{margin-top:10px;padding:8px 10px;background:rgba(0,229,255,.03);border:1px solid rgba(0,229,255,.08);border-radius:7px;display:none}
 .ai-analysis.on{display:block}
 .ai-row{display:flex;justify-content:space-between;align-items:center;font-family:'Space Mono',monospace;font-size:9px;padding:2px 0}
-.ai-label{color:var(--m)}
-.ai-value{color:var(--c);font-weight:700}
-.ai-value.gold{color:var(--gold)}
+.ai-label{color:var(--m)}.ai-value{color:var(--c);font-weight:700}.ai-value.gold{color:var(--gold)}
 canvas{width:100%;height:68px;display:block;border-radius:8px;background:var(--bg)}
 .lcnt{color:var(--c);font-weight:700}
 .nol{font-family:'Space Mono',monospace;font-size:11px;color:var(--m);text-align:center;padding:13px 0;line-height:1.6}
@@ -143,21 +137,19 @@ canvas{width:100%;height:68px;display:block;border-radius:8px;background:var(--b
 .latency-lbl{color:var(--m);font-size:8px;letter-spacing:.5px;text-transform:uppercase}
 .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(90px);background:#12161f;border:1px solid rgba(255,255,255,.1);border-radius:9px;padding:10px 18px;font-family:'Space Mono',monospace;font-size:11px;z-index:9999;transition:transform .28s cubic-bezier(.34,1.56,.64,1);white-space:nowrap;max-width:92vw;text-align:center;pointer-events:none;box-shadow:0 8px 32px rgba(0,0,0,.5)}
 .toast.on{transform:translateX(-50%) translateY(0)}
-#unlock{position:fixed;inset:0;background:rgba(6,7,12,.97);z-index:1000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;cursor:pointer;backdrop-filter:blur(12px)}
-#unlock.gone{display:none}
+#unlock{position:fixed;inset:0;background:rgba(6,7,12,.97);z-index:1000;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;cursor:pointer;backdrop-filter:blur(12px)}
+#unlock.show{display:flex}
 .ui{font-size:56px;animation:tapA 1.4s infinite ease-in-out}
 @keyframes tapA{0%,100%{transform:scale(1)}50%{transform:scale(1.15)}}
-.ut{font-size:22px;font-weight:800;letter-spacing:-.5px}
-.us{font-family:'Space Mono',monospace;font-size:11px;color:var(--m);text-align:center;max-width:260px;line-height:1.7}
-.nn-badge{display:inline-flex;align-items:center;gap:4px;font-family:'Space Mono',monospace;font-size:8px;color:var(--gold);background:rgba(255,215,0,.06);border:1px solid rgba(255,215,0,.15);border-radius:4px;padding:1px 6px;margin-left:6px}
+.ut{font-size:22px;font-weight:800}.us{font-family:'Space Mono',monospace;font-size:11px;color:var(--m);text-align:center;max-width:260px;line-height:1.7}
 </style>
 </head>
 <body>
 
-<div id="unlock" class="gone">
+<div id="unlock">
   <div class="ui">🎧</div>
   <div class="ut">Tap to Enable Audio</div>
-  <div class="us">Your browser requires a tap before audio can play. This only happens once.</div>
+  <div class="us">Your browser needs a tap before audio can play</div>
 </div>
 
 <div id="app">
@@ -168,88 +160,58 @@ canvas{width:100%;height:68px;display:block;border-radius:8px;background:var(--b
     </div>
     <div style="display:flex;align-items:center;gap:8px">
       <div class="nav-status"><div class="nav-dot" id="conn-dot"></div><span id="conn-label">Offline</span></div>
-      <div class="nav-badge">✦ NEURAL AUDIO</div>
+      <div class="nav-badge">✦ NEURAL AI</div>
     </div>
   </div>
 
-  <!-- HOME -->
   <div id="s-home" class="screen on">
     <div class="hero">
-      <div class="hero-chip">🧠 Neural Audio Engine · Zero-Lag Sync · All Devices</div>
+      <div class="hero-chip">🧠 Neural Audio Engine · Zero-Lag Sync</div>
       <h1>One Audio.<br><em>Every Device.</em><br>Same Moment.</h1>
-      <p class="hero-sub">AI analyzes your music in real-time, auto-tunes spatial audio, and keeps every listener perfectly synchronized.</p>
+      <p class="hero-sub">AI analyzes your music in real-time, auto-tunes spatial audio, and keeps every listener perfectly synced.</p>
       <div class="home-cards">
-        <div class="hcard" onclick="show('s-create')">
-          <div class="hi">🎙</div>
-          <div class="ht">Host a Room</div>
-          <div class="hd">Load YouTube or any audio. AI optimizes sound. Everyone hears the same moment.</div>
-        </div>
-        <div class="hcard" onclick="show('s-join')">
-          <div class="hi">🎧</div>
-          <div class="ht">Join a Room</div>
-          <div class="hd">Enter 6-letter code. Neural spatial audio syncs automatically.</div>
-        </div>
+        <div class="hcard" onclick="show('s-create')"><div class="hi">🎙</div><div class="ht">Host a Room</div><div class="hd">Load YouTube or any audio. AI optimizes sound for everyone.</div></div>
+        <div class="hcard" onclick="show('s-join')"><div class="hi">🎧</div><div class="ht">Join a Room</div><div class="hd">Enter 6-letter code. Neural spatial audio syncs automatically.</div></div>
       </div>
       <div class="feature-strip">
-        <div class="feat">🧠 Neural EQ</div>
-        <div class="feat">⚡ &lt;50ms Sync</div>
-        <div class="feat">🎵 YouTube + URL</div>
-        <div class="feat">🔊 3D Spatial</div>
+        <div class="feat">🧠 Neural EQ</div><div class="feat">⚡ &lt;50ms Sync</div><div class="feat">🎵 YouTube</div><div class="feat">🔊 3D Spatial</div>
       </div>
       <div class="ai-features">
-        <div class="ai-feat">
-          <div class="ai-feat-icon">🧠</div>
-          <div class="ai-feat-title">Genre Detection</div>
-          <div class="ai-feat-desc">Neural network identifies music genre in real-time</div>
-        </div>
-        <div class="ai-feat">
-          <div class="ai-feat-icon">🎛</div>
-          <div class="ai-feat-title">Auto EQ</div>
-          <div class="ai-feat-desc">AI selects optimal spatial preset for each track</div>
-        </div>
-        <div class="ai-feat">
-          <div class="ai-feat-icon">📊</div>
-          <div class="ai-feat-title">Live Analysis</div>
-          <div class="ai-feat-desc">Real-time spectral analysis with peak detection</div>
-        </div>
+        <div class="ai-feat"><div class="ai-feat-icon">🧠</div><div class="ai-feat-title">Genre Detection</div><div class="ai-feat-desc">Neural net identifies genre in real-time</div></div>
+        <div class="ai-feat"><div class="ai-feat-icon">🎛</div><div class="ai-feat-title">Auto EQ</div><div class="ai-feat-desc">AI selects optimal spatial preset</div></div>
+        <div class="ai-feat"><div class="ai-feat-icon">📊</div><div class="ai-feat-title">Live Analysis</div><div class="ai-feat-desc">Spectral analysis with peak detection</div></div>
       </div>
     </div>
   </div>
 
-  <!-- CREATE -->
   <div id="s-create" class="screen">
     <div class="fbox">
       <button class="back" onclick="show('s-home')">← Back</button>
       <div class="ftitle">Host a Room</div>
-      <div class="fsub">Create a room. Load any audio. AI optimizes the sound for everyone.</div>
+      <div class="fsub">Create a room. Load any audio. AI optimizes sound for everyone.</div>
       <label class="fl">Room Name (optional)</label>
       <input class="fi" id="rname-input" type="text" placeholder="Friday Night Session" maxlength="40">
       <button class="btn bc" onclick="createRoom()">Create Room →</button>
     </div>
   </div>
 
-  <!-- JOIN -->
   <div id="s-join" class="screen">
     <div class="fbox">
       <button class="back" onclick="show('s-home')">← Back</button>
       <div class="ftitle">Join a Room</div>
-      <div class="fsub">Enter the 6-letter code shared by the host.</div>
+      <div class="fsub">Enter the 6-letter code from the host.</div>
       <label class="fl">Room Code</label>
-      <input class="fi" id="join-code" type="text" placeholder="ABC123" maxlength="6" autocomplete="off" spellcheck="false" inputmode="text">
+      <input class="fi" id="join-code" type="text" placeholder="ABC123" maxlength="6" autocomplete="off" spellcheck="false">
       <div class="ferr" id="join-err"></div>
       <button class="btn bp" onclick="joinRoom()">Join Room →</button>
     </div>
   </div>
 
-  <!-- HOST ROOM -->
   <div id="s-host" class="screen">
     <div class="rhead">
       <div>
         <div class="rname" id="h-rname">Room</div>
-        <div class="rcode" onclick="copyCode()">
-          <span id="h-code">------</span>
-          <small>tap to copy</small>
-        </div>
+        <div class="rcode" onclick="copyCode()"><span id="h-code">------</span><small>tap to copy</small></div>
       </div>
       <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
         <div id="h-pill" class="pill pw"><div class="dot dm"></div><span>Ready</span></div>
@@ -258,10 +220,10 @@ canvas{width:100%;height:68px;display:block;border-radius:8px;background:var(--b
     </div>
 
     <div class="load-panel">
-      <div class="ptitle">Load Audio for Everyone</div>
+      <div class="ptitle">Load Audio</div>
       <div class="src-tabs">
         <button class="src-tab active" id="tab-youtube" onclick="switchTab('youtube')">▶ YouTube</button>
-        <button class="src-tab" id="tab-url" onclick="switchTab('url')">🔗 Direct URL</button>
+        <button class="src-tab" id="tab-url" onclick="switchTab('url')">🔗 URL</button>
         <button class="src-tab" id="tab-file" onclick="switchTab('file')">📁 File</button>
       </div>
       <div class="src-pane on" id="pane-youtube">
@@ -273,15 +235,15 @@ canvas{width:100%;height:68px;display:block;border-radius:8px;background:var(--b
       </div>
       <div class="src-pane" id="pane-url">
         <div class="url-row">
-          <input class="fi" id="direct-url" type="url" placeholder="https://example.com/audio.mp3" autocomplete="off">
+          <input class="fi" id="direct-url" type="url" placeholder="https://example.com/audio.mp3">
           <button class="btn bc" onclick="loadDirectUrl()">Load</button>
         </div>
         <div class="load-status" id="url-status"></div>
       </div>
       <div class="src-pane" id="pane-file">
-        <button class="btn bg" onclick="G('file-input').click()" style="margin-bottom:9px">📁 Choose Audio File</button>
+        <button class="btn bg" onclick="$('file-input').click()" style="margin-bottom:9px">📁 Choose File</button>
         <input type="file" id="file-input" accept="audio/*,video/*" style="display:none" onchange="loadFile()">
-        <div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--m);line-height:1.65;padding:8px 0">⚠️ Local files only play on your device. Use YouTube or URL for shared listening.</div>
+        <div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--m);line-height:1.65;padding:8px 0">⚠️ Local files only play on your device.</div>
         <div class="load-status" id="file-status"></div>
       </div>
     </div>
@@ -296,10 +258,7 @@ canvas{width:100%;height:68px;display:block;border-radius:8px;background:var(--b
         </div>
       </div>
       <div class="seekbar" id="h-seekbar">
-        <div class="seek-track">
-          <div class="seek-buffer" id="h-buffer"></div>
-          <div class="seek-fill" id="h-fill"></div>
-        </div>
+        <div class="seek-track"><div class="seek-buffer" id="h-buffer"></div><div class="seek-fill" id="h-fill"></div></div>
         <div class="seek-times"><span id="h-cur">0:00</span><span id="h-dur">0:00</span></div>
       </div>
       <div class="brow" style="margin-top:11px">
@@ -314,53 +273,41 @@ canvas{width:100%;height:68px;display:block;border-radius:8px;background:var(--b
       </div>
       <div class="eq-section">
         <div class="eq-header">
-          <div class="eq-title">🧠 Neural Spatial Audio <span class="eq-ai-badge">AI</span></div>
-          <div class="eq-auto-toggle" id="h-auto-eq" onclick="toggleAutoEQ('h')">
-            <span>Auto</span>
-            <div class="toggle-track"><div class="toggle-thumb"></div></div>
-          </div>
+          <div class="eq-title">🧠 Neural Spatial <span class="eq-ai-badge">AI</span></div>
+          <div class="eq-auto-toggle" id="h-auto-eq" onclick="toggleAutoEQ('h')"><span>Auto</span><div class="toggle-track"><div class="toggle-thumb"></div></div></div>
         </div>
         <div class="eq-grid">
-          <button class="eq-btn on" id="heq-flat"   onclick="manualEQ(this,'h')">Flat<br><span style="font-size:7px;opacity:.5">Linear</span></button>
-          <button class="eq-btn"    id="heq-atmos"  onclick="manualEQ(this,'h')">Atmos<br><span style="font-size:7px;opacity:.5">3D</span></button>
-          <button class="eq-btn"    id="heq-cinema" onclick="manualEQ(this,'h')">Cinema<br><span style="font-size:7px;opacity:.5">Wide</span></button>
-          <button class="eq-btn"    id="heq-bass"   onclick="manualEQ(this,'h')">Bass+<br><span style="font-size:7px;opacity:.5">Deep</span></button>
-          <button class="eq-btn"    id="heq-vocal"  onclick="manualEQ(this,'h')">Vocal<br><span style="font-size:7px;opacity:.5">Clear</span></button>
+          <button class="eq-btn on" id="heq-flat" onclick="manualEQ(this,'h')">Flat</button>
+          <button class="eq-btn" id="heq-atmos" onclick="manualEQ(this,'h')">Atmos</button>
+          <button class="eq-btn" id="heq-cinema" onclick="manualEQ(this,'h')">Cinema</button>
+          <button class="eq-btn" id="heq-bass" onclick="manualEQ(this,'h')">Bass+</button>
+          <button class="eq-btn" id="heq-vocal" onclick="manualEQ(this,'h')">Vocal</button>
         </div>
         <div class="spatial-indicator">
-          <span style="font-size:9px;white-space:nowrap">Spatial Depth</span>
+          <span>Spatial Depth</span>
           <div class="spatial-bar"><div class="spatial-fill" id="h-spatial-fill"></div></div>
-          <span style="font-family:'Space Mono',monospace;font-size:9px;min-width:28px;text-align:right" id="h-spatial-val">0%</span>
+          <span id="h-spatial-val">0%</span>
         </div>
         <div class="ai-analysis" id="h-ai-info">
-          <div class="ai-row"><span class="ai-label">Detected Genre</span><span class="ai-value" id="h-ai-genre">—</span></div>
+          <div class="ai-row"><span class="ai-label">Genre</span><span class="ai-value" id="h-ai-genre">—</span></div>
           <div class="ai-row"><span class="ai-label">Mood</span><span class="ai-value" id="h-ai-mood">—</span></div>
-          <div class="ai-row"><span class="ai-label">AI Confidence</span><span class="ai-value gold" id="h-ai-conf">—</span></div>
-          <div class="ai-row"><span class="ai-label">Suggested Preset</span><span class="ai-value gold" id="h-ai-preset">—</span></div>
-          <div class="ai-row"><span class="ai-label">Spectral Centroid</span><span class="ai-value" id="h-ai-centroid">—</span></div>
-          <div class="ai-row"><span class="ai-label">Energy (RMS)</span><span class="ai-value" id="h-ai-rms">—</span></div>
-          <div class="ai-row"><span class="ai-label">Tempo Est.</span><span class="ai-value" id="h-ai-tempo">—</span></div>
+          <div class="ai-row"><span class="ai-label">Confidence</span><span class="ai-value gold" id="h-ai-conf">—</span></div>
+          <div class="ai-row"><span class="ai-label">Suggested</span><span class="ai-value gold" id="h-ai-preset">—</span></div>
+          <div class="ai-row"><span class="ai-label">Centroid</span><span class="ai-value" id="h-ai-centroid">—</span></div>
+          <div class="ai-row"><span class="ai-label">Energy</span><span class="ai-value" id="h-ai-rms">—</span></div>
+          <div class="ai-row"><span class="ai-label">Tempo</span><span class="ai-value" id="h-ai-tempo">—</span></div>
         </div>
       </div>
     </div>
-
+    <div class="panel"><div class="ptitle">Spectrum</div><canvas id="h-viz"></canvas></div>
     <div class="panel">
-      <div class="ptitle">Live Neural Spectrum</div>
-      <canvas id="h-viz"></canvas>
-    </div>
-
-    <div class="panel">
-      <div class="ptitle" style="display:flex;justify-content:space-between;align-items:center">
-        <span>Connected Listeners</span><span class="lcnt" id="h-lcnt">0</span>
-      </div>
+      <div class="ptitle" style="display:flex;justify-content:space-between"><span>Listeners</span><span class="lcnt" id="h-lcnt">0</span></div>
       <div id="h-llist"><div class="nol">No one joined yet — share your code!</div></div>
     </div>
-
-    <div style="margin-top:12px"><button class="btn br" onclick="leave()">🚪 End Room &amp; Leave</button></div>
+    <div style="margin-top:12px"><button class="btn br" onclick="leave()">🚪 End Room</button></div>
     <audio id="h-audio" crossorigin="anonymous" style="display:none" preload="auto"></audio>
   </div>
 
-  <!-- LISTENER ROOM -->
   <div id="s-listen" class="screen">
     <div class="rhead">
       <div>
@@ -372,21 +319,17 @@ canvas{width:100%;height:68px;display:block;border-radius:8px;background:var(--b
         <div id="l-ai-pill" class="pill pai" style="display:none"><div class="dot dgold"></div><span>AI</span></div>
       </div>
     </div>
-
     <div class="panel">
       <div class="dbadge">NEURAL AI ✦</div>
       <div class="tinfo">
         <div class="tart" id="l-art">🎵</div>
         <div style="flex:1;min-width:0">
           <div class="tname" id="l-tname">Waiting for host...</div>
-          <div class="tsub">Host controls playback · AI optimizes your audio</div>
+          <div class="tsub">Host controls playback</div>
         </div>
       </div>
       <div class="seekbar">
-        <div class="seek-track">
-          <div class="seek-buffer" id="l-buffer"></div>
-          <div class="seek-fill" id="l-fill"></div>
-        </div>
+        <div class="seek-track"><div class="seek-buffer" id="l-buffer"></div><div class="seek-fill" id="l-fill"></div></div>
         <div class="seek-times"><span id="l-cur">0:00</span><span id="l-dur">0:00</span></div>
       </div>
       <div class="vol" style="margin-top:11px">
@@ -396,1623 +339,763 @@ canvas{width:100%;height:68px;display:block;border-radius:8px;background:var(--b
       </div>
       <div class="eq-section">
         <div class="eq-header">
-          <div class="eq-title">🧠 Neural Spatial Audio <span class="eq-ai-badge">AI</span></div>
-          <div class="eq-auto-toggle" id="l-auto-eq" onclick="toggleAutoEQ('l')">
-            <span>Auto</span>
-            <div class="toggle-track"><div class="toggle-thumb"></div></div>
-          </div>
+          <div class="eq-title">🧠 Neural Spatial <span class="eq-ai-badge">AI</span></div>
+          <div class="eq-auto-toggle" id="l-auto-eq" onclick="toggleAutoEQ('l')"><span>Auto</span><div class="toggle-track"><div class="toggle-thumb"></div></div></div>
         </div>
         <div class="eq-grid">
-          <button class="eq-btn on" id="leq-flat"   onclick="manualEQ(this,'l')">Flat<br><span style="font-size:7px;opacity:.5">Linear</span></button>
-          <button class="eq-btn"    id="leq-atmos"  onclick="manualEQ(this,'l')">Atmos<br><span style="font-size:7px;opacity:.5">3D</span></button>
-          <button class="eq-btn"    id="leq-cinema" onclick="manualEQ(this,'l')">Cinema<br><span style="font-size:7px;opacity:.5">Wide</span></button>
-          <button class="eq-btn"    id="leq-bass"   onclick="manualEQ(this,'l')">Bass+<br><span style="font-size:7px;opacity:.5">Deep</span></button>
-          <button class="eq-btn"    id="leq-vocal"  onclick="manualEQ(this,'l')">Vocal<br><span style="font-size:7px;opacity:.5">Clear</span></button>
+          <button class="eq-btn on" id="leq-flat" onclick="manualEQ(this,'l')">Flat</button>
+          <button class="eq-btn" id="leq-atmos" onclick="manualEQ(this,'l')">Atmos</button>
+          <button class="eq-btn" id="leq-cinema" onclick="manualEQ(this,'l')">Cinema</button>
+          <button class="eq-btn" id="leq-bass" onclick="manualEQ(this,'l')">Bass+</button>
+          <button class="eq-btn" id="leq-vocal" onclick="manualEQ(this,'l')">Vocal</button>
         </div>
         <div class="spatial-indicator">
-          <span style="font-size:9px;white-space:nowrap">Spatial Depth</span>
+          <span>Spatial Depth</span>
           <div class="spatial-bar"><div class="spatial-fill" id="l-spatial-fill"></div></div>
-          <span style="font-family:'Space Mono',monospace;font-size:9px;min-width:28px;text-align:right" id="l-spatial-val">0%</span>
+          <span id="l-spatial-val">0%</span>
         </div>
         <div class="ai-analysis" id="l-ai-info">
-          <div class="ai-row"><span class="ai-label">Detected Genre</span><span class="ai-value" id="l-ai-genre">—</span></div>
+          <div class="ai-row"><span class="ai-label">Genre</span><span class="ai-value" id="l-ai-genre">—</span></div>
           <div class="ai-row"><span class="ai-label">Mood</span><span class="ai-value" id="l-ai-mood">—</span></div>
-          <div class="ai-row"><span class="ai-label">AI Confidence</span><span class="ai-value gold" id="l-ai-conf">—</span></div>
+          <div class="ai-row"><span class="ai-label">Confidence</span><span class="ai-value gold" id="l-ai-conf">—</span></div>
         </div>
       </div>
     </div>
-
     <div class="panel">
       <div class="ptitle">Sync Status</div>
-      <div class="sbox" id="l-sync"><b>Status:</b> Waiting for host to load a track...</div>
+      <div class="sbox" id="l-sync"><b>Status:</b> Waiting for host...</div>
       <div class="latency-row" id="l-latency" style="display:none">
         <div class="latency-item"><div class="latency-val" id="l-drift-val">—</div><div class="latency-lbl">Drift</div></div>
-        <div class="latency-item"><div class="latency-val" id="l-offset-val">—</div><div class="latency-lbl">Clock Offset</div></div>
-        <div class="latency-item"><div class="latency-val" id="l-rtt-val">—</div><div class="latency-lbl">Best RTT</div></div>
+        <div class="latency-item"><div class="latency-val" id="l-offset-val">—</div><div class="latency-lbl">Offset</div></div>
+        <div class="latency-item"><div class="latency-val" id="l-rtt-val">—</div><div class="latency-lbl">RTT</div></div>
         <div class="latency-item"><div class="latency-val" id="l-corrections">0</div><div class="latency-lbl">Corrections</div></div>
       </div>
     </div>
-
-    <div class="panel">
-      <div class="ptitle">Live Neural Spectrum</div>
-      <canvas id="l-viz"></canvas>
-    </div>
-
+    <div class="panel"><div class="ptitle">Spectrum</div><canvas id="l-viz"></canvas></div>
     <div style="margin-top:12px"><button class="btn bg" onclick="leave()">← Leave Room</button></div>
     <audio id="l-audio" crossorigin="anonymous" style="display:none" preload="auto"></audio>
   </div>
 </div>
-
 <div id="toast" class="toast"></div>
 
 <script src="/socket.io/socket.io.js"></script>
 <script>
 'use strict';
 
-// ═══════════════════════════════════════════════════════════════════
-//  WAVEROOM CLIENT v3.0 — Neural AI Spatial Audio Engine
-// ═══════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════════════════════════════
+const NTP_ROUNDS=15,SCHED_MS=600,DRIFT_SOFT=.035,DRIFT_HARD=.25,AI_INTERVAL=2200;
 
-// ─── CONFIG ──────────────────────────────────────────────────────
-const NTP_ROUNDS      = 15;
-const SCHED_MS        = 600;
-const DRIFT_SOFT      = 0.035;
-const DRIFT_HARD      = 0.25;
-const AI_INTERVAL     = 2000;
-const TEMPO_HISTORY   = 30;
+// ═══════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════
+let sock=null,roomCode=null,amHost=false;
+let clockOffset=0,ntpSamples=[],ntpDone=false,bestRTT=Infinity;
+let pendingPlay=null,progRaf=null;
+let listeners={};
+let hCtx=null,hChain=null,lCtx=null,lChain=null;
+let vizAn=null,vizRaf=null;
+let currentTrack=null;
+let currentEQ={h:'flat',l:'flat'};
+let autoEQ={h:false,l:false};
+let driftWatcher=null,aiInterval=null;
+let driftCorrections=0,audioUnlocked=false;
+let kalman={x:0,p:1000,q:.5,r:50};
+let energyHistory=[];
 
-// ─── STATE ───────────────────────────────────────────────────────
-let sock = null, roomCode = null, amHost = false;
-let clockOffset = 0, ntpSamples = [], ntpDone = false, bestRTT = Infinity;
-let pendingPlay = null, progRaf = null;
-let listeners = {};
-let hCtx = null, hChain = null;
-let lCtx = null, lChain = null;
-let vizAn = null, vizRaf = null;
-let currentTrack = null;
-let currentEQ = { h: 'flat', l: 'flat' };
-let autoEQ = { h: false, l: false };
-let driftWatcher = null;
-let aiInterval = null;
-let driftCorrections = 0;
-let audioUnlocked = false;
-
-// Kalman filter state for NTP
-let kalmanOffset = { x: 0, p: 1000, q: 0.5, r: 50 };
-
-// ─── AI SPATIAL AUDIO PRESETS ────────────────────────────────────
-// Each preset defines a complete signal chain configuration:
-// 7-band parametric EQ + convolution reverb + dynamic compression
-const PRESETS = {
-  flat:   { sub:0,  bass:0,  lo:0,  mid:0,  hi:0,  pres:0,  air:0,  ratio:2,  thresh:-24, knee:8,  rev:0,    stereoW:0,    depth:0,   label:'Flat' },
-  atmos:  { sub:4,  bass:3,  lo:-2, mid:1,  hi:5,  pres:6,  air:7,  ratio:4,  thresh:-18, knee:10, rev:0.20, stereoW:0.4,  depth:85,  label:'Atmos 3D' },
-  cinema: { sub:6,  bass:5,  lo:1,  mid:2,  hi:4,  pres:5,  air:5,  ratio:5,  thresh:-20, knee:12, rev:0.30, stereoW:0.5,  depth:95,  label:'Cinema' },
-  bass:   { sub:10, bass:8,  lo:3,  mid:-2, hi:1,  pres:2,  air:1,  ratio:6,  thresh:-22, knee:8,  rev:0.06, stereoW:0.15, depth:20,  label:'Bass+' },
-  vocal:  { sub:-3, bass:-2, lo:1,  mid:5,  hi:4,  pres:3,  air:2,  ratio:3,  thresh:-16, knee:6,  rev:0.14, stereoW:0.25, depth:30,  label:'Vocal' },
+// ═══════════════════════════════════════════════════════════
+// PRESETS
+// ═══════════════════════════════════════════════════════════
+const PRESETS={
+  flat:{sub:0,bass:0,lo:0,mid:0,hi:0,pres:0,air:0,ratio:2,thresh:-24,knee:8,rev:0,depth:0,label:'Flat'},
+  atmos:{sub:4,bass:3,lo:-2,mid:1,hi:5,pres:6,air:7,ratio:4,thresh:-18,knee:10,rev:.2,depth:85,label:'Atmos 3D'},
+  cinema:{sub:6,bass:5,lo:1,mid:2,hi:4,pres:5,air:5,ratio:5,thresh:-20,knee:12,rev:.3,depth:95,label:'Cinema'},
+  bass:{sub:10,bass:8,lo:3,mid:-2,hi:1,pres:2,air:1,ratio:6,thresh:-22,knee:8,rev:.06,depth:20,label:'Bass+'},
+  vocal:{sub:-3,bass:-2,lo:1,mid:5,hi:4,pres:3,air:2,ratio:3,thresh:-16,knee:6,rev:.14,depth:30,label:'Vocal'},
 };
 
-// ─── NEURAL NETWORK for genre classification ─────────────────────
-// Simple feedforward network trained on audio features
-// Input: [spectralCentroid, rms, zeroCrossings, bassRatio, midRatio, highRatio, spectralFlux, crest]
-// Output: [electronic, rock, ambient, pop, hiphop, classical, jazz]
-const GENRES = ['electronic', 'rock', 'ambient', 'pop', 'hip-hop', 'classical', 'jazz'];
-const GENRE_PRESETS = { electronic: 'bass', rock: 'cinema', ambient: 'atmos', pop: 'vocal', 'hip-hop': 'bass', classical: 'cinema', jazz: 'vocal' };
-const GENRE_MOODS = { electronic: 'energetic', rock: 'intense', ambient: 'calm', pop: 'upbeat', 'hip-hop': 'groovy', classical: 'serene', jazz: 'smooth' };
+// ═══════════════════════════════════════════════════════════
+// NEURAL NETWORK (genre classification)
+// ═══════════════════════════════════════════════════════════
+const GENRES=['electronic','rock','ambient','pop','hip-hop','classical','jazz'];
+const GENRE_PRESETS={electronic:'bass',rock:'cinema',ambient:'atmos',pop:'vocal','hip-hop':'bass',classical:'cinema',jazz:'vocal'};
+const GENRE_MOODS={electronic:'energetic',rock:'intense',ambient:'calm',pop:'upbeat','hip-hop':'groovy',classical:'serene',jazz:'smooth'};
 
-// Pre-trained weights for a tiny neural network (2 hidden layers)
-// These approximate genre classification from spectral features
-const NN_W1 = [
-  [0.82,-0.31,0.15,0.92,-0.45,0.28,0.67,-0.22],
-  [-0.55,0.73,0.41,-0.18,0.65,-0.38,0.12,0.54],
-  [0.33,-0.67,-0.29,0.44,-0.12,0.88,-0.55,0.21],
-  [-0.41,0.22,0.78,-0.33,0.55,0.11,-0.67,0.43],
-  [0.65,0.45,-0.52,0.71,-0.28,-0.44,0.33,-0.18],
-  [-0.28,-0.55,0.63,-0.72,0.82,0.35,-0.21,0.66],
-  [0.15,0.88,-0.38,0.26,-0.59,0.72,0.44,-0.31],
-  [-0.72,0.35,0.55,-0.41,0.18,-0.62,0.81,0.27],
-  [0.48,-0.22,-0.71,0.58,0.33,0.45,-0.38,0.72],
-  [0.27,0.61,0.32,-0.55,-0.42,0.28,0.55,-0.45],
-];
-const NN_B1 = [0.12,-0.08,0.15,-0.05,0.22,-0.11,0.08,-0.15,0.18,-0.06];
-const NN_W2 = [
-  [0.55,-0.32,0.71,-0.45,0.28,0.62,-0.38,0.44,-0.22,0.51],
-  [-0.41,0.68,-0.25,0.52,-0.58,0.31,0.45,-0.62,0.38,-0.28],
-  [0.32,-0.55,0.45,0.72,-0.31,-0.48,0.62,0.28,-0.42,0.55],
-  [-0.62,0.42,-0.38,-0.22,0.72,0.55,-0.31,0.48,-0.58,0.35],
-  [0.45,0.28,-0.62,0.35,0.48,-0.72,0.52,-0.35,0.62,-0.41],
-  [-0.28,0.55,0.38,-0.62,-0.42,0.45,-0.55,0.72,0.31,-0.48],
-  [0.72,-0.45,0.28,0.42,0.55,-0.31,-0.62,0.38,0.45,0.22],
-];
-const NN_B2 = [0.08,-0.12,0.05,-0.08,0.15,-0.05,0.1];
+const W1=[[.82,-.31,.15,.92,-.45,.28,.67,-.22],[-.55,.73,.41,-.18,.65,-.38,.12,.54],[.33,-.67,-.29,.44,-.12,.88,-.55,.21],[-.41,.22,.78,-.33,.55,.11,-.67,.43],[.65,.45,-.52,.71,-.28,-.44,.33,-.18],[-.28,-.55,.63,-.72,.82,.35,-.21,.66],[.15,.88,-.38,.26,-.59,.72,.44,-.31],[-.72,.35,.55,-.41,.18,-.62,.81,.27],[.48,-.22,-.71,.58,.33,.45,-.38,.72],[.27,.61,.32,-.55,-.42,.28,.55,-.45]];
+const B1=[.12,-.08,.15,-.05,.22,-.11,.08,-.15,.18,-.06];
+const W2=[[.55,-.32,.71,-.45,.28,.62,-.38,.44,-.22,.51],[-.41,.68,-.25,.52,-.58,.31,.45,-.62,.38,-.28],[.32,-.55,.45,.72,-.31,-.48,.62,.28,-.42,.55],[-.62,.42,-.38,-.22,.72,.55,-.31,.48,-.58,.35],[.45,.28,-.62,.35,.48,-.72,.52,-.35,.62,-.41],[-.28,.55,.38,-.62,-.42,.45,-.55,.72,.31,-.48],[.72,-.45,.28,.42,.55,-.31,-.62,.38,.45,.22]];
+const B2=[.08,-.12,.05,-.08,.15,-.05,.1];
 
-function relu(x) { return Math.max(0, x); }
-
-function softmax(arr) {
-  const max = Math.max(...arr);
-  const exps = arr.map(x => Math.exp(x - max));
-  const sum = exps.reduce((a, b) => a + b, 0);
-  return exps.map(x => x / sum);
+function relu(x){return Math.max(0,x)}
+function softmax(a){const m=Math.max(...a);const e=a.map(x=>Math.exp(x-m));const s=e.reduce((a,b)=>a+b,0);return e.map(x=>x/s)}
+function nnForward(inp){
+  const h=new Array(10);
+  for(let i=0;i<10;i++){let s=B1[i];for(let j=0;j<8;j++)s+=W1[i][j]*inp[j];h[i]=relu(s);}
+  const o=new Array(7);
+  for(let i=0;i<7;i++){let s=B2[i];for(let j=0;j<10;j++)s+=W2[i][j]*h[j];o[i]=s;}
+  return softmax(o);
 }
 
-function nnForward(input) {
-  // Layer 1: input(8) -> hidden(10) with ReLU
-  const h1 = new Array(10);
-  for (let i = 0; i < 10; i++) {
-    let sum = NN_B1[i];
-    for (let j = 0; j < 8; j++) sum += NN_W1[i][j] * input[j];
-    h1[i] = relu(sum);
+// ═══════════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════════
+const $=id=>document.getElementById(id);
+function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on'));$(id).classList.add('on');}
+function toast(m,d=3500){const t=$('toast');t.textContent=m;t.classList.add('on');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('on'),d);}
+function fmt(s){if(!s||isNaN(s)||!isFinite(s))return'0:00';return Math.floor(s/60)+':'+(('0'+Math.floor(s%60)).slice(-2));}
+function srvNow(){return Date.now()-clockOffset}
+function setConn(on){$('conn-dot').className='nav-dot'+(on?' online':'');$('conn-label').textContent=on?'Online':'Offline';}
+function setPill(id,c,d,l){const e=$(id);if(!e)return;e.className='pill '+c;e.innerHTML='<div class="dot '+d+'"></div><span>'+l+'</span>';}
+function setSyncInfo(h){$('l-sync').innerHTML='<b>Status:</b> '+h}
+function setStatus(id,h){const e=$(id);if(e)e.innerHTML=h}
+function switchTab(n){['youtube','url','file'].forEach(t=>{$('tab-'+t).classList.toggle('active',t===n);$('pane-'+t).classList.toggle('on',t===n);})}
+
+// ═══════════════════════════════════════════════════════════
+// AUDIO UNLOCK (proactive)
+// ═══════════════════════════════════════════════════════════
+function setupUnlock(){
+  const evts=['click','touchstart','touchend','keydown'];
+  function tryUnlock(){
+    if(audioUnlocked)return;
+    audioUnlocked=true;
+    [hCtx,lCtx].forEach(c=>{if(c&&c.state==='suspended')c.resume()});
+    try{
+      const c=new(window.AudioContext||window.webkitAudioContext)();
+      const o=c.createOscillator();const g=c.createGain();g.gain.value=0;
+      o.connect(g);g.connect(c.destination);o.start(0);o.stop(c.currentTime+.001);
+      c.resume().then(()=>setTimeout(()=>c.close(),50));
+    }catch(e){}
+    $('unlock').classList.remove('show');
+    evts.forEach(ev=>document.removeEventListener(ev,tryUnlock,true));
+    console.log('[AUDIO] Unlocked');
   }
-  // Layer 2: hidden(10) -> output(7) with softmax
-  const out = new Array(7);
-  for (let i = 0; i < 7; i++) {
-    let sum = NN_B2[i];
-    for (let j = 0; j < 10; j++) sum += NN_W2[i][j] * h1[j];
-    out[i] = sum;
-  }
-  return softmax(out);
+  evts.forEach(ev=>document.addEventListener(ev,tryUnlock,{once:false,capture:true,passive:true}));
 }
 
-// ─── AUDIO FEATURE EXTRACTION ────────────────────────────────────
-function extractFeatures(analyser) {
-  if (!analyser) return null;
+function showUnlock(){$('unlock').classList.add('show')}
 
-  const freqBins = analyser.frequencyBinCount;
-  const freqData = new Uint8Array(freqBins);
-  const timeData = new Float32Array(analyser.fftSize);
+$('unlock').addEventListener('click',function(){
+  audioUnlocked=true;
+  $('unlock').classList.remove('show');
+  [hCtx,lCtx].forEach(c=>{if(c&&c.state==='suspended')c.resume()});
+  ['l-audio','h-audio'].forEach(id=>{const a=$(id);if(a&&a.src&&a.paused&&a.readyState>=2)a.play().catch(()=>{})});
+});
 
-  analyser.getByteFrequencyData(freqData);
-  analyser.getFloatTimeDomainData(timeData);
+// ═══════════════════════════════════════════════════════════
+// FEATURE EXTRACTION + AI
+// ═══════════════════════════════════════════════════════════
+function extractFeatures(an){
+  if(!an)return null;
+  const bins=an.frequencyBinCount;
+  const freq=new Uint8Array(bins);
+  const time=new Float32Array(an.fftSize);
+  an.getByteFrequencyData(freq);
+  an.getFloatTimeDomainData(time);
 
-  // RMS energy
-  let rmsSum = 0;
-  for (let i = 0; i < timeData.length; i++) rmsSum += timeData[i] * timeData[i];
-  const rms = Math.sqrt(rmsSum / timeData.length);
+  let rmsSum=0;for(let i=0;i<time.length;i++)rmsSum+=time[i]*time[i];
+  const rms=Math.sqrt(rmsSum/time.length);
 
-  // Zero crossing rate
-  let zeroCrossings = 0;
-  for (let i = 1; i < timeData.length; i++) {
-    if ((timeData[i] >= 0) !== (timeData[i - 1] >= 0)) zeroCrossings++;
-  }
-  const zcr = zeroCrossings / timeData.length;
+  let zc=0;for(let i=1;i<time.length;i++)if((time[i]>=0)!==(time[i-1]>=0))zc++;
+  const zcr=zc/time.length;
 
-  // Spectral centroid (weighted mean of frequencies)
-  let weightedSum = 0, totalMag = 0;
-  for (let i = 0; i < freqBins; i++) {
-    const mag = freqData[i] / 255;
-    const freq = (i * 24000) / freqBins; // assuming 48kHz sample rate
-    weightedSum += freq * mag;
-    totalMag += mag;
-  }
-  const spectralCentroid = totalMag > 0 ? weightedSum / totalMag : 0;
+  let wSum=0,tMag=0;
+  for(let i=0;i<bins;i++){const m=freq[i]/255;const f=(i*24000)/bins;wSum+=f*m;tMag+=m;}
+  const centroid=tMag>0?wSum/tMag:0;
 
-  // Band energy ratios
-  const bassEnd = Math.floor(freqBins * 250 / 24000);
-  const midEnd = Math.floor(freqBins * 4000 / 24000);
+  const bassEnd=Math.floor(bins*250/24000),midEnd=Math.floor(bins*4000/24000);
+  let bE=0,mE=0,hE=0;
+  for(let i=0;i<bins;i++){const e=(freq[i]/255)**2;if(i<bassEnd)bE+=e;else if(i<midEnd)mE+=e;else hE+=e;}
+  const tot=bE+mE+hE+.0001;
 
-  let bassEnergy = 0, midEnergy = 0, highEnergy = 0;
-  for (let i = 0; i < freqBins; i++) {
-    const e = (freqData[i] / 255) ** 2;
-    if (i < bassEnd) bassEnergy += e;
-    else if (i < midEnd) midEnergy += e;
-    else highEnergy += e;
-  }
-  const totalEnergy = bassEnergy + midEnergy + highEnergy + 0.0001;
-  const bassRatio = bassEnergy / totalEnergy;
-  const midRatio = midEnergy / totalEnergy;
-  const highRatio = highEnergy / totalEnergy;
+  const flux=tMag/bins;
+  let peak=0;for(let i=0;i<time.length;i++)peak=Math.max(peak,Math.abs(time[i]));
+  const crest=rms>.001?peak/rms:1;
 
-  // Spectral flux (change between frames)
-  const spectralFlux = totalMag / freqBins;
-
-  // Crest factor (peak / RMS)
-  let peak = 0;
-  for (let i = 0; i < timeData.length; i++) peak = Math.max(peak, Math.abs(timeData[i]));
-  const crest = rms > 0.001 ? peak / rms : 1;
-
-  return {
-    spectralCentroid: Math.min(spectralCentroid / 12000, 1), // normalize 0-1
-    rms: Math.min(rms * 3, 1),
-    zeroCrossings: Math.min(zcr * 5, 1),
-    bassRatio,
-    midRatio,
-    highRatio,
-    spectralFlux: Math.min(spectralFlux * 2, 1),
-    crest: Math.min(crest / 10, 1),
+  return{
+    spectralCentroid:Math.min(centroid/12000,1),
+    rms:Math.min(rms*3,1),
+    zeroCrossings:Math.min(zcr*5,1),
+    bassRatio:bE/tot,midRatio:mE/tot,highRatio:hE/tot,
+    spectralFlux:Math.min(flux*2,1),
+    crest:Math.min(crest/10,1),
   };
 }
 
-// Tempo estimation via autocorrelation of energy envelope
-let energyHistory = [];
-function estimateTempo(rms) {
+function estimateTempo(rms){
   energyHistory.push(rms);
-  if (energyHistory.length > 200) energyHistory.shift();
-  if (energyHistory.length < 80) return 0;
-
-  // Simple onset detection + interval counting
-  const onsets = [];
-  for (let i = 2; i < energyHistory.length; i++) {
-    if (energyHistory[i] > energyHistory[i-1] * 1.3 &&
-        energyHistory[i] > energyHistory[i-2] * 1.2 &&
-        energyHistory[i] > 0.15) {
-      onsets.push(i);
-    }
+  if(energyHistory.length>200)energyHistory.shift();
+  if(energyHistory.length<80)return 0;
+  const onsets=[];
+  for(let i=2;i<energyHistory.length;i++){
+    if(energyHistory[i]>energyHistory[i-1]*1.3&&energyHistory[i]>energyHistory[i-2]*1.2&&energyHistory[i]>.15)onsets.push(i);
   }
-
-  if (onsets.length < 3) return 0;
-
-  // Average interval between onsets
-  let totalInterval = 0, count = 0;
-  for (let i = 1; i < onsets.length; i++) {
-    const gap = onsets[i] - onsets[i-1];
-    if (gap > 2 && gap < 60) { totalInterval += gap; count++; }
-  }
-
-  if (count === 0) return 0;
-  const avgFrames = totalInterval / count;
-  // Each frame = AI_INTERVAL ms
-  const bpm = 60000 / (avgFrames * (AI_INTERVAL / 1000) * 1000 / AI_INTERVAL);
-  return Math.round(Math.max(60, Math.min(200, bpm)));
+  if(onsets.length<3)return 0;
+  let total=0,cnt=0;
+  for(let i=1;i<onsets.length;i++){const g=onsets[i]-onsets[i-1];if(g>2&&g<60){total+=g;cnt++;}}
+  if(!cnt)return 0;
+  const avg=total/cnt;
+  const bpm=60000/(avg*(AI_INTERVAL/1000)*1000/AI_INTERVAL);
+  return Math.round(Math.max(60,Math.min(200,bpm)));
 }
 
-// ─── AI ANALYSIS LOOP ────────────────────────────────────────────
-function startAI(side) {
+function startAI(side){
   stopAI();
-  const chain = side === 'h' ? hChain : lChain;
-  if (!chain || !chain.an) return;
+  const chain=side==='h'?hChain:lChain;
+  if(!chain||!chain.an)return;
+  $(side+'-ai-info').classList.add('on');
+  $(side+'-ai-pill').style.display='inline-flex';
 
-  const aiInfoId = side + '-ai-info';
-  const aiPillId = side + '-ai-pill';
+  let smoothed=new Float32Array(7).fill(1/7);
+  const SM=.7;
 
-  G(aiInfoId).classList.add('on');
-  G(aiPillId).style.display = 'inline-flex';
+  aiInterval=setInterval(()=>{
+    const f=extractFeatures(chain.an);if(!f)return;
+    const inp=[f.spectralCentroid,f.rms,f.zeroCrossings,f.bassRatio,f.midRatio,f.highRatio,f.spectralFlux,f.crest];
+    const probs=nnForward(inp);
+    for(let i=0;i<7;i++)smoothed[i]=SM*smoothed[i]+(1-SM)*probs[i];
+    const sum=smoothed.reduce((a,b)=>a+b,0);
+    const norm=Array.from(smoothed).map(x=>x/sum);
+    let mi=0;for(let i=1;i<norm.length;i++)if(norm[i]>norm[mi])mi=i;
 
-  let smoothedGenre = new Float32Array(7).fill(1/7);
-  const SMOOTH = 0.7; // exponential smoothing
+    const genre=GENRES[mi],conf=norm[mi],mood=GENRE_MOODS[genre],preset=GENRE_PRESETS[genre];
+    const tempo=estimateTempo(f.rms);
+    const p=side==='h'?'h':'l';
 
-  aiInterval = setInterval(() => {
-    const features = extractFeatures(chain.an);
-    if (!features) return;
+    if($(p+'-ai-genre'))$(p+'-ai-genre').textContent=genre[0].toUpperCase()+genre.slice(1);
+    if($(p+'-ai-mood'))$(p+'-ai-mood').textContent=mood[0].toUpperCase()+mood.slice(1);
+    if($(p+'-ai-conf'))$(p+'-ai-conf').textContent=(conf*100).toFixed(0)+'%';
+    if($(p+'-ai-preset'))$(p+'-ai-preset').textContent=PRESETS[preset]?.label||'—';
+    if($(p+'-ai-centroid'))$(p+'-ai-centroid').textContent=Math.round(f.spectralCentroid*12000)+' Hz';
+    if($(p+'-ai-rms'))$(p+'-ai-rms').textContent=(f.rms*100).toFixed(0)+'%';
+    if($(p+'-ai-tempo'))$(p+'-ai-tempo').textContent=tempo>0?tempo+' BPM':'analyzing...';
 
-    // Run neural network
-    const input = [
-      features.spectralCentroid,
-      features.rms,
-      features.zeroCrossings,
-      features.bassRatio,
-      features.midRatio,
-      features.highRatio,
-      features.spectralFlux,
-      features.crest,
-    ];
-
-    const probs = nnForward(input);
-
-    // Smooth predictions over time (exponential moving average)
-    for (let i = 0; i < 7; i++) {
-      smoothedGenre[i] = SMOOTH * smoothedGenre[i] + (1 - SMOOTH) * probs[i];
+    if(autoEQ[side]&&conf>.25&&currentEQ[side]!==preset){
+      applyPresetByName(preset,side);
+      document.querySelectorAll(`[id^="${side}eq-"]`).forEach(b=>b.classList.remove('on','ai-selected'));
+      const btn=$(side+'eq-'+preset);if(btn)btn.classList.add('on','ai-selected');
     }
 
-    // Normalize
-    const sum = smoothedGenre.reduce((a, b) => a + b, 0);
-    const normalized = Array.from(smoothedGenre).map(x => x / sum);
-
-    // Find top genre
-    let maxIdx = 0;
-    for (let i = 1; i < normalized.length; i++) {
-      if (normalized[i] > normalized[maxIdx]) maxIdx = i;
+    if(side==='h'&&amHost&&sock?.connected){
+      sock.emit('ai:state',{genre,mood,preset,confidence:+conf.toFixed(2)});
     }
-
-    const genre = GENRES[maxIdx];
-    const confidence = normalized[maxIdx];
-    const mood = GENRE_MOODS[genre];
-    const suggestedPreset = GENRE_PRESETS[genre];
-    const tempo = estimateTempo(features.rms);
-
-    // Update UI
-    const pre = side === 'h' ? 'h' : 'l';
-    if (G(pre + '-ai-genre')) G(pre + '-ai-genre').textContent = genre.charAt(0).toUpperCase() + genre.slice(1);
-    if (G(pre + '-ai-mood')) G(pre + '-ai-mood').textContent = mood.charAt(0).toUpperCase() + mood.slice(1);
-    if (G(pre + '-ai-conf')) G(pre + '-ai-conf').textContent = (confidence * 100).toFixed(0) + '%';
-    if (G(pre + '-ai-preset')) G(pre + '-ai-preset').textContent = PRESETS[suggestedPreset]?.label || '—';
-    if (G(pre + '-ai-centroid')) G(pre + '-ai-centroid').textContent = Math.round(features.spectralCentroid * 12000) + ' Hz';
-    if (G(pre + '-ai-rms')) G(pre + '-ai-rms').textContent = (features.rms * 100).toFixed(0) + '%';
-    if (G(pre + '-ai-tempo')) G(pre + '-ai-tempo').textContent = tempo > 0 ? tempo + ' BPM' : 'analyzing...';
-
-    // Auto-apply AI-selected preset if enabled
-    if (autoEQ[side] && confidence > 0.25) {
-      const curPreset = currentEQ[side];
-      if (curPreset !== suggestedPreset) {
-        applyPresetByName(suggestedPreset, side);
-        // Visual feedback: highlight AI-selected button
-        document.querySelectorAll(`[id^="${side}eq-"]`).forEach(b => {
-          b.classList.remove('on', 'ai-selected');
-        });
-        const btn = G(`${side}eq-${suggestedPreset}`);
-        if (btn) { btn.classList.add('on', 'ai-selected'); }
-      }
-    }
-
-    // Broadcast AI state if host
-    if (side === 'h' && amHost && sock?.connected) {
-      sock.emit('ai:state', { genre, mood, preset: suggestedPreset, confidence: parseFloat(confidence.toFixed(2)) });
-    }
-  }, AI_INTERVAL);
+  },AI_INTERVAL);
 }
 
-function stopAI() {
-  if (aiInterval) { clearInterval(aiInterval); aiInterval = null; }
-  energyHistory = [];
-}
+function stopAI(){if(aiInterval){clearInterval(aiInterval);aiInterval=null}energyHistory=[];}
 
-// ─── HELPERS ─────────────────────────────────────────────────────
-const G = id => document.getElementById(id);
-
-function show(id) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('on'));
-  G(id).classList.add('on');
-}
-
-function toast(msg, dur = 3500) {
-  const t = G('toast');
-  t.textContent = msg;
-  t.classList.add('on');
-  clearTimeout(t._t);
-  t._t = setTimeout(() => t.classList.remove('on'), dur);
-}
-
-function fmt(s) {
-  if (!s || isNaN(s) || !isFinite(s)) return '0:00';
-  const m = Math.floor(s / 60);
-  const sec = Math.floor(s % 60);
-  return m + ':' + (sec < 10 ? '0' : '') + sec;
-}
-
-function srvNow() { return Date.now() - clockOffset; }
-
-function setConn(online) {
-  G('conn-dot').className = 'nav-dot' + (online ? ' online' : '');
-  G('conn-label').textContent = online ? 'Online' : 'Offline';
-}
-
-function setPill(id, cls, dot, lbl) {
-  const el = G(id); if (!el) return;
-  el.className = 'pill ' + cls;
-  el.innerHTML = '<div class="dot ' + dot + '"></div><span>' + lbl + '</span>';
-}
-
-function setSyncInfo(html) { G('l-sync').innerHTML = '<b>Status:</b> ' + html; }
-
-function setStatus(id, html) { const el = G(id); if (el) el.innerHTML = html; }
-
-// ─── AUDIO UNLOCK SYSTEM ─────────────────────────────────────────
-// Proactively create and resume AudioContext on user gesture
-function setupUnlock() {
-  const events = ['click', 'touchstart', 'touchend', 'keydown'];
-  function tryUnlock() {
-    if (audioUnlocked) return;
-    audioUnlocked = true;
-
-    // Resume any existing contexts
-    [hCtx, lCtx].forEach(c => { if (c && c.state === 'suspended') c.resume(); });
-
-    // Create a silent oscillator to fully unlock
-    try {
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      gain.gain.value = 0;
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start(0);
-      osc.stop(ctx.currentTime + 0.001);
-      ctx.resume().then(() => {
-        setTimeout(() => ctx.close(), 100);
-      });
-    } catch (e) { /* ok */ }
-
-    G('unlock').classList.add('gone');
-    events.forEach(ev => document.removeEventListener(ev, tryUnlock, true));
-    console.log('[AUDIO] Unlocked');
-  }
-
-  events.forEach(ev => document.addEventListener(ev, tryUnlock, { once: false, capture: true, passive: true }));
-}
-
-function doUnlock() {
-  audioUnlocked = true;
-  G('unlock').classList.add('gone');
-  [hCtx, lCtx].forEach(c => { if (c && c.state === 'suspended') c.resume(); });
-
-  // Try to play any pending audio
-  ['l-audio', 'h-audio'].forEach(id => {
-    const a = G(id);
-    if (a && a.src && a.paused && a.readyState >= 2) {
-      a.play().catch(() => {});
-    }
-  });
-}
-
-G('unlock').addEventListener('click', doUnlock);
-G('unlock').addEventListener('touchend', doUnlock);
-
-// ─── TABS ────────────────────────────────────────────────────────
-function switchTab(name) {
-  ['youtube', 'url', 'file'].forEach(n => {
-    G('tab-' + n).classList.toggle('active', n === name);
-    G('pane-' + n).classList.toggle('on', n === name);
-  });
-}
-
-// ─── LOAD FUNCTIONS ──────────────────────────────────────────────
-async function loadYoutube() {
-  const raw = G('yt-url').value.trim();
-  if (!raw) { toast('Paste a YouTube URL first'); return; }
-
-  const btn = G('yt-btn');
-  btn.disabled = true; btn.textContent = '...';
-  setStatus('yt-status', '<span class="spin">⟳</span> Connecting to YouTube...');
-
-  try {
-    // Step 1: Get info
-    const infoRes = await fetch('/yt-info?url=' + encodeURIComponent(raw));
-    const infoData = await infoRes.json();
-
-    if (!infoRes.ok || infoData.error) {
-      setStatus('yt-status', '❌ ' + (infoData.error || 'Failed to load'));
-      btn.disabled = false; btn.textContent = 'Load';
-      return;
-    }
-
-    setStatus('yt-status', '<span class="spin">⟳</span> Loading: ' + infoData.title);
-
-    // Step 2: Try direct URL first (better quality, less server load)
-    let streamUrl;
-    try {
-      const directRes = await fetch('/yt-direct?url=' + encodeURIComponent(raw));
-      const directData = await directRes.json();
-      if (directRes.ok && directData.url) {
-        // Use proxy for the direct URL to avoid CORS
-        streamUrl = '/proxy?url=' + encodeURIComponent(directData.url);
-      }
-    } catch (e) { /* fall through */ }
-
-    // Step 3: Fall back to piped stream
-    if (!streamUrl) {
-      streamUrl = '/yt-stream?url=' + encodeURIComponent(raw);
-    }
-
-    setStatus('yt-status', '✅ ' + infoData.title);
-    applyTrack(streamUrl, infoData.title, raw);
-
-  } catch (e) {
-    setStatus('yt-status', '❌ ' + e.message);
-    toast('❌ ' + e.message, 5000);
-  }
-
-  btn.disabled = false; btn.textContent = 'Load';
-}
-
-function loadDirectUrl() {
-  const raw = G('direct-url').value.trim();
-  if (!raw) { toast('Enter a URL'); return; }
-  setStatus('url-status', '<span class="spin">⟳</span> Loading...');
-  const title = decodeURIComponent(raw.split('/').pop().split('?')[0].replace(/\.[^.]+$/, '') || 'Audio');
-  applyTrack('/proxy?url=' + encodeURIComponent(raw), title, raw);
-}
-
-function loadFile() {
-  const f = G('file-input').files[0];
-  if (!f) return;
-  const url = URL.createObjectURL(f);
-  const title = f.name.replace(/\.[^.]+$/, '');
-  setStatus('file-status', '⚠️ Local file — plays on your device only');
-  applyTrack(url, title, null, true);
-}
-
-// ─── APPLY TRACK ─────────────────────────────────────────────────
-function applyTrack(streamUrl, title, originalUrl, isLocal = false) {
-  const a = G('h-audio');
-
-  // Clean up previous
-  teardownChain('h');
-  stopAI();
-  if (progRaf) { cancelAnimationFrame(progRaf); progRaf = null; }
-
-  currentTrack = { streamUrl, title, originalUrl, isLocal };
-
-  // Reset audio element completely
-  a.pause();
-  a.removeAttribute('src');
-  a.load();
-
-  // Set new source
-  a.src = streamUrl;
-  a.crossOrigin = 'anonymous';
-  a.preload = 'auto';
-  a.load();
-
-  G('h-tname').textContent = title;
-  G('h-tsub').textContent = 'Loading audio...';
-  G('h-player').style.display = 'block';
-  G('h-play-btn').disabled = true;
-
-  // Remove old event listeners by cloning
-  const newAudio = a.cloneNode(false);
-  newAudio.id = 'h-audio';
-  newAudio.src = streamUrl;
-  newAudio.crossOrigin = 'anonymous';
-  newAudio.preload = 'auto';
-  newAudio.style.display = 'none';
-  a.parentNode.replaceChild(newAudio, a);
-
-  let metaFired = false;
-
-  function onCanPlay() {
-    if (metaFired) return;
-    metaFired = true;
-    newAudio.removeEventListener('canplay', onCanPlay);
-    newAudio.removeEventListener('loadedmetadata', onCanPlay);
-
-    const dur = newAudio.duration;
-    G('h-dur').textContent = isFinite(dur) ? fmt(dur) : 'LIVE';
-    G('h-tsub').textContent = (isFinite(dur) ? fmt(dur) : 'Live') + (isLocal ? ' · local only' : ' · ready');
-    G('h-play-btn').disabled = false;
-
-    buildChain(newAudio, 'h');
-    startProg(newAudio, 'h');
-    startViz('h-viz');
-    startAI('h');
-
-    toast('✅ Track loaded — press Play ▶');
-    setStatus('yt-status', '✅ Ready');
-    setStatus('url-status', '✅ Ready');
-  }
-
-  function onErr() {
-    newAudio.removeEventListener('error', onErr);
-    const codes = ['', 'ABORTED', 'NETWORK', 'DECODE', 'NOT_SUPPORTED'];
-    const code = newAudio.error ? newAudio.error.code : 0;
-    const msg = codes[code] || 'ERROR_' + code;
-    console.error('[AUDIO] Error:', msg, newAudio.error);
-
-    // Retry logic for network errors
-    if (code === 2 && !isLocal) {
-      setStatus('yt-status', '<span class="spin">⟳</span> Network error, retrying...');
-      setTimeout(() => {
-        newAudio.load();
-        newAudio.addEventListener('canplay', onCanPlay, { once: true });
-        newAudio.addEventListener('error', () => {
-          setStatus('yt-status', '❌ Load failed: ' + msg);
-          toast('❌ Audio error: ' + msg, 5000);
-          G('h-play-btn').disabled = false;
-        }, { once: true });
-      }, 2000);
-      return;
-    }
-
-    setStatus('yt-status', '❌ Load failed: ' + msg);
-    setStatus('url-status', '❌ Load failed: ' + msg);
-    toast('❌ Audio error: ' + msg, 5000);
-    G('h-play-btn').disabled = false;
-  }
-
-  newAudio.addEventListener('canplay', onCanPlay, { once: true });
-  newAudio.addEventListener('loadedmetadata', onCanPlay, { once: true });
-  newAudio.addEventListener('error', onErr, { once: true });
-
-  // Buffer progress
-  newAudio.addEventListener('progress', () => {
-    if (newAudio.buffered.length > 0 && isFinite(newAudio.duration)) {
-      const buffered = newAudio.buffered.end(newAudio.buffered.length - 1);
-      const pct = (buffered / newAudio.duration) * 100;
-      const buf = G('h-buffer');
-      if (buf) buf.style.width = pct + '%';
-    }
-  });
-
-  // Setup seekbar
-  setupSeekbar('h-seekbar', newAudio);
-
-  // Emit to listeners
-  if (!isLocal && sock) {
-    sock.emit('track:set', { streamUrl, title, originalUrl });
-  }
-}
-
-// ─── SEEKBAR ─────────────────────────────────────────────────────
-function setupSeekbar(barId, audio) {
-  const bar = G(barId);
-  if (!bar) return;
-
-  const newBar = bar.cloneNode(true);
-  bar.parentNode.replaceChild(newBar, bar);
-  newBar.id = barId;
-
-  let dragging = false;
-
-  function getR(e) {
-    const tr = newBar.querySelector('.seek-track');
-    const rc = tr.getBoundingClientRect();
-    const x = (e.touches ? e.touches[0].clientX : e.clientX) - rc.left;
-    return Math.max(0, Math.min(1, x / rc.width));
-  }
-
-  function doSeek(e) {
-    if (!audio.duration || !isFinite(audio.duration)) return;
-    const r = getR(e);
-    const pos = r * audio.duration;
-    audio.currentTime = pos;
-
-    const fillId = barId.replace('seekbar', 'fill');
-    const f = G(fillId);
-    if (f) f.style.width = (r * 100) + '%';
-
-    if (amHost) {
-      const playing = !audio.paused;
-      const playAt = srvNow() + SCHED_MS;
-      if (playing) setTimeout(() => audio.play().catch(() => {}), SCHED_MS);
-      sock.emit('audio:seek', { position: pos, playing, serverPlayAt: playAt });
-    }
-  }
-
-  newBar.addEventListener('mousedown', e => { dragging = true; doSeek(e); });
-  newBar.addEventListener('touchstart', e => { dragging = true; doSeek(e); }, { passive: true });
-  document.addEventListener('mousemove', e => { if (dragging) doSeek(e); });
-  document.addEventListener('touchmove', e => { if (dragging) doSeek(e); }, { passive: true });
-  document.addEventListener('mouseup', () => dragging = false);
-  document.addEventListener('touchend', () => dragging = false);
-}
-
-// ═══════════════════════════════════════════════════════════════════
-//  SPATIAL AUDIO ENGINE
-//  Full signal chain:
-//  Source → 7-band Parametric EQ → Stereo Enhancer →
-//  Convolution Reverb (wet/dry) → Dynamics Compressor →
-//  Limiter → Master Gain → Analyser → Destination
-// ═══════════════════════════════════════════════════════════════════
-
-function buildChain(audioEl, side) {
+// ═══════════════════════════════════════════════════════════
+// SPATIAL AUDIO ENGINE
+// ═══════════════════════════════════════════════════════════
+function buildChain(el,side){
   teardownChain(side);
+  try{
+    const ctx=new(window.AudioContext||window.webkitAudioContext)({sampleRate:48000,latencyHint:'playback'});
+    if(ctx.state==='suspended')ctx.resume();
+    const src=ctx.createMediaElementSource(el);
+    const sub=mkF(ctx,'lowshelf',40),bass=mkF(ctx,'peaking',120,1),lo=mkF(ctx,'peaking',400,.9),mid=mkF(ctx,'peaking',1200,.9),hi=mkF(ctx,'peaking',4000,1),pres=mkF(ctx,'peaking',8000,1.1),air=mkF(ctx,'highshelf',16000);
+    const reverb=ctx.createConvolver();reverb.buffer=makeIR(ctx,2.8,3.5);
+    const revG=ctx.createGain();revG.gain.value=0;
+    const dryG=ctx.createGain();dryG.gain.value=1;
+    const comp=ctx.createDynamicsCompressor();comp.threshold.value=-24;comp.knee.value=8;comp.ratio.value=2;comp.attack.value=.003;comp.release.value=.15;
+    const lim=ctx.createDynamicsCompressor();lim.threshold.value=-1;lim.knee.value=0;lim.ratio.value=20;lim.attack.value=.001;lim.release.value=.05;
+    const master=ctx.createGain();master.gain.value=parseFloat($(side+'-vol')?.value||.85);
+    const an=ctx.createAnalyser();an.fftSize=2048;an.smoothingTimeConstant=.82;
 
-  try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)({
-      sampleRate: 48000,
-      latencyHint: 'playback'
-    });
+    src.connect(sub);sub.connect(bass);bass.connect(lo);lo.connect(mid);mid.connect(hi);hi.connect(pres);pres.connect(air);
+    air.connect(dryG);air.connect(reverb);reverb.connect(revG);
+    dryG.connect(comp);revG.connect(comp);comp.connect(lim);lim.connect(master);master.connect(an);an.connect(ctx.destination);
 
-    // Resume immediately
-    if (ctx.state === 'suspended') ctx.resume();
-
-    const src = ctx.createMediaElementSource(audioEl);
-
-    // 7-band parametric EQ
-    const sub  = mkFilter(ctx, 'lowshelf',  40);
-    const bass = mkFilter(ctx, 'peaking',   120, 1.0);
-    const lo   = mkFilter(ctx, 'peaking',   400, 0.9);
-    const mid  = mkFilter(ctx, 'peaking',   1200, 0.9);
-    const hi   = mkFilter(ctx, 'peaking',   4000, 1.0);
-    const pres = mkFilter(ctx, 'peaking',   8000, 1.1);
-    const air  = mkFilter(ctx, 'highshelf', 16000);
-
-    // Stereo enhancer using mid-side processing simulation
-    // Channel splitter/merger for stereo widening
-    const splitter = ctx.createChannelSplitter(2);
-    const merger = ctx.createChannelMerger(2);
-    const midGain = ctx.createGain(); midGain.gain.value = 1;
-    const sideGain = ctx.createGain(); sideGain.gain.value = 0; // 0 = no widening
-    const sideInverter = ctx.createGain(); sideInverter.gain.value = -1;
-
-    // Convolution reverb with high-quality synthetic impulse response
-    const reverb = ctx.createConvolver();
-    reverb.buffer = generateImpulseResponse(ctx, 2.8, 3.5);
-    const revGain = ctx.createGain();
-    revGain.gain.value = 0;
-    const dryGain = ctx.createGain();
-    dryGain.gain.value = 1;
-
-    // Dynamics compressor
-    const comp = ctx.createDynamicsCompressor();
-    comp.threshold.value = -24;
-    comp.knee.value = 8;
-    comp.ratio.value = 2;
-    comp.attack.value = 0.003;
-    comp.release.value = 0.15;
-
-    // Limiter (brick-wall)
-    const limiter = ctx.createDynamicsCompressor();
-    limiter.threshold.value = -1;
-    limiter.knee.value = 0;
-    limiter.ratio.value = 20;
-    limiter.attack.value = 0.001;
-    limiter.release.value = 0.05;
-
-    // Master gain
-    const master = ctx.createGain();
-    master.gain.value = parseFloat(G(side + '-vol')?.value || 0.85);
-
-    // Analyser (for visualization + AI)
-    const an = ctx.createAnalyser();
-    an.fftSize = 2048;
-    an.smoothingTimeConstant = 0.82;
-
-    // ── Signal routing ──
-    // Source → EQ chain
-    src.connect(sub); sub.connect(bass); bass.connect(lo);
-    lo.connect(mid); mid.connect(hi); hi.connect(pres); pres.connect(air);
-
-    // EQ out → stereo enhancer (simplified: just pass through for now)
-    // Full mid-side would require offline processing; we use gain-based widening
-    air.connect(dryGain);
-    air.connect(reverb);
-    reverb.connect(revGain);
-
-    // Dry + wet → compressor → limiter → master → analyser → output
-    dryGain.connect(comp);
-    revGain.connect(comp);
-    comp.connect(limiter);
-    limiter.connect(master);
-    master.connect(an);
-    an.connect(ctx.destination);
-
-    const chain = {
-      sub, bass, lo, mid, hi, pres, air,
-      comp, limiter, revGain, dryGain, sideGain,
-      master, an, reverb, ctx
-    };
-
-    if (side === 'h') { hCtx = ctx; hChain = chain; vizAn = an; }
-    else { lCtx = ctx; lChain = chain; vizAn = an; }
-
-    // Apply current preset
-    const presetName = currentEQ[side] || 'flat';
-    applyPreset(PRESETS[presetName], chain);
-
+    const chain={sub,bass,lo,mid,hi,pres,air,comp,lim,revGain:revG,dryGain:dryG,master,an,ctx};
+    if(side==='h'){hCtx=ctx;hChain=chain;vizAn=an}else{lCtx=ctx;lChain=chain;vizAn=an}
+    applyPreset(PRESETS[currentEQ[side]||'flat'],chain);
     return chain;
-  } catch (e) {
-    console.warn('[CHAIN] Build error:', e);
-    return null;
-  }
+  }catch(e){console.warn('[CHAIN]',e);return null}
 }
 
-// High-quality synthetic impulse response
-function generateImpulseResponse(ctx, duration, decay) {
-  const len = Math.floor(ctx.sampleRate * duration);
-  const buf = ctx.createBuffer(2, len, ctx.sampleRate);
-
-  for (let ch = 0; ch < 2; ch++) {
-    const data = buf.getChannelData(ch);
-    for (let i = 0; i < len; i++) {
-      const t = i / ctx.sampleRate;
-      // Multi-stage envelope: early reflections + late reverb tail
-      let env;
-      if (t < 0.02) {
-        // Pre-delay + first reflection
-        env = t < 0.005 ? 0.1 : 0.8 * Math.pow(1 - (t - 0.005) / 0.015, 0.5);
-      } else if (t < 0.08) {
-        // Early reflections
-        env = 0.5 * Math.pow(1 - (t - 0.02) / 0.06, 1.5);
-        // Add discrete early reflections
-        if (Math.random() < 0.15) env += 0.3 * Math.random();
-      } else {
-        // Late reverb tail with exponential decay
-        env = 0.35 * Math.pow(Math.max(0, 1 - t / duration), decay);
-      }
-
-      // Diffuse noise
-      const noise = (Math.random() * 2 - 1);
-      // Add slight frequency coloring per channel for stereo depth
-      const color = ch === 0 ? Math.sin(t * 200) * 0.05 : Math.cos(t * 180) * 0.05;
-
-      data[i] = (noise + color) * env * 0.4;
-    }
-  }
-  return buf;
+function makeIR(ctx,dur,decay){
+  const len=Math.floor(ctx.sampleRate*dur),buf=ctx.createBuffer(2,len,ctx.sampleRate);
+  for(let ch=0;ch<2;ch++){const d=buf.getChannelData(ch);for(let i=0;i<len;i++){
+    const t=i/ctx.sampleRate;let env;
+    if(t<.02)env=t<.005?.1:.8*Math.pow(1-(t-.005)/.015,.5);
+    else if(t<.08){env=.5*Math.pow(1-(t-.02)/.06,1.5);if(Math.random()<.15)env+=.3*Math.random()}
+    else env=.35*Math.pow(Math.max(0,1-t/dur),decay);
+    d[i]=(Math.random()*2-1+((ch===0?Math.sin(t*200):Math.cos(t*180))*.05))*env*.4;
+  }}return buf;
 }
 
-function mkFilter(ctx, type, freq, q) {
-  const f = ctx.createBiquadFilter();
-  f.type = type;
-  f.frequency.value = freq;
-  if (q !== undefined) f.Q.value = q;
-  return f;
+function mkF(ctx,type,freq,q){const f=ctx.createBiquadFilter();f.type=type;f.frequency.value=freq;if(q!==undefined)f.Q.value=q;return f}
+
+function teardownChain(s){
+  if(s==='h'&&hCtx){try{hCtx.close()}catch(e){}hCtx=null;hChain=null}
+  if(s==='l'&&lCtx){try{lCtx.close()}catch(e){}lCtx=null;lChain=null}
+  if(vizRaf){cancelAnimationFrame(vizRaf);vizRaf=null;vizAn=null}
 }
 
-function teardownChain(side) {
-  if (side === 'h' && hCtx) {
-    try { hCtx.close(); } catch (e) { /* ok */ }
-    hCtx = null; hChain = null;
-  }
-  if (side === 'l' && lCtx) {
-    try { lCtx.close(); } catch (e) { /* ok */ }
-    lCtx = null; lChain = null;
-  }
-  if (vizRaf) { cancelAnimationFrame(vizRaf); vizRaf = null; vizAn = null; }
+function applyPreset(p,ch){
+  if(!ch||!p)return;
+  const t=(ch.ctx?.currentTime||0)+.05;
+  ch.sub.gain.linearRampToValueAtTime(p.sub,t);ch.bass.gain.linearRampToValueAtTime(p.bass,t);
+  ch.lo.gain.linearRampToValueAtTime(p.lo,t);ch.mid.gain.linearRampToValueAtTime(p.mid,t);
+  ch.hi.gain.linearRampToValueAtTime(p.hi,t);ch.pres.gain.linearRampToValueAtTime(p.pres,t);
+  ch.air.gain.linearRampToValueAtTime(p.air,t);
+  ch.comp.ratio.linearRampToValueAtTime(p.ratio,t);ch.comp.threshold.linearRampToValueAtTime(p.thresh,t);ch.comp.knee.linearRampToValueAtTime(p.knee,t);
+  ch.revGain.gain.linearRampToValueAtTime(p.rev,t);ch.dryGain.gain.linearRampToValueAtTime(1-p.rev*.5,t);
 }
 
-function applyPreset(p, chain) {
-  if (!chain || !p) return;
-  // Smoothly transition EQ values
-  const now = chain.ctx?.currentTime || 0;
-  const ramp = now + 0.05; // 50ms ramp
-
-  chain.sub.gain.linearRampToValueAtTime(p.sub, ramp);
-  chain.bass.gain.linearRampToValueAtTime(p.bass, ramp);
-  chain.lo.gain.linearRampToValueAtTime(p.lo, ramp);
-  chain.mid.gain.linearRampToValueAtTime(p.mid, ramp);
-  chain.hi.gain.linearRampToValueAtTime(p.hi, ramp);
-  chain.pres.gain.linearRampToValueAtTime(p.pres, ramp);
-  chain.air.gain.linearRampToValueAtTime(p.air, ramp);
-
-  chain.comp.ratio.linearRampToValueAtTime(p.ratio, ramp);
-  chain.comp.threshold.linearRampToValueAtTime(p.thresh, ramp);
-  chain.comp.knee.linearRampToValueAtTime(p.knee, ramp);
-
-  chain.revGain.gain.linearRampToValueAtTime(p.rev, ramp);
-  chain.dryGain.gain.linearRampToValueAtTime(1 - (p.rev * 0.5), ramp);
+function applyPresetByName(name,side){
+  const p=PRESETS[name];if(!p)return;
+  applyPreset(p,side==='h'?hChain:lChain);
+  currentEQ[side]=name;
+  const sf=$(side+'-spatial-fill'),sv=$(side+'-spatial-val');
+  if(sf)sf.style.width=(p.depth||0)+'%';if(sv)sv.textContent=(p.depth||0)+'%';
 }
 
-function applyPresetByName(name, side) {
-  const p = PRESETS[name]; if (!p) return;
-  const chain = side === 'h' ? hChain : lChain;
-  applyPreset(p, chain);
-  currentEQ[side] = name;
-
-  // Update spatial depth indicator
-  const sf = G(side + '-spatial-fill');
-  const sv = G(side + '-spatial-val');
-  if (sf) sf.style.width = (p.depth || 0) + '%';
-  if (sv) sv.textContent = (p.depth || 0) + '%';
-}
-
-function manualEQ(btn, side) {
-  // Disable auto-EQ when user manually selects
-  autoEQ[side] = false;
-  G(side + '-auto-eq').classList.remove('active');
-
-  const preset = btn.id.replace(/^[hl]eq-/, '');
-  applyPresetByName(preset, side);
-
-  document.querySelectorAll('[id^="' + side + 'eq-"]').forEach(b => b.classList.remove('on', 'ai-selected'));
+function manualEQ(btn,side){
+  autoEQ[side]=false;$(side+'-auto-eq').classList.remove('active');
+  const preset=btn.id.replace(/^[hl]eq-/,'');
+  applyPresetByName(preset,side);
+  document.querySelectorAll('[id^="'+side+'eq-"]').forEach(b=>b.classList.remove('on','ai-selected'));
   btn.classList.add('on');
-
-  toast('✦ ' + (PRESETS[preset]?.label || preset) + ' mode activated');
+  toast('✦ '+PRESETS[preset]?.label+' activated');
 }
 
-function toggleAutoEQ(side) {
-  autoEQ[side] = !autoEQ[side];
-  G(side + '-auto-eq').classList.toggle('active', autoEQ[side]);
-  toast(autoEQ[side] ? '🧠 AI Auto-EQ enabled' : '🎛 Manual EQ mode');
-}
+function toggleAutoEQ(s){autoEQ[s]=!autoEQ[s];$(s+'-auto-eq').classList.toggle('active',autoEQ[s]);toast(autoEQ[s]?'🧠 AI Auto-EQ on':'🎛 Manual EQ')}
+function setVol(s,v){const val=+v;const a=$(s+'-audio');if(a)a.volume=val;const ch=s==='h'?hChain:lChain;if(ch){const t=(ch.ctx?.currentTime||0)+.02;ch.master.gain.linearRampToValueAtTime(val,t)}$(s+'-vol-val').textContent=Math.round(val*100)+'%'}
 
-// ─── VOLUME ──────────────────────────────────────────────────────
-function setVol(side, v) {
-  const val = parseFloat(v);
-  const audio = G(side + '-audio');
-  if (audio) audio.volume = val;
-  const chain = side === 'h' ? hChain : lChain;
-  if (chain) {
-    const now = chain.ctx?.currentTime || 0;
-    chain.master.gain.linearRampToValueAtTime(val, now + 0.02);
-  }
-  G(side + '-vol-val').textContent = Math.round(val * 100) + '%';
-}
+// ═══════════════════════════════════════════════════════════
+// SOCKET.IO
+// ═══════════════════════════════════════════════════════════
+function initSock(){
+  if(sock&&sock.connected)return;
+  sock=io({transports:['websocket','polling'],reconnectionAttempts:30,reconnectionDelay:1000,reconnectionDelayMax:5000,timeout:20000});
 
-// ═══════════════════════════════════════════════════════════════════
-//  SOCKET.IO CONNECTION
-// ═══════════════════════════════════════════════════════════════════
+  sock.on('connect',()=>{console.log('[WS] Connected:',sock.id);setConn(true);doNTP();clearInterval(window._ka);window._ka=setInterval(()=>{if(sock?.connected)sock.emit('keepalive')},15000)});
+  sock.on('disconnect',r=>{console.warn('[WS] Disconnected:',r);setConn(false);if(roomCode)toast('⚠️ Reconnecting...')});
+  sock.on('reconnect',()=>{setConn(true);toast('✅ Reconnected!');doNTP()});
+  sock.on('connect_error',e=>{console.error('[WS] Error:',e.message);setConn(false)});
 
-function initSock() {
-  if (sock && sock.connected) return;
-
-  sock = io({
-    transports: ['websocket', 'polling'],
-    reconnectionAttempts: 30,
-    reconnectionDelay: 1000,
-    reconnectionDelayMax: 5000,
-    timeout: 20000,
-    forceNew: false,
+  sock.on('ntp:pong',({clientTime,serverTime})=>{
+    const now=Date.now(),rtt=now-clientTime,offset=now-(serverTime+rtt/2);
+    ntpSamples.push({rtt,offset});
+    if(ntpSamples.length<NTP_ROUNDS)setTimeout(()=>sock.emit('ntp:ping',{clientTime:Date.now()}),30);
+    else finishNTP();
   });
 
-  sock.on('connect', () => {
-    console.log('[WS] Connected:', sock.id);
-    setConn(true);
-    doNTP();
-    clearInterval(window._ka);
-    window._ka = setInterval(() => { if (sock?.connected) sock.emit('keepalive'); }, 15000);
-  });
-
-  sock.on('disconnect', reason => {
-    console.warn('[WS] Disconnected:', reason);
-    setConn(false);
-    if (roomCode) toast('⚠️ Reconnecting...');
-  });
-
-  sock.on('reconnect', () => {
-    setConn(true);
-    toast('✅ Reconnected!');
-    doNTP();
-  });
-
-  sock.on('connect_error', e => {
-    console.error('[WS] Error:', e.message);
-    setConn(false);
-  });
-
-  // NTP response handler
-  sock.on('ntp:pong', ({ clientTime, serverTime }) => {
-    const now = Date.now();
-    const rtt = now - clientTime;
-    const offset = now - (serverTime + rtt / 2);
-    ntpSamples.push({ rtt, offset });
-
-    if (ntpSamples.length < NTP_ROUNDS) {
-      setTimeout(() => sock.emit('ntp:ping', { clientTime: Date.now() }), 30);
-    } else {
-      finishNTP();
+  // HOST
+  sock.on('room:listener_joined',({id})=>{
+    listeners[id]={t:Date.now()};renderListeners();
+    if(currentTrack&&!currentTrack.isLocal){
+      sock.emit('track:set',{streamUrl:currentTrack.streamUrl,title:currentTrack.title,originalUrl:currentTrack.originalUrl});
+      const a=$('h-audio');
+      setTimeout(()=>{if(a&&!a.paused)sock.emit('audio:play',{position:a.currentTime,serverPlayAt:srvNow()+SCHED_MS})},500);
     }
   });
+  sock.on('room:listener_left',({id})=>{delete listeners[id];renderListeners()});
+  sock.on('room:count',n=>$('h-lcnt').textContent=n);
 
-  // ── HOST events ──
-  sock.on('room:listener_joined', ({ id, count }) => {
-    listeners[id] = { t: Date.now() };
-    renderListeners();
-    // Re-send current track state to new listener
-    if (currentTrack && !currentTrack.isLocal) {
-      const a = G('h-audio');
-      setTimeout(() => {
-        sock.emit('track:set', {
-          streamUrl: currentTrack.streamUrl,
-          title: currentTrack.title,
-          originalUrl: currentTrack.originalUrl,
-        });
-        setTimeout(() => {
-          if (a && !a.paused) {
-            sock.emit('audio:play', { position: a.currentTime, serverPlayAt: srvNow() + SCHED_MS });
-          }
-        }, 500);
-      }, 300);
+  // LISTENER
+  sock.on('track:set',({streamUrl,title})=>loadListenerTrack(streamUrl,title));
+  sock.on('audio:play',({position,serverPlayAt})=>schedPlay(position,serverPlayAt));
+  sock.on('audio:pause',({position})=>{
+    cancelSched();clearInterval(driftWatcher);
+    const a=$('l-audio');if(!a.src)return;a.pause();
+    if(isFinite(position)&&Math.abs(a.currentTime-position)>.5)a.currentTime=position;
+    $('l-art').classList.remove('spinning');setPill('l-pill','pw','dm','Paused');setSyncInfo('Host paused.')
+  });
+  sock.on('audio:seek',({position,playing,serverPlayAt})=>{
+    cancelSched();const a=$('l-audio');if(!a.src)return;
+    a.currentTime=position;if(playing)schedPlay(position,serverPlayAt);else{a.pause();$('l-art').classList.remove('spinning')}
+  });
+  sock.on('ai:state',({genre,mood,preset,confidence})=>{
+    if($('l-ai-genre'))$('l-ai-genre').textContent=genre?genre[0].toUpperCase()+genre.slice(1):'—';
+    if($('l-ai-mood'))$('l-ai-mood').textContent=mood?mood[0].toUpperCase()+mood.slice(1):'—';
+    if($('l-ai-conf'))$('l-ai-conf').textContent=confidence?(confidence*100).toFixed(0)+'%':'—';
+    $('l-ai-info').classList.add('on');$('l-ai-pill').style.display='inline-flex';
+    if(autoEQ.l&&preset&&PRESETS[preset]){
+      applyPresetByName(preset,'l');
+      document.querySelectorAll('[id^="leq-"]').forEach(b=>b.classList.remove('on','ai-selected'));
+      const btn=$('leq-'+preset);if(btn)btn.classList.add('on','ai-selected');
     }
   });
-
-  sock.on('room:listener_left', ({ id }) => {
-    delete listeners[id];
-    renderListeners();
-  });
-
-  sock.on('room:count', n => G('h-lcnt').textContent = n);
-
-  // ── LISTENER events ──
-  sock.on('track:set', ({ streamUrl, title }) => {
-    loadListenerTrack(streamUrl, title);
-  });
-
-  sock.on('audio:play', ({ position, serverPlayAt }) => {
-    schedPlay(position, serverPlayAt);
-  });
-
-  sock.on('audio:pause', ({ position }) => {
-    cancelSched();
-    clearInterval(driftWatcher);
-    const a = G('l-audio');
-    if (!a.src) return;
-    a.pause();
-    if (isFinite(position) && Math.abs(a.currentTime - position) > 0.5) {
-      a.currentTime = position;
-    }
-    G('l-art').classList.remove('spinning');
-    setPill('l-pill', 'pw', 'dm', 'Paused by Host');
-    setSyncInfo('Host paused playback.');
-  });
-
-  sock.on('audio:seek', ({ position, playing, serverPlayAt }) => {
-    cancelSched();
-    const a = G('l-audio');
-    if (!a.src) return;
-    a.currentTime = position;
-    if (playing) schedPlay(position, serverPlayAt);
-    else { a.pause(); G('l-art').classList.remove('spinning'); }
-  });
-
-  sock.on('ai:state', ({ genre, mood, preset, confidence }) => {
-    // Update listener AI display
-    if (G('l-ai-genre')) G('l-ai-genre').textContent = genre ? genre.charAt(0).toUpperCase() + genre.slice(1) : '—';
-    if (G('l-ai-mood')) G('l-ai-mood').textContent = mood ? mood.charAt(0).toUpperCase() + mood.slice(1) : '—';
-    if (G('l-ai-conf')) G('l-ai-conf').textContent = confidence ? (confidence * 100).toFixed(0) + '%' : '—';
-    G('l-ai-info').classList.add('on');
-    G('l-ai-pill').style.display = 'inline-flex';
-
-    // Auto-apply host's AI preset if listener has auto-EQ on
-    if (autoEQ.l && preset && PRESETS[preset]) {
-      applyPresetByName(preset, 'l');
-      document.querySelectorAll('[id^="leq-"]').forEach(b => b.classList.remove('on', 'ai-selected'));
-      const btn = G('leq-' + preset);
-      if (btn) btn.classList.add('on', 'ai-selected');
-    }
-  });
-
-  sock.on('room:host_left', () => {
-    toast('🚪 Host ended the session');
-    setTimeout(leave, 1500);
-  });
+  sock.on('room:host_left',()=>{toast('🚪 Host ended session');setTimeout(leave,1500)});
 }
 
-// ─── NTP WITH KALMAN FILTER ──────────────────────────────────────
-function doNTP() {
-  ntpSamples = [];
-  ntpDone = false;
-  kalmanOffset = { x: 0, p: 1000, q: 0.5, r: 50 };
-  sock.emit('ntp:ping', { clientTime: Date.now() });
+// ═══════════════════════════════════════════════════════════
+// NTP + KALMAN
+// ═══════════════════════════════════════════════════════════
+function doNTP(){ntpSamples=[];ntpDone=false;kalman={x:0,p:1000,q:.5,r:50};sock.emit('ntp:ping',{clientTime:Date.now()})}
+
+function finishNTP(){
+  ntpSamples.sort((a,b)=>a.rtt-b.rtt);
+  const best=ntpSamples.slice(0,Math.ceil(NTP_ROUNDS/3));
+  bestRTT=ntpSamples[0].rtt;
+  for(const s of best){kalman.p+=kalman.q;const k=kalman.p/(kalman.p+kalman.r);kalman.x+=k*(s.offset-kalman.x);kalman.p*=(1-k)}
+  clockOffset=kalman.x;ntpDone=true;
+  if($('l-offset-val'))$('l-offset-val').textContent=Math.round(Math.abs(clockOffset))+'ms';
+  if($('l-rtt-val'))$('l-rtt-val').textContent=bestRTT+'ms';
+  console.log(`[NTP] offset=${clockOffset.toFixed(1)}ms RTT=${bestRTT}ms`);
 }
 
-function kalmanUpdate(measurement) {
-  // Prediction
-  kalmanOffset.p += kalmanOffset.q;
-  // Update
-  const k = kalmanOffset.p / (kalmanOffset.p + kalmanOffset.r);
-  kalmanOffset.x += k * (measurement - kalmanOffset.x);
-  kalmanOffset.p *= (1 - k);
-  return kalmanOffset.x;
-}
-
-function finishNTP() {
-  // Sort by RTT, use best samples
-  ntpSamples.sort((a, b) => a.rtt - b.rtt);
-  const best = ntpSamples.slice(0, Math.ceil(NTP_ROUNDS / 3));
-  bestRTT = ntpSamples[0].rtt;
-
-  // Run Kalman filter over best samples
-  for (const sample of best) {
-    kalmanUpdate(sample.offset);
-  }
-  clockOffset = kalmanOffset.x;
-
-  ntpDone = true;
-
-  if (G('l-offset-val')) G('l-offset-val').textContent = Math.round(Math.abs(clockOffset)) + 'ms';
-  if (G('l-rtt-val')) G('l-rtt-val').textContent = bestRTT + 'ms';
-
-  console.log(`[NTP] Kalman offset=${clockOffset.toFixed(1)}ms RTT=${bestRTT}ms (${ntpSamples.length} samples)`);
-}
-
-// ─── SCHEDULED PLAY (PID drift correction) ───────────────────────
-function schedPlay(position, serverPlayAt) {
+// ═══════════════════════════════════════════════════════════
+// SCHEDULED PLAY + PID DRIFT
+// ═══════════════════════════════════════════════════════════
+function schedPlay(pos,serverPlayAt){
   cancelSched();
-  const a = G('l-audio');
-  if (!a || !a.src) { setSyncInfo('⚠️ Track not loaded yet...'); return; }
+  const a=$('l-audio');if(!a||!a.src){setSyncInfo('⚠️ Track not loaded');return}
+  const localPlayAt=serverPlayAt+clockOffset,msLeft=localPlayAt-Date.now();
 
-  const localPlayAt = serverPlayAt + clockOffset;
-  const msLeft = localPlayAt - Date.now();
+  function exec(){
+    const late=Math.max(0,(Date.now()-localPlayAt))/1000;
+    const target=Math.max(0,pos+late);
+    const drift=Math.abs(a.currentTime-target);
+    if(drift>DRIFT_SOFT){a.currentTime=target;driftCorrections++}
 
-  function execute() {
-    const late = Math.max(0, (Date.now() - localPlayAt)) / 1000;
-    const target = Math.max(0, position + late);
-    const drift = Math.abs(a.currentTime - target);
+    a.play().then(()=>{
+      $('l-art').classList.add('spinning');
+      setPill('l-pill','ps','dc','● In Sync');setSyncInfo('🎧 Playing in sync');
+      $('unlock').classList.remove('show');
+      $('l-latency').style.display='flex';
+      if($('l-drift-val'))$('l-drift-val').textContent=Math.round(drift*1000)+'ms';
+      if($('l-corrections'))$('l-corrections').textContent=driftCorrections;
 
-    if (drift > DRIFT_SOFT) {
-      a.currentTime = target;
-      driftCorrections++;
-    }
+      if(!lCtx||!lChain){buildChain(a,'l');startAI('l')}
+      if(lCtx&&lCtx.state==='suspended')lCtx.resume();
+      startProg(a,'l');startViz('l-viz');
 
-    const playPromise = a.play();
+      clearInterval(driftWatcher);
+      let intErr=0,lastErr=0;
+      driftWatcher=setInterval(()=>{
+        if(a.paused)return;
+        const elapsed=(srvNow()-serverPlayAt)/1000,expected=pos+elapsed;
+        const err=a.currentTime-expected,absErr=Math.abs(err);
+        intErr+=err;intErr=Math.max(-5,Math.min(5,intErr));
+        const deriv=err-lastErr;lastErr=err;
 
-    if (playPromise) {
-      playPromise.then(() => {
-        G('l-art').classList.add('spinning');
-        setPill('l-pill', 'ps', 'dc', '● In Sync');
-        setSyncInfo('🎧 Playing in sync');
-        G('unlock').classList.add('gone');
-        G('l-latency').style.display = 'flex';
-        if (G('l-drift-val')) G('l-drift-val').textContent = Math.round(drift * 1000) + 'ms';
-        if (G('l-corrections')) G('l-corrections').textContent = driftCorrections;
+        if(absErr>DRIFT_HARD){a.currentTime=expected;driftCorrections++;intErr=0}
+        else if(absErr>DRIFT_SOFT){
+          const corr=.5*err+.01*intErr+.1*deriv;
+          a.playbackRate=Math.max(.95,Math.min(1.05,1-corr*.1));
+          setTimeout(()=>{if(!a.paused)a.playbackRate=1},500);
+          driftCorrections++;
+        }else a.playbackRate=1;
 
-        // Build audio chain if not yet built
-        if (!lCtx || !lChain) {
-          buildChain(a, 'l');
-          startAI('l');
-        }
-        if (lCtx && lCtx.state === 'suspended') lCtx.resume();
-
-        startProg(a, 'l');
-        startViz('l-viz');
-
-        // PID-based drift correction loop
-        clearInterval(driftWatcher);
-        let integralErr = 0;
-        let lastErr = 0;
-        const Kp = 0.5, Ki = 0.01, Kd = 0.1;
-
-        driftWatcher = setInterval(() => {
-          if (a.paused) return;
-
-          const elapsed = (srvNow() - serverPlayAt) / 1000;
-          const expected = position + elapsed;
-          const error = a.currentTime - expected;
-          const absError = Math.abs(error);
-
-          // PID controller
-          integralErr += error;
-          integralErr = Math.max(-5, Math.min(5, integralErr)); // anti-windup
-          const derivative = error - lastErr;
-          lastErr = error;
-
-          if (absError > DRIFT_HARD) {
-            // Hard correction
-            console.warn(`[SYNC] Hard correction: ${absError.toFixed(3)}s`);
-            a.currentTime = expected;
-            driftCorrections++;
-            integralErr = 0;
-          } else if (absError > DRIFT_SOFT) {
-            // Gentle PID correction via playback rate
-            const correction = Kp * error + Ki * integralErr + Kd * derivative;
-            const rate = Math.max(0.95, Math.min(1.05, 1 - correction * 0.1));
-            a.playbackRate = rate;
-
-            // Reset rate after correction window
-            setTimeout(() => { if (!a.paused) a.playbackRate = 1.0; }, 500);
-            driftCorrections++;
-          } else {
-            a.playbackRate = 1.0;
-          }
-
-          if (G('l-drift-val')) G('l-drift-val').textContent = Math.round(absError * 1000) + 'ms';
-          if (G('l-corrections')) G('l-corrections').textContent = driftCorrections;
-        }, 2000);
-
-      }).catch(e => {
-        console.warn('[PLAY] Blocked:', e.message);
-        // Show unlock overlay
-        G('unlock').classList.remove('gone');
-        setPill('l-pill', 'pw', 'dm', 'Tap to play');
-        setSyncInfo('⚠️ Tap the screen to enable audio');
-      });
-    }
-  }
-
-  if (msLeft > 20) {
-    a.currentTime = Math.max(0, position);
-    setPill('l-pill', 'pw', 'dm', 'Syncing...');
-    setSyncInfo('<span class="spin">⟳</span> Synchronizing playback...');
-    pendingPlay = setTimeout(execute, msLeft);
-  } else {
-    execute();
-  }
-}
-
-function cancelSched() {
-  if (pendingPlay) { clearTimeout(pendingPlay); pendingPlay = null; }
-}
-
-// ─── CREATE / JOIN ───────────────────────────────────────────────
-function createRoom() {
-  const name = G('rname-input').value.trim() || 'Audio Room';
-  initSock();
-  amHost = true;
-
-  function go() {
-    sock.emit('room:create', { name }, res => {
-      if (!res || !res.ok) { toast('❌ Could not create room'); return; }
-      roomCode = res.code;
-      G('h-rname').textContent = res.name;
-      G('h-code').textContent = res.code;
-      show('s-host');
-      toast('🎉 Room created! Share: ' + res.code);
+        if($('l-drift-val'))$('l-drift-val').textContent=Math.round(absErr*1000)+'ms';
+        if($('l-corrections'))$('l-corrections').textContent=driftCorrections;
+      },2000);
+    }).catch(e=>{
+      console.warn('[PLAY] Blocked:',e.message);
+      showUnlock();setPill('l-pill','pw','dm','Tap to play');setSyncInfo('⚠️ Tap screen to enable audio');
     });
   }
 
-  if (sock.connected) go();
-  else { toast('Connecting...'); sock.once('connect', () => setTimeout(go, 200)); }
+  if(msLeft>20){
+    a.currentTime=Math.max(0,pos);setPill('l-pill','pw','dm','Syncing...');
+    setSyncInfo('<span class="spin">⟳</span> Synchronizing...');
+    pendingPlay=setTimeout(exec,msLeft);
+  }else exec();
 }
 
-function joinRoom() {
-  const code = G('join-code').value.trim().toUpperCase();
-  if (code.length < 6) { toast('Enter the full 6-letter code'); return; }
+function cancelSched(){if(pendingPlay){clearTimeout(pendingPlay);pendingPlay=null}}
 
-  G('join-err').classList.remove('on');
-  G('join-err').textContent = '';
-  initSock();
-  amHost = false;
+// ═══════════════════════════════════════════════════════════
+// LOAD FUNCTIONS
+// ═══════════════════════════════════════════════════════════
+async function loadYoutube(){
+  const raw=$('yt-url').value.trim();
+  if(!raw){toast('Paste a YouTube URL');return}
+  const btn=$('yt-btn');btn.disabled=true;btn.textContent='...';
+  setStatus('yt-status','<span class="spin">⟳</span> Connecting to YouTube...');
 
-  function go() {
-    sock.emit('room:join', { code }, res => {
-      if (!res || !res.ok) {
-        G('join-err').textContent = res?.error || 'Room not found. Check the code.';
-        G('join-err').classList.add('on');
-        return;
-      }
-      roomCode = code;
-      G('l-rname').textContent = res.name;
-      G('l-clabel').textContent = 'Room: ' + code;
-      show('s-listen');
-      toast('🎧 Joined! Syncing...');
-
-      if (res.track && res.track.streamUrl) {
-        loadListenerTrack(res.track.streamUrl, res.track.title, () => {
-          if (res.state && res.state.playing && res.state.serverPlayAt) {
-            const elapsed = (srvNow() - res.state.serverPlayAt) / 1000;
-            const pos = Math.max(0, (res.state.position || 0) + elapsed);
-            schedPlay(pos, srvNow() + SCHED_MS);
-          } else if (res.state) {
-            const a = G('l-audio');
-            a.currentTime = res.state.position || 0;
-            setSyncInfo('Track loaded. Waiting for host to play.');
-          }
-        });
-      }
-
-      // Apply host's AI state if available
-      if (res.aiState && res.aiState.genre) {
-        sock.emit('ai:state', res.aiState); // will trigger our own handler
-      }
-    });
+  try{
+    const r=await fetch('/yt-info?url='+encodeURIComponent(raw));
+    const d=await r.json();
+    if(!r.ok||!d.ok||d.error){
+      setStatus('yt-status','❌ '+(d.error||'Failed'));
+      btn.disabled=false;btn.textContent='Load';return;
+    }
+    setStatus('yt-status','<span class="spin">⟳</span> Loading: '+d.title);
+    const streamUrl='/yt-stream?url='+encodeURIComponent(raw);
+    setStatus('yt-status','✅ '+d.title);
+    applyTrack(streamUrl,d.title,raw);
+  }catch(e){
+    setStatus('yt-status','❌ '+e.message);toast('❌ '+e.message,5000);
   }
-
-  if (sock.connected) go();
-  else { toast('Connecting...'); sock.once('connect', () => setTimeout(go, 300)); }
+  btn.disabled=false;btn.textContent='Load';
 }
 
-// ─── LISTENER TRACK LOAD ─────────────────────────────────────────
-function loadListenerTrack(url, title, cb) {
-  const a = G('l-audio');
-  teardownChain('l');
-  stopAI();
+function loadDirectUrl(){
+  const raw=$('direct-url').value.trim();if(!raw){toast('Enter a URL');return}
+  setStatus('url-status','<span class="spin">⟳</span> Loading...');
+  const title=decodeURIComponent(raw.split('/').pop().split('?')[0].replace(/\.[^.]+$/,'')||'Audio');
+  applyTrack('/proxy?url='+encodeURIComponent(raw),title,raw);
+}
 
-  // Reset completely
-  a.pause();
-  a.removeAttribute('src');
-  a.load();
+function loadFile(){
+  const f=$('file-input').files[0];if(!f)return;
+  const url=URL.createObjectURL(f);
+  setStatus('file-status','⚠️ Local — your device only');
+  applyTrack(url,f.name.replace(/\.[^.]+$/,''),null,true);
+}
 
-  a.src = url;
-  a.crossOrigin = 'anonymous';
-  a.preload = 'auto';
-  a.load();
+// ═══════════════════════════════════════════════════════════
+// APPLY TRACK (HOST)
+// ═══════════════════════════════════════════════════════════
+function applyTrack(streamUrl,title,originalUrl,isLocal=false){
+  teardownChain('h');stopAI();
+  if(progRaf){cancelAnimationFrame(progRaf);progRaf=null}
+  currentTrack={streamUrl,title,originalUrl,isLocal};
 
-  G('l-tname').textContent = title || 'Loading...';
-  setSyncInfo('<span class="spin">⟳</span> Loading track...');
-  setPill('l-pill', 'pw', 'dm', 'Loading...');
+  const a=$('h-audio');
+  a.pause();a.removeAttribute('src');a.load();
+  a.src=streamUrl;a.crossOrigin='anonymous';a.preload='auto';a.load();
 
-  let ready = false;
+  $('h-tname').textContent=title;$('h-tsub').textContent='Loading...';
+  $('h-player').style.display='block';$('h-play-btn').disabled=true;
 
-  function onReady() {
-    if (ready) return;
-    ready = true;
-    a.removeEventListener('canplay', onReady);
-    a.removeEventListener('loadeddata', onReady);
+  let ready=false;
 
-    if (a.duration && isFinite(a.duration)) G('l-dur').textContent = fmt(a.duration);
-    setSyncInfo('✅ Ready — waiting for host to play...');
-    setPill('l-pill', 'pw', 'dm', 'Ready');
-
-    buildChain(a, 'l');
-    startAI('l');
-
-    if (cb) cb();
+  function onReady(){
+    if(ready)return;ready=true;
+    a.removeEventListener('canplay',onReady);a.removeEventListener('loadedmetadata',onReady);a.removeEventListener('loadeddata',onReady);
+    $('h-dur').textContent=isFinite(a.duration)?fmt(a.duration):'LIVE';
+    $('h-tsub').textContent=(isFinite(a.duration)?fmt(a.duration):'Live')+(isLocal?' · local':' · ready');
+    $('h-play-btn').disabled=false;
+    buildChain(a,'h');startProg(a,'h');startViz('h-viz');startAI('h');
+    setupSeekbar('h-seekbar',a);
+    toast('✅ Track loaded — press Play ▶');
+    setStatus('yt-status','✅ Ready');setStatus('url-status','✅ Ready');
   }
 
-  function onErr() {
-    a.removeEventListener('error', onErr);
-    const c = a.error ? a.error.code : 0;
-    const msgs = ['', 'Aborted', 'Network error', 'Decode error', 'Not supported'];
-    const msg = msgs[c] || 'Load failed';
+  function onErr(){
+    a.removeEventListener('error',onErr);
+    const codes=['','ABORTED','NETWORK','DECODE','NOT_SUPPORTED'];
+    const c=a.error?a.error.code:0;
+    const msg=codes[c]||'ERROR_'+c;
+    console.error('[AUDIO] Error:',msg);
 
-    // Retry once for network errors
-    if (c === 2 && !a._retried) {
-      a._retried = true;
-      setSyncInfo('<span class="spin">⟳</span> Retrying...');
-      setTimeout(() => {
-        a.load();
-        a.addEventListener('canplay', onReady, { once: true });
-        a.addEventListener('error', () => {
-          setSyncInfo('❌ ' + msg);
-          toast('❌ Track load failed', 4000);
-        }, { once: true });
-      }, 2000);
+    if(c===2&&!a._retry){
+      a._retry=true;
+      setStatus('yt-status','<span class="spin">⟳</span> Retrying...');
+      setTimeout(()=>{a.src=streamUrl;a.load();a.addEventListener('canplay',onReady,{once:true});a.addEventListener('error',()=>{
+        setStatus('yt-status','❌ '+msg);toast('❌ '+msg,5000);$('h-play-btn').disabled=false;
+      },{once:true})},2000);
       return;
     }
-
-    setSyncInfo('❌ ' + msg);
-    toast('❌ Track load failed: ' + msg, 4000);
+    setStatus('yt-status','❌ '+msg);toast('❌ '+msg,5000);$('h-play-btn').disabled=false;
   }
 
-  a.addEventListener('canplay', onReady, { once: true });
-  a.addEventListener('loadeddata', onReady, { once: true });
-  a.addEventListener('error', onErr, { once: true });
-
-  // Buffer progress
-  a.addEventListener('progress', () => {
-    if (a.buffered.length > 0 && isFinite(a.duration)) {
-      const pct = (a.buffered.end(a.buffered.length - 1) / a.duration) * 100;
-      const buf = G('l-buffer');
-      if (buf) buf.style.width = pct + '%';
+  a.addEventListener('canplay',onReady,{once:true});
+  a.addEventListener('loadedmetadata',onReady,{once:true});
+  a.addEventListener('loadeddata',onReady,{once:true});
+  a.addEventListener('error',onErr,{once:true});
+  a.addEventListener('progress',()=>{
+    if(a.buffered.length>0&&isFinite(a.duration)){
+      const p=(a.buffered.end(a.buffered.length-1)/a.duration)*100;
+      const b=$('h-buffer');if(b)b.style.width=p+'%';
     }
   });
+
+  if(!isLocal&&sock)sock.emit('track:set',{streamUrl,title,originalUrl});
 }
 
-// ─── HOST CONTROLS ───────────────────────────────────────────────
-function hostPlay() {
-  const a = G('h-audio');
-  if (!a.src) { toast('Load a track first'); return; }
-  if (hCtx && hCtx.state === 'suspended') hCtx.resume();
+function setupSeekbar(barId,audio){
+  const bar=$(barId);if(!bar)return;
+  const nb=bar.cloneNode(true);bar.parentNode.replaceChild(nb,bar);nb.id=barId;
+  let drag=false;
+  function getR(e){const t=nb.querySelector('.seek-track'),r=t.getBoundingClientRect(),x=(e.touches?e.touches[0].clientX:e.clientX)-r.left;return Math.max(0,Math.min(1,x/r.width))}
+  function doSeek(e){if(!audio.duration||!isFinite(audio.duration))return;const r=getR(e),pos=r*audio.duration;audio.currentTime=pos;const f=$(barId.replace('seekbar','fill'));if(f)f.style.width=(r*100)+'%';if(amHost){const playing=!audio.paused,playAt=srvNow()+SCHED_MS;if(playing)setTimeout(()=>audio.play().catch(()=>{}),SCHED_MS);sock.emit('audio:seek',{position:pos,playing,serverPlayAt:playAt})}}
+  nb.addEventListener('mousedown',e=>{drag=true;doSeek(e)});
+  nb.addEventListener('touchstart',e=>{drag=true;doSeek(e)},{passive:true});
+  document.addEventListener('mousemove',e=>{if(drag)doSeek(e)});
+  document.addEventListener('touchmove',e=>{if(drag)doSeek(e)},{passive:true});
+  document.addEventListener('mouseup',()=>drag=false);
+  document.addEventListener('touchend',()=>drag=false);
+}
 
-  const pos = a.currentTime;
-  const playAt = srvNow() + SCHED_MS;
+// ═══════════════════════════════════════════════════════════
+// LISTENER TRACK LOAD
+// ═══════════════════════════════════════════════════════════
+function loadListenerTrack(url,title,cb){
+  const a=$('l-audio');teardownChain('l');stopAI();
+  a.pause();a.removeAttribute('src');a.load();
+  a.src=url;a.crossOrigin='anonymous';a.preload='auto';a.load();
+  $('l-tname').textContent=title||'Loading...';
+  setSyncInfo('<span class="spin">⟳</span> Loading...');setPill('l-pill','pw','dm','Loading...');
 
-  setTimeout(() => {
-    a.play().then(() => {
-      G('h-art').classList.add('spinning');
-    }).catch(e => {
-      console.warn('[HOST PLAY]', e);
-      G('unlock').classList.remove('gone');
+  let rdy=false;
+  function onReady(){
+    if(rdy)return;rdy=true;a.removeEventListener('canplay',onReady);a.removeEventListener('loadeddata',onReady);
+    if(a.duration&&isFinite(a.duration))$('l-dur').textContent=fmt(a.duration);
+    setSyncInfo('✅ Ready — waiting for host...');setPill('l-pill','pw','dm','Ready');
+    buildChain(a,'l');startAI('l');if(cb)cb();
+  }
+  function onErr(){
+    a.removeEventListener('error',onErr);
+    const c=a.error?a.error.code:0;
+    const msgs=['','Aborted','Network','Decode','Not supported'];
+    if(c===2&&!a._rtry){a._rtry=true;setSyncInfo('<span class="spin">⟳</span> Retrying...');setTimeout(()=>{a.load();a.addEventListener('canplay',onReady,{once:true});a.addEventListener('error',()=>{setSyncInfo('❌ '+(msgs[c]||'Error'));toast('❌ Load failed',4000)},{once:true})},2000);return}
+    setSyncInfo('❌ '+(msgs[c]||'Error'));toast('❌ Load failed',4000);
+  }
+  a.addEventListener('canplay',onReady,{once:true});
+  a.addEventListener('loadeddata',onReady,{once:true});
+  a.addEventListener('error',onErr,{once:true});
+  a.addEventListener('progress',()=>{if(a.buffered.length>0&&isFinite(a.duration)){const p=(a.buffered.end(a.buffered.length-1)/a.duration)*100;const b=$('l-buffer');if(b)b.style.width=p+'%'}});
+}
+
+// ═══════════════════════════════════════════════════════════
+// HOST CONTROLS
+// ═══════════════════════════════════════════════════════════
+function hostPlay(){
+  const a=$('h-audio');if(!a.src){toast('Load a track first');return}
+  if(hCtx&&hCtx.state==='suspended')hCtx.resume();
+  const pos=a.currentTime,playAt=srvNow()+SCHED_MS;
+  setTimeout(()=>{a.play().then(()=>$('h-art').classList.add('spinning')).catch(e=>{console.warn(e);showUnlock()})},SCHED_MS);
+  setPill('h-pill','pl','dg','● Playing');
+  sock.emit('audio:play',{position:pos,serverPlayAt:playAt});startViz('h-viz');
+}
+
+function hostPause(){const a=$('h-audio');a.pause();$('h-art').classList.remove('spinning');setPill('h-pill','pw','dm','Paused');sock.emit('audio:pause',{position:a.currentTime})}
+
+function hostRestart(){
+  const a=$('h-audio');if(!a.src)return;
+  if(hCtx&&hCtx.state==='suspended')hCtx.resume();
+  a.currentTime=0;const playAt=srvNow()+SCHED_MS;
+  setTimeout(()=>{a.play().then(()=>$('h-art').classList.add('spinning')).catch(()=>{})},SCHED_MS);
+  setPill('h-pill','pl','dg','● Playing');sock.emit('audio:play',{position:0,serverPlayAt:playAt});
+}
+
+// ═══════════════════════════════════════════════════════════
+// CREATE / JOIN
+// ═══════════════════════════════════════════════════════════
+function createRoom(){
+  initSock();amHost=true;const name=$('rname-input').value.trim()||'Audio Room';
+  function go(){sock.emit('room:create',{name},r=>{if(!r?.ok){toast('❌ Error');return}roomCode=r.code;$('h-rname').textContent=r.name;$('h-code').textContent=r.code;show('s-host');toast('🎉 Room: '+r.code)})}
+  if(sock.connected)go();else{toast('Connecting...');sock.once('connect',()=>setTimeout(go,200))}
+}
+
+function joinRoom(){
+  const code=$('join-code').value.trim().toUpperCase();if(code.length<6){toast('Enter full 6-letter code');return}
+  $('join-err').classList.remove('on');$('join-err').textContent='';
+  initSock();amHost=false;
+  function go(){
+    sock.emit('room:join',{code},r=>{
+      if(!r?.ok){$('join-err').textContent=r?.error||'Room not found.';$('join-err').classList.add('on');return}
+      roomCode=code;$('l-rname').textContent=r.name;$('l-clabel').textContent='Room: '+code;show('s-listen');toast('🎧 Joined!');
+      if(r.track?.streamUrl){
+        loadListenerTrack(r.track.streamUrl,r.track.title,()=>{
+          if(r.state?.playing&&r.state.serverPlayAt){
+            const elapsed=(srvNow()-r.state.serverPlayAt)/1000;
+            schedPlay(Math.max(0,(r.state.position||0)+elapsed),srvNow()+SCHED_MS);
+          }else if(r.state){$('l-audio').currentTime=r.state.position||0;setSyncInfo('Ready. Waiting for host.')}
+        });
+      }
     });
-  }, SCHED_MS);
-
-  setPill('h-pill', 'pl', 'dg', '● Playing');
-  sock.emit('audio:play', { position: pos, serverPlayAt: playAt });
-  startViz('h-viz');
-}
-
-function hostPause() {
-  const a = G('h-audio');
-  a.pause();
-  G('h-art').classList.remove('spinning');
-  setPill('h-pill', 'pw', 'dm', 'Paused');
-  sock.emit('audio:pause', { position: a.currentTime });
-}
-
-function hostRestart() {
-  const a = G('h-audio');
-  if (!a.src) return;
-  if (hCtx && hCtx.state === 'suspended') hCtx.resume();
-
-  a.currentTime = 0;
-  const playAt = srvNow() + SCHED_MS;
-
-  setTimeout(() => {
-    a.play().then(() => G('h-art').classList.add('spinning')).catch(() => {});
-  }, SCHED_MS);
-
-  setPill('h-pill', 'pl', 'dg', '● Playing');
-  sock.emit('audio:play', { position: 0, serverPlayAt: playAt });
-}
-
-// ─── LEAVE ───────────────────────────────────────────────────────
-function leave() {
-  cancelSched();
-  stopAI();
-  clearInterval(window._ka);
-  clearInterval(driftWatcher);
-  if (progRaf) { cancelAnimationFrame(progRaf); progRaf = null; }
-  if (vizRaf) { cancelAnimationFrame(vizRaf); vizRaf = null; }
-
-  ['h-audio', 'l-audio'].forEach(id => {
-    const a = G(id);
-    if (a) { a.pause(); a.removeAttribute('src'); a.load(); }
-  });
-
-  teardownChain('h');
-  teardownChain('l');
-
-  if (sock) { sock.disconnect(); sock = null; }
-  roomCode = null;
-  listeners = {};
-  currentTrack = null;
-  driftCorrections = 0;
-  autoEQ = { h: false, l: false };
-
-  setConn(false);
-  show('s-home');
-}
-
-// ─── UI HELPERS ──────────────────────────────────────────────────
-function copyCode() {
-  const code = G('h-code').textContent;
-  if (navigator.clipboard) {
-    navigator.clipboard.writeText(code).then(() => toast('📋 Copied: ' + code));
-  } else {
-    const el = document.createElement('textarea');
-    el.value = code; el.style.position = 'fixed'; el.style.opacity = '0';
-    document.body.appendChild(el); el.select();
-    document.execCommand('copy');
-    document.body.removeChild(el);
-    toast('📋 Copied: ' + code);
   }
+  if(sock.connected)go();else{toast('Connecting...');sock.once('connect',()=>setTimeout(go,300))}
 }
 
-function renderListeners() {
-  const ids = Object.keys(listeners);
-  G('h-lcnt').textContent = ids.length;
-  const el = G('h-llist');
-  if (!ids.length) {
-    el.innerHTML = '<div class="nol">No one joined yet — share your code!</div>';
-    return;
-  }
-  el.innerHTML = ids.map((id, i) =>
-    '<div class="litem">' +
-    '<div class="lav">🎧</div>' +
-    '<span>Listener ' + (i + 1) + '</span>' +
-    '<span style="margin-left:auto;font-family:\'Space Mono\',monospace;font-size:9px;color:var(--g)">● synced</span>' +
-    '</div>'
-  ).join('');
+// ═══════════════════════════════════════════════════════════
+// LEAVE
+// ═══════════════════════════════════════════════════════════
+function leave(){
+  cancelSched();stopAI();clearInterval(window._ka);clearInterval(driftWatcher);
+  if(progRaf){cancelAnimationFrame(progRaf);progRaf=null}
+  if(vizRaf){cancelAnimationFrame(vizRaf);vizRaf=null}
+  ['h-audio','l-audio'].forEach(id=>{const a=$(id);if(a){a.pause();a.removeAttribute('src');a.load()}});
+  teardownChain('h');teardownChain('l');
+  if(sock){sock.disconnect();sock=null}
+  roomCode=null;listeners={};currentTrack=null;driftCorrections=0;autoEQ={h:false,l:false};
+  setConn(false);show('s-home');
 }
 
-function startProg(audio, side) {
-  if (progRaf) { cancelAnimationFrame(progRaf); progRaf = null; }
-
-  const fillId = side + '-fill';
-  const curId = side + '-cur';
-  const durId = side + '-dur';
-
-  function tick() {
-    progRaf = requestAnimationFrame(tick);
-    if (!audio.duration || !isFinite(audio.duration)) return;
-
-    const p = (audio.currentTime / audio.duration) * 100;
-    const f = G(fillId); if (f) f.style.width = p + '%';
-    const c = G(curId); if (c) c.textContent = fmt(audio.currentTime);
-    const d = G(durId); if (d) d.textContent = fmt(audio.duration);
-  }
-  tick();
+// ═══════════════════════════════════════════════════════════
+// UI
+// ═══════════════════════════════════════════════════════════
+function copyCode(){
+  const c=$('h-code').textContent;
+  if(navigator.clipboard)navigator.clipboard.writeText(c).then(()=>toast('📋 Copied: '+c));
+  else{const e=document.createElement('textarea');e.value=c;e.style.position='fixed';e.style.opacity='0';document.body.appendChild(e);e.select();document.execCommand('copy');document.body.removeChild(e);toast('📋 '+c)}
 }
 
-// ═══════════════════════════════════════════════════════════════════
-//  NEURAL VISUALIZER
-//  FFT frequency spectrum with:
-//  - Gradient bars with frequency-mapped colors
-//  - Peak hold indicators with decay
-//  - Beat pulse glow effect
-//  - Waveform overlay
-// ═══════════════════════════════════════════════════════════════════
+function renderListeners(){
+  const ids=Object.keys(listeners);$('h-lcnt').textContent=ids.length;
+  const el=$('h-llist');
+  if(!ids.length){el.innerHTML='<div class="nol">Share your code!</div>';return}
+  el.innerHTML=ids.map((id,i)=>'<div class="litem"><div class="lav">🎧</div><span>Listener '+(i+1)+'</span><span style="margin-left:auto;font-size:9px;color:var(--g)">● synced</span></div>').join('');
+}
 
-function startViz(canvasId) {
-  if (vizRaf) { cancelAnimationFrame(vizRaf); vizRaf = null; }
-  if (!vizAn) return;
+function startProg(audio,side){
+  if(progRaf){cancelAnimationFrame(progRaf);progRaf=null}
+  function tick(){progRaf=requestAnimationFrame(tick);if(!audio.duration||!isFinite(audio.duration))return;
+    const p=(audio.currentTime/audio.duration)*100;
+    const f=$(side+'-fill');if(f)f.style.width=p+'%';
+    const c=$(side+'-cur');if(c)c.textContent=fmt(audio.currentTime);
+    const d=$(side+'-dur');if(d)d.textContent=fmt(audio.duration);
+  }tick();
+}
 
-  const cv = G(canvasId);
-  if (!cv) return;
+// ═══════════════════════════════════════════════════════════
+// VISUALIZER
+// ═══════════════════════════════════════════════════════════
+function startViz(canvasId){
+  if(vizRaf){cancelAnimationFrame(vizRaf);vizRaf=null}
+  if(!vizAn)return;
+  const cv=$(canvasId);if(!cv)return;
+  const dpr=window.devicePixelRatio||1;
+  const W=cv.offsetWidth||760,H=cv.offsetHeight||68;
+  cv.width=W*dpr;cv.height=H*dpr;
+  const ctx=cv.getContext('2d');ctx.scale(dpr,dpr);
+  const bins=vizAn.frequencyBinCount;
+  const freqBuf=new Uint8Array(bins);
+  const peaks=new Float32Array(bins);
+  const barCount=Math.min(bins,Math.floor(W/3));
+  const bw=(W/barCount)*.85,bg=(W/barCount)*.15;
+  let beatGlow=0,lastE=0;
 
-  const dpr = window.devicePixelRatio || 1;
-  const W = cv.offsetWidth || 760;
-  const H = cv.offsetHeight || 68;
-  cv.width = W * dpr;
-  cv.height = H * dpr;
-  const ctx = cv.getContext('2d');
-  ctx.scale(dpr, dpr);
-
-  const bins = vizAn.frequencyBinCount;
-  const freqBuf = new Uint8Array(bins);
-  const timeBuf = new Float32Array(vizAn.fftSize);
-  const peaks = new Float32Array(bins);
-  const peakDecay = 0.985;
-  const barCount = Math.min(bins, Math.floor(W / 3));
-  const barWidth = (W / barCount) * 0.85;
-  const barGap = (W / barCount) * 0.15;
-  let beatGlow = 0;
-  let lastEnergy = 0;
-
-  function draw() {
-    vizRaf = requestAnimationFrame(draw);
+  function draw(){
+    vizRaf=requestAnimationFrame(draw);
     vizAn.getByteFrequencyData(freqBuf);
-    vizAn.getFloatTimeDomainData(timeBuf);
+    ctx.fillStyle='#06070c';ctx.fillRect(0,0,W,H);
 
-    // Background
-    ctx.fillStyle = '#06070c';
-    ctx.fillRect(0, 0, W, H);
+    let energy=0;for(let i=0;i<barCount;i++)energy+=freqBuf[i];energy/=barCount;
+    if(energy>lastE*1.25&&energy>80)beatGlow=1;else beatGlow*=.92;lastE=energy;
 
-    // Beat detection for glow effect
-    let energy = 0;
-    for (let i = 0; i < barCount; i++) energy += freqBuf[i];
-    energy /= barCount;
-    if (energy > lastEnergy * 1.25 && energy > 80) beatGlow = 1;
-    else beatGlow *= 0.92;
-    lastEnergy = energy;
+    if(beatGlow>.1){const g=ctx.createRadialGradient(W/2,H,0,W/2,H,W*.6);g.addColorStop(0,`rgba(0,229,255,${beatGlow*.08})`);g.addColorStop(1,'transparent');ctx.fillStyle=g;ctx.fillRect(0,0,W,H)}
 
-    // Beat glow background
-    if (beatGlow > 0.1) {
-      const grd = ctx.createRadialGradient(W/2, H, 0, W/2, H, W * 0.6);
-      grd.addColorStop(0, `rgba(0, 229, 255, ${beatGlow * 0.08})`);
-      grd.addColorStop(1, 'transparent');
-      ctx.fillStyle = grd;
-      ctx.fillRect(0, 0, W, H);
+    let x=0;
+    for(let i=0;i<barCount;i++){
+      const idx=Math.floor(i*bins/barCount);
+      const r=freqBuf[idx]/255,h=r*H*.88;
+      if(r>peaks[i])peaks[i]=r;else peaks[i]*=.985;
+      const hue=175+i/barCount*100,sat=80+r*20,light=50+r*15,alpha=.6+r*.4;
+      const grad=ctx.createLinearGradient(x,H,x,H-h);
+      grad.addColorStop(0,`hsla(${hue},${sat}%,${light}%,${alpha})`);
+      grad.addColorStop(1,`hsla(${hue+20},${sat}%,${light+15}%,${alpha*.6})`);
+      ctx.fillStyle=grad;
+      const bh=Math.max(1,h);ctx.fillRect(x,H-bh,bw,bh);
+      if(peaks[i]>.06){ctx.fillStyle=`hsla(${hue},100%,85%,${.5+peaks[i]*.3})`;ctx.fillRect(x,H-peaks[i]*H*.88-1,bw,1.5)}
+      x+=bw+bg;
     }
-
-    // Frequency bars
-    let x = 0;
-    for (let i = 0; i < barCount; i++) {
-      const idx = Math.floor(i * bins / barCount);
-      const r = freqBuf[idx] / 255;
-      const h = r * H * 0.88;
-
-      if (r > peaks[i]) peaks[i] = r;
-      else peaks[i] *= peakDecay;
-
-      // Color based on frequency
-      const hue = 175 + (i / barCount) * 100;
-      const sat = 80 + r * 20;
-      const light = 50 + r * 15;
-      const alpha = 0.6 + r * 0.4;
-
-      // Bar gradient
-      const grad = ctx.createLinearGradient(x, H, x, H - h);
-      grad.addColorStop(0, `hsla(${hue}, ${sat}%, ${light}%, ${alpha})`);
-      grad.addColorStop(1, `hsla(${hue + 20}, ${sat}%, ${light + 15}%, ${alpha * 0.6})`);
-      ctx.fillStyle = grad;
-
-      // Rounded bars
-      const bh = Math.max(1, h);
-      const radius = Math.min(barWidth / 2, 2);
-      ctx.beginPath();
-      ctx.moveTo(x + radius, H);
-      ctx.lineTo(x + radius, H - bh + radius);
-      ctx.arc(x + radius, H - bh + radius, radius, Math.PI, Math.PI * 1.5);
-      ctx.lineTo(x + barWidth - radius, H - bh);
-      ctx.arc(x + barWidth - radius, H - bh + radius, radius, -Math.PI / 2, 0);
-      ctx.lineTo(x + barWidth, H);
-      ctx.fill();
-
-      // Peak hold line
-      if (peaks[i] > 0.06) {
-        const py = H - peaks[i] * H * 0.88;
-        ctx.fillStyle = `hsla(${hue}, 100%, 85%, ${0.5 + peaks[i] * 0.3})`;
-        ctx.fillRect(x, py - 1, barWidth, 1.5);
-      }
-
-      x += barWidth + barGap;
-    }
-
-    // Subtle waveform overlay
-    ctx.strokeStyle = 'rgba(139, 92, 246, 0.2)';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    const sliceWidth = W / timeBuf.length;
-    let wx = 0;
-    for (let i = 0; i < timeBuf.length; i++) {
-      const v = timeBuf[i] * 0.5 + 0.5;
-      const y = v * H;
-      if (i === 0) ctx.moveTo(wx, y);
-      else ctx.lineTo(wx, y);
-      wx += sliceWidth;
-    }
-    ctx.stroke();
-  }
-
-  draw();
+  }draw();
 }
 
-// ─── INPUT ───────────────────────────────────────────────────────
-G('join-code').addEventListener('input', function() {
-  this.value = this.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+// ═══════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════
+$('join-code').addEventListener('input',function(){this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'')});
+
+window.addEventListener('load',()=>{
+  setupUnlock();initSock();
+  $('join-code').addEventListener('keydown',e=>{if(e.key==='Enter')joinRoom()});
+  $('rname-input').addEventListener('keydown',e=>{if(e.key==='Enter')createRoom()});
+  $('yt-url').addEventListener('keydown',e=>{if(e.key==='Enter')loadYoutube()});
+  $('direct-url').addEventListener('keydown',e=>{if(e.key==='Enter')loadDirectUrl()});
+  $('yt-url').addEventListener('paste',()=>{setTimeout(()=>{const v=$('yt-url').value.trim();if(v&&(v.includes('youtube.com')||v.includes('youtu.be')))setTimeout(loadYoutube,300)},100)});
+  console.log('%c🌊 WaveRoom v3.0','color:#00e5ff;font-size:14px;font-weight:bold');
 });
 
-// ─── INIT ────────────────────────────────────────────────────────
-window.addEventListener('load', () => {
-  setupUnlock();
-  initSock();
-
-  G('join-code').addEventListener('keydown', e => { if (e.key === 'Enter') joinRoom(); });
-  G('rname-input').addEventListener('keydown', e => { if (e.key === 'Enter') createRoom(); });
-  G('yt-url').addEventListener('keydown', e => { if (e.key === 'Enter') loadYoutube(); });
-  G('direct-url').addEventListener('keydown', e => { if (e.key === 'Enter') loadDirectUrl(); });
-
-  // Paste handler for YouTube URL
-  G('yt-url').addEventListener('paste', () => {
-    setTimeout(() => {
-      const val = G('yt-url').value.trim();
-      if (val && (val.includes('youtube.com') || val.includes('youtu.be'))) {
-        // Auto-load after paste
-        setTimeout(loadYoutube, 300);
-      }
-    }, 100);
-  });
-
-  console.log('%c🌊 WaveRoom v3.0 — Neural AI Spatial Audio', 'color:#00e5ff;font-size:14px;font-weight:bold');
-  console.log('%c✦ Neural genre detection\n✦ PID drift correction\n✦ Kalman NTP sync\n✦ Real-time spectral analysis', 'color:#ffd700;font-size:10px');
-});
-
-// Visibility change handler — resume audio context when tab becomes active
-document.addEventListener('visibilitychange', () => {
-  if (!document.hidden) {
-    [hCtx, lCtx].forEach(c => { if (c && c.state === 'suspended') c.resume(); });
-  }
-});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)[hCtx,lCtx].forEach(c=>{if(c&&c.state==='suspended')c.resume()})});
 </script>
 </body>
 </html>
