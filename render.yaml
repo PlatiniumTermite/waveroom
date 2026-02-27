@@ -2,14 +2,17 @@ services:
   - type: web
     name: waveroom
     env: node
-    plan: free
-    buildCommand: npm run build
+    buildCommand: >
+      npm install &&
+      mkdir -p $HOME/.local/bin &&
+      curl -sL https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o $HOME/.local/bin/yt-dlp &&
+      chmod +x $HOME/.local/bin/yt-dlp &&
+      $HOME/.local/bin/yt-dlp --version &&
+      echo "yt-dlp ready"
     startCommand: node server.js
-    healthCheckPath: /health
     envVars:
       - key: NODE_ENV
         value: production
-      - key: NODE_OPTIONS
-        value: --max-old-space-size=512
       - key: PATH
-        value: /opt/render/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+        value: /home/render/.local/bin:/opt/render/project/src/node_modules/.bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+    healthCheckPath: /health
