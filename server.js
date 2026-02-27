@@ -19,28 +19,29 @@ function makeCode() {
 }
 
 io.on('connection', (socket) => {
-  // ── NTP clock sync (do multiple rounds for accuracy)
-  socket.on('ntp:ping', ({ id, clientTime }) => {
-    socket.emit('ntp:pong', { id, clientTime, serverTime: Date.now() });
+
+  // NTP clock sync — client pings multiple times for accuracy
+  socket.on('ntp:ping', ({ clientTime }) => {
+    socket.emit('ntp:pong', { clientTime, serverTime: Date.now() });
   });
 
-  // ── Create room
+  // Host creates room
   socket.on('room:create', ({ name }, cb) => {
     const code = makeCode();
     rooms[code] = {
       host: socket.id,
       name: name || 'Audio Room',
       listeners: [],
-      state: { playing: false, startedAt: null, position: 0 }
+      track: null,
+      state: { playing: false, position: 0, serverPlayAt: null }
     };
     socket.join(code);
     socket.data.code = code;
     socket.data.isHost = true;
-    console.log('Room created:', code);
     cb({ ok: true, code, name: rooms[code].name });
   });
 
-  // ── Join room
+  // Listener joins room
   socket.on('room:join', ({ code }, cb) => {
     const room = rooms[code];
     if (!room) return cb({ ok: false });
@@ -50,38 +51,47 @@ io.on('connection', (socket) => {
     socket.data.isHost = false;
     io.to(room.host).emit('room:listener_joined', { id: socket.id });
     io.to(code).emit('room:count', room.listeners.length);
-    cb({ ok: true, name: room.name, state: room.state });
+    // Send full state so late joiners sync immediately
+    cb({ ok: true, name: room.name, track: room.track, state: room.state });
   });
 
-  // ── Host → everyone: PLAY at a scheduled server timestamp
-  // serverPlayAt = the exact server time (ms) when audio should start
+  // Host sets track URL — broadcast to all listeners
+  socket.on('track:set', ({ url, title }) => {
+    const code = socket.data.code;
+    const room = rooms[code];
+    if (!room || room.host !== socket.id) return;
+    room.track = { url, title };
+    room.state = { playing: false, position: 0, serverPlayAt: null };
+    socket.to(code).emit('track:set', { url, title });
+  });
+
+  // Host plays — precise server timestamp scheduling
   socket.on('audio:play', ({ position, serverPlayAt }) => {
     const code = socket.data.code;
     const room = rooms[code];
     if (!room || room.host !== socket.id) return;
-    room.state = { playing: true, startedAt: serverPlayAt, position };
+    room.state = { playing: true, position, serverPlayAt };
     socket.to(code).emit('audio:play', { position, serverPlayAt });
   });
 
-  // ── Host → everyone: PAUSE
+  // Host pauses
   socket.on('audio:pause', ({ position }) => {
     const code = socket.data.code;
     const room = rooms[code];
     if (!room || room.host !== socket.id) return;
-    room.state = { playing: false, startedAt: null, position };
+    room.state = { playing: false, position, serverPlayAt: null };
     socket.to(code).emit('audio:pause', { position });
   });
 
-  // ── Host → everyone: SEEK
+  // Host seeks
   socket.on('audio:seek', ({ position, playing, serverPlayAt }) => {
     const code = socket.data.code;
     const room = rooms[code];
     if (!room || room.host !== socket.id) return;
-    room.state = { playing, startedAt: playing ? serverPlayAt : null, position };
+    room.state = { playing, position, serverPlayAt: playing ? serverPlayAt : null };
     socket.to(code).emit('audio:seek', { position, playing, serverPlayAt });
   });
 
-  // ── Disconnect
   socket.on('disconnect', () => {
     const code = socket.data.code;
     if (!code || !rooms[code]) return;
@@ -99,4 +109,4 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`WaveRoom on port ${PORT}`));
+server.listen(PORT, () => console.log(`WaveRoom running on port ${PORT}`));;
