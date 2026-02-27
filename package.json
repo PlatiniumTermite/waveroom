@@ -5,7 +5,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "build": "pip3 install --quiet --user --upgrade yt-dlp 2>/dev/null || python3 -m pip install --quiet --user --upgrade yt-dlp 2>/dev/null || (curl -sL https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o $HOME/.local/bin/yt-dlp && chmod +x $HOME/.local/bin/yt-dlp) || true && mkdir -p $HOME/.yt-cache"
+    "build": "mkdir -p $HOME/.local/bin $HOME/.yt-cache && (curl -L --max-time 60 --retry 3 https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o $HOME/.local/bin/yt-dlp && chmod +x $HOME/.local/bin/yt-dlp && echo 'yt-dlp installed via curl') || (pip3 install --user --break-system-packages yt-dlp 2>/dev/null || pip3 install --user yt-dlp 2>/dev/null || pip install --user yt-dlp 2>/dev/null && echo 'yt-dlp installed via pip') || echo 'yt-dlp install deferred to runtime' && npm install"
   },
   "engines": {
     "node": ">=18.0.0"
