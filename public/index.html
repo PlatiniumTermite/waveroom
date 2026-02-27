@@ -2,279 +2,450 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>WaveRoom — Sync Audio Live</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>WaveRoom</title>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --bg:#07080d;--surface:#0e1018;--border:#1c2030;
-  --accent:#00e5ff;--purple:#8b5cf6;--green:#00ff88;
-  --red:#ff4466;--text:#e2e8f0;--muted:#4a5578
+  --bg:#07080d;--s:#0c0e15;--b:#191e2e;
+  --c:#00e5ff;--p:#8b5cf6;--g:#00ff88;
+  --r:#ff4466;--t:#e8edf8;--m:#4a5578;
+  --gold:#ffd700
 }
-body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;min-height:100vh;overscroll-behavior:none}
-body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(var(--border) 1px,transparent 1px),linear-gradient(90deg,var(--border) 1px,transparent 1px);background-size:50px 50px;opacity:.18;pointer-events:none}
-.wrap{position:relative;z-index:1;max-width:820px;margin:0 auto;padding:28px 18px}
-.logo{display:flex;align-items:center;gap:10px;margin-bottom:44px}
-.logo-icon{width:36px;height:36px;border-radius:9px;background:linear-gradient(135deg,var(--accent),var(--purple));display:flex;align-items:center;justify-content:center;font-size:18px}
-.logo-name{font-size:21px;font-weight:800;background:linear-gradient(135deg,var(--accent),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+html,body{background:var(--bg);color:var(--t);font-family:'Syne',sans-serif;min-height:100vh;overscroll-behavior:none}
+
+/* animated background */
+body::before{
+  content:'';position:fixed;inset:0;
+  background-image:linear-gradient(var(--b) 1px,transparent 1px),linear-gradient(90deg,var(--b) 1px,transparent 1px);
+  background-size:48px 48px;opacity:.12;pointer-events:none;z-index:0
+}
+/* glow orbs */
+body::after{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:
+    radial-gradient(ellipse 600px 400px at 20% 10%,rgba(0,229,255,.04),transparent),
+    radial-gradient(ellipse 500px 400px at 80% 90%,rgba(139,92,246,.05),transparent)
+}
+
+#app{position:relative;z-index:1;max-width:800px;margin:0 auto;padding:28px 18px}
+
+/* NAV */
+.nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:44px}
+.nav-left{display:flex;align-items:center;gap:10px}
+.nav-icon{
+  width:36px;height:36px;border-radius:9px;
+  background:linear-gradient(135deg,var(--c),var(--p));
+  display:flex;align-items:center;justify-content:center;font-size:18px;
+  box-shadow:0 0 20px rgba(0,229,255,.2)
+}
+.nav-name{
+  font-size:20px;font-weight:800;
+  background:linear-gradient(135deg,var(--c),var(--p));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text
+}
+.nav-badge{
+  font-family:'Space Mono',monospace;font-size:9px;color:var(--gold);
+  border:1px solid rgba(255,215,0,.3);border-radius:20px;padding:2px 8px;
+  background:rgba(255,215,0,.07)
+}
+
+/* SCREENS */
 .screen{display:none}
-.screen.active{display:block;animation:up .22s ease}
+.screen.on{display:block;animation:up .22s ease}
 @keyframes up{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
 
 /* HOME */
-.hero{text-align:center;padding:16px 0 36px}
-.hero h1{font-size:clamp(34px,6vw,64px);font-weight:800;letter-spacing:-2px;line-height:1.05;margin-bottom:14px}
-.hero h1 em{font-style:normal;background:linear-gradient(135deg,var(--accent),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-.hero p{font-family:'Space Mono',monospace;font-size:13px;color:var(--muted);max-width:380px;margin:0 auto 36px;line-height:1.8}
-.two{display:grid;grid-template-columns:1fr 1fr;gap:12px;max-width:540px;margin:0 auto}
-@media(max-width:460px){.two{grid-template-columns:1fr}}
-.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:24px 18px;text-align:left;cursor:pointer;transition:border-color .2s,transform .2s;-webkit-tap-highlight-color:transparent}
-.card:hover,.card:active{border-color:rgba(0,229,255,.35);transform:translateY(-2px)}
-.card-icon{font-size:24px;margin-bottom:10px}
-.card-title{font-size:16px;font-weight:700;margin-bottom:4px}
-.card-desc{font-size:12px;color:var(--muted);font-family:'Space Mono',monospace;line-height:1.55}
-.how{max-width:540px;margin:24px auto 0;background:rgba(0,229,255,.04);border:1px solid rgba(0,229,255,.1);border-radius:12px;padding:18px 20px}
-.how-title{font-size:10px;text-transform:uppercase;letter-spacing:1.2px;color:var(--accent);font-family:'Space Mono',monospace;margin-bottom:10px}
-.how p{font-family:'Space Mono',monospace;font-size:11px;color:var(--muted);line-height:1.95}
-.how strong{color:var(--text)}
+.hero{text-align:center;padding:10px 0 32px}
+.hero-badge{
+  display:inline-flex;align-items:center;gap:6px;
+  font-family:'Space Mono',monospace;font-size:10px;color:var(--c);
+  border:1px solid rgba(0,229,255,.2);border-radius:20px;
+  padding:4px 12px;margin-bottom:20px;background:rgba(0,229,255,.05)
+}
+.hero h1{font-size:clamp(32px,6vw,60px);font-weight:800;letter-spacing:-2px;line-height:1.05;margin-bottom:14px}
+.hero h1 em{
+  font-style:normal;
+  background:linear-gradient(135deg,var(--c),var(--p));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text
+}
+.hero-sub{font-family:'Space Mono',monospace;font-size:12px;color:var(--m);max-width:360px;margin:0 auto 32px;line-height:1.9}
+
+.home-cards{display:grid;grid-template-columns:1fr 1fr;gap:12px;max-width:520px;margin:0 auto}
+@media(max-width:430px){.home-cards{grid-template-columns:1fr}}
+
+.hcard{
+  background:var(--s);border:1px solid var(--b);border-radius:14px;
+  padding:22px 18px;cursor:pointer;text-align:left;
+  transition:border-color .18s,transform .18s,box-shadow .18s;
+  -webkit-tap-highlight-color:transparent;position:relative;overflow:hidden
+}
+.hcard::before{
+  content:'';position:absolute;inset:0;opacity:0;transition:opacity .2s;border-radius:14px
+}
+.hcard.host-c::before{background:radial-gradient(circle at 30% 30%,rgba(0,229,255,.07),transparent 70%)}
+.hcard.join-c::before{background:radial-gradient(circle at 30% 30%,rgba(139,92,246,.07),transparent 70%)}
+.hcard:hover{border-color:rgba(0,229,255,.35);transform:translateY(-3px);box-shadow:0 10px 30px rgba(0,0,0,.3)}
+.hcard:hover::before{opacity:1}
+.hcard-icon{font-size:26px;margin-bottom:10px}
+.hcard-title{font-size:16px;font-weight:700;margin-bottom:4px}
+.hcard-desc{font-size:11px;color:var(--m);font-family:'Space Mono',monospace;line-height:1.55}
 
 /* FORM */
-.form-box{max-width:420px;margin:0 auto}
-.back{background:none;border:none;color:var(--muted);font-family:'Space Mono',monospace;font-size:13px;cursor:pointer;margin-bottom:28px;padding:0;transition:color .2s}
-.back:hover{color:var(--accent)}
-.ftitle{font-size:30px;font-weight:800;letter-spacing:-1px;margin-bottom:6px}
-.fsub{font-family:'Space Mono',monospace;font-size:12px;color:var(--muted);margin-bottom:24px;line-height:1.7}
-label{display:block;font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
-input[type="text"]{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:12px 14px;color:var(--text);font-family:'Space Mono',monospace;font-size:15px;outline:none;transition:border-color .2s;margin-bottom:16px}
-input[type="text"]:focus{border-color:var(--accent)}
-input[type="text"]::placeholder{color:var(--muted)}
-#code-input{letter-spacing:5px;font-size:20px;text-transform:uppercase}
+.fbox{max-width:400px;margin:0 auto}
+.back-btn{background:none;border:none;color:var(--m);font-family:'Space Mono',monospace;font-size:11px;cursor:pointer;margin-bottom:28px;padding:0;transition:color .18s}
+.back-btn:hover{color:var(--c)}
+.f-title{font-size:27px;font-weight:800;letter-spacing:-1px;margin-bottom:5px}
+.f-sub{font-family:'Space Mono',monospace;font-size:11px;color:var(--m);margin-bottom:22px;line-height:1.75}
+.f-label{display:block;font-size:9px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--m);margin-bottom:5px}
+.f-input{
+  width:100%;background:var(--s);border:1px solid var(--b);border-radius:8px;
+  padding:11px 13px;color:var(--t);font-family:'Space Mono',monospace;font-size:13px;
+  outline:none;transition:border-color .18s;margin-bottom:12px
+}
+.f-input:focus{border-color:var(--c)}
+.f-input::placeholder{color:var(--m)}
+#join-code{letter-spacing:5px;font-size:20px;text-transform:uppercase;text-align:center}
 
-/* FILE UPLOAD */
-.upload-zone{width:100%;border:2px dashed var(--border);border-radius:11px;padding:28px 18px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:16px;background:var(--surface);-webkit-tap-highlight-color:transparent}
-.upload-zone:hover,.upload-zone.drag,.upload-zone:active{border-color:var(--accent);background:rgba(0,229,255,.04)}
-.uz-icon{font-size:28px;margin-bottom:8px}
-.uz-text{font-family:'Space Mono',monospace;font-size:12px;color:var(--muted);line-height:1.65}
-.uz-text strong{color:var(--accent)}
-.upload-zone input{display:none}
-.file-chosen{background:rgba(0,255,136,.06);border:1px solid rgba(0,255,136,.2);border-radius:9px;padding:10px 14px;font-family:'Space Mono',monospace;font-size:12px;color:var(--green);margin-bottom:16px;display:none;word-break:break-all}
-.file-chosen.show{display:block}
+/* BUTTONS */
+.btn{
+  width:100%;padding:12px;border-radius:8px;
+  font-family:'Syne',sans-serif;font-size:13px;font-weight:700;
+  cursor:pointer;border:none;transition:all .18s;
+  display:flex;align-items:center;justify-content:center;gap:6px;
+  -webkit-tap-highlight-color:transparent
+}
+.btn-c{background:linear-gradient(135deg,var(--c),#009eb5);color:#000}
+.btn-c:hover{box-shadow:0 6px 20px rgba(0,229,255,.3);transform:translateY(-1px)}
+.btn-p{background:linear-gradient(135deg,var(--p),#6d28d9);color:#fff}
+.btn-p:hover{box-shadow:0 6px 20px rgba(139,92,246,.32);transform:translateY(-1px)}
+.btn-g{background:var(--s);border:1px solid var(--b);color:var(--t)}
+.btn-g:hover{border-color:var(--c);color:var(--c)}
+.btn-r{background:var(--r);color:#fff}
+.btn:disabled{opacity:.28;cursor:not-allowed;transform:none!important;box-shadow:none!important}
+.btn-row{display:flex;gap:7px}
+.btn-row .btn{width:auto;flex:1;padding:10px 6px;font-size:12px}
 
-.btn{width:100%;padding:13px;border-radius:9px;font-family:'Syne',sans-serif;font-size:14px;font-weight:700;cursor:pointer;border:none;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:7px;-webkit-tap-highlight-color:transparent}
-.btn-cyan{background:linear-gradient(135deg,var(--accent),#0099bb);color:#000}
-.btn-cyan:hover,.btn-cyan:active{box-shadow:0 6px 20px rgba(0,229,255,.3);transform:translateY(-1px)}
-.btn-purple{background:linear-gradient(135deg,var(--purple),#6d28d9);color:#fff}
-.btn-purple:hover,.btn-purple:active{box-shadow:0 6px 20px rgba(139,92,246,.35);transform:translateY(-1px)}
-.btn-ghost{background:var(--surface);border:1px solid var(--border);color:var(--text)}
-.btn-ghost:hover,.btn-ghost:active{border-color:var(--accent);color:var(--accent)}
-.btn-red{background:var(--red);color:#fff}
-.btn:disabled{opacity:.3;cursor:not-allowed;transform:none!important;box-shadow:none!important}
-.err{background:rgba(255,68,102,.1);border:1px solid rgba(255,68,102,.3);border-radius:8px;padding:10px 14px;font-family:'Space Mono',monospace;font-size:12px;color:var(--red);margin-bottom:14px;display:none}
-.err.show{display:block}
+.f-err{background:rgba(255,68,102,.1);border:1px solid rgba(255,68,102,.3);border-radius:7px;padding:8px 12px;font-family:'Space Mono',monospace;font-size:11px;color:var(--r);margin-bottom:11px;display:none}
+.f-err.on{display:block}
 
 /* ROOM */
-.room-top{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:20px}
-.rname{font-size:22px;font-weight:800;letter-spacing:-.5px}
-.rcode{display:inline-flex;align-items:center;gap:7px;margin-top:5px;background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:6px 12px;font-family:'Space Mono',monospace;font-size:18px;font-weight:700;letter-spacing:4px;color:var(--accent);cursor:pointer;transition:border-color .2s}
-.rcode:hover,.rcode:active{border-color:var(--accent)}
-.rcode small{font-size:10px;color:var(--muted);letter-spacing:0}
-.pill{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:100px;font-family:'Space Mono',monospace;font-size:11px;font-weight:700}
-.pill-live{background:rgba(0,255,136,.1);color:var(--green);border:1px solid rgba(0,255,136,.25)}
-.pill-wait{background:rgba(74,85,120,.15);color:var(--muted);border:1px solid var(--border)}
-.pill-sync{background:rgba(0,229,255,.1);color:var(--accent);border:1px solid rgba(0,229,255,.2)}
-.dot{width:6px;height:6px;border-radius:50%}
-.dot-g{background:var(--green);animation:blink 1.4s infinite}
-.dot-m{background:var(--muted)}
-.dot-c{background:var(--accent);animation:blink 1.4s infinite}
-@keyframes blink{0%,100%{opacity:1}50%{opacity:.35}}
-.panel{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:12px}
-.panel-title{font-size:10px;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);font-family:'Space Mono',monospace;margin-bottom:12px}
-.track-info{display:flex;align-items:center;gap:10px;margin-bottom:16px}
-.track-icon{width:40px;height:40px;border-radius:9px;background:linear-gradient(135deg,var(--purple),var(--accent));display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
-.track-name{font-size:14px;font-weight:700;word-break:break-all}
-.track-sub{font-family:'Space Mono',monospace;font-size:11px;color:var(--muted);margin-top:2px}
-.progress-wrap{margin-bottom:8px;cursor:pointer;padding:6px 0}
-.progress-bar{width:100%;height:4px;background:var(--border);border-radius:10px;overflow:hidden}
-.progress-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--purple));border-radius:10px;width:0%;transition:width .3s linear}
-.time-row{display:flex;justify-content:space-between;font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);margin-top:5px}
-.play-row{display:flex;gap:8px;margin-top:12px}
-.play-row .btn{width:auto;flex:1;padding:10px 8px;font-size:13px}
-.vol-row{display:flex;align-items:center;gap:8px;margin-top:12px}
-.vol-label{font-family:'Space Mono',monospace;font-size:11px;color:var(--muted);white-space:nowrap}
-input[type="range"]{flex:1;accent-color:var(--accent);cursor:pointer;height:20px}
-.sync-box{background:rgba(0,229,255,.04);border:1px solid rgba(0,229,255,.12);border-radius:9px;padding:11px 14px;font-family:'Space Mono',monospace;font-size:11px;color:var(--muted);line-height:1.85}
-.sync-box strong{color:var(--accent)}
-.lcount{color:var(--accent)}
-.no-l{font-family:'Space Mono',monospace;font-size:12px;color:var(--muted);text-align:center;padding:14px 0}
-.litem{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);font-family:'Space Mono',monospace;font-size:12px}
-.litem:last-child{border:none}
-.lavatar{width:28px;height:28px;border-radius:6px;background:linear-gradient(135deg,var(--purple),var(--accent));display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0}
-canvas{width:100%;height:56px;display:block;border-radius:6px;background:var(--bg)}
+.room-head{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px}
+.room-name{font-size:21px;font-weight:800;letter-spacing:-.5px}
+.room-code-wrap{display:flex;align-items:center;gap:8px;margin-top:5px}
+.room-code{
+  display:inline-flex;align-items:center;gap:6px;
+  background:var(--s);border:1px solid var(--b);border-radius:7px;
+  padding:6px 11px;font-family:'Space Mono',monospace;font-size:17px;
+  font-weight:700;letter-spacing:4px;color:var(--c);
+  cursor:pointer;transition:border-color .18s;-webkit-tap-highlight-color:transparent
+}
+.room-code:hover,.room-code:active{border-color:var(--c)}
+.room-code small{font-size:9px;color:var(--m);letter-spacing:0}
 
-/* TAP TO START OVERLAY */
-#tap-overlay{position:fixed;inset:0;background:rgba(7,8,13,.92);z-index:100;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;cursor:pointer;-webkit-tap-highlight-color:transparent}
-#tap-overlay.hidden{display:none}
-.tap-icon{font-size:56px;animation:tapPulse 1.5s infinite}
-@keyframes tapPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.1)}}
-.tap-title{font-size:22px;font-weight:800;color:var(--text)}
-.tap-sub{font-family:'Space Mono',monospace;font-size:13px;color:var(--muted);text-align:center;max-width:260px;line-height:1.6}
+.pill{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:100px;font-family:'Space Mono',monospace;font-size:10px;font-weight:700}
+.p-live{background:rgba(0,255,136,.1);color:var(--g);border:1px solid rgba(0,255,136,.22)}
+.p-wait{background:rgba(74,85,120,.13);color:var(--m);border:1px solid var(--b)}
+.p-sync{background:rgba(0,229,255,.1);color:var(--c);border:1px solid rgba(0,229,255,.2)}
+.dot{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+.d-g{background:var(--g);animation:bl 1.3s infinite}
+.d-m{background:var(--m)}
+.d-c{background:var(--c);animation:bl 1.3s infinite}
+@keyframes bl{0%,100%{opacity:1}50%{opacity:.28}}
 
-.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:#1a1f2e;border:1px solid var(--border);border-radius:9px;padding:10px 18px;font-family:'Space Mono',monospace;font-size:12px;z-index:999;transition:transform .3s ease;white-space:nowrap;max-width:90vw;text-align:center}
-.toast.show{transform:translateX(-50%) translateY(0)}
+/* PANEL */
+.panel{background:var(--s);border:1px solid var(--b);border-radius:13px;padding:16px;margin-bottom:11px;position:relative}
+.ptitle{font-size:9px;text-transform:uppercase;letter-spacing:1.2px;color:var(--m);font-family:'Space Mono',monospace;margin-bottom:11px}
+
+/* DOLBY BADGE */
+.dolby-badge{
+  position:absolute;top:14px;right:14px;
+  font-family:'Space Mono',monospace;font-size:8px;font-weight:700;
+  color:var(--gold);border:1px solid rgba(255,215,0,.3);
+  border-radius:4px;padding:2px 6px;background:rgba(255,215,0,.07);
+  letter-spacing:1px
+}
+
+/* TRACK */
+.track-info{display:flex;align-items:center;gap:11px;margin-bottom:14px}
+.track-art{
+  width:44px;height:44px;border-radius:10px;flex-shrink:0;
+  background:linear-gradient(135deg,var(--p),var(--c));
+  display:flex;align-items:center;justify-content:center;font-size:20px;
+  animation:rotate 10s linear infinite;animation-play-state:paused;
+  box-shadow:0 4px 14px rgba(0,229,255,.15)
+}
+.track-art.spin{animation-play-state:running}
+@keyframes rotate{to{transform:rotate(360deg)}}
+.track-name{font-size:14px;font-weight:700;word-break:break-all;line-height:1.3}
+.track-sub{font-family:'Space Mono',monospace;font-size:10px;color:var(--m);margin-top:2px}
+
+/* SEEKBAR */
+.seekbar{padding:5px 0;cursor:pointer;margin-bottom:5px;user-select:none}
+.seekbar-track{width:100%;height:4px;background:var(--b);border-radius:10px;overflow:hidden}
+.seekbar-fill{
+  height:100%;width:0%;border-radius:10px;transition:width .2s linear;
+  background:linear-gradient(90deg,var(--c),var(--p))
+}
+.seekbar-times{display:flex;justify-content:space-between;font-family:'Space Mono',monospace;font-size:9px;color:var(--m);margin-top:4px}
+
+.vol-row{display:flex;align-items:center;gap:8px;margin-top:10px}
+.vol-lbl{font-family:'Space Mono',monospace;font-size:10px;color:var(--m);white-space:nowrap}
+input[type=range]{flex:1;accent-color:var(--c);cursor:pointer;height:18px}
+
+/* DOLBY EQ */
+.eq-row{display:flex;align-items:flex-end;gap:6px;margin-top:12px;padding:10px 12px;background:rgba(255,215,0,.04);border:1px solid rgba(255,215,0,.12);border-radius:8px}
+.eq-label{font-family:'Space Mono',monospace;font-size:9px;color:var(--gold);text-transform:uppercase;letter-spacing:.8px;white-space:nowrap;margin-right:4px}
+.eq-btn{
+  flex:1;padding:5px 4px;border-radius:5px;font-family:'Space Mono',monospace;
+  font-size:9px;font-weight:700;cursor:pointer;border:1px solid rgba(255,215,0,.2);
+  background:transparent;color:var(--m);transition:all .15s;white-space:nowrap;
+  -webkit-tap-highlight-color:transparent
+}
+.eq-btn:hover,.eq-btn.active{background:rgba(255,215,0,.15);color:var(--gold);border-color:rgba(255,215,0,.4)}
+
+/* URL INPUT */
+.url-section{margin-bottom:0}
+.url-row{display:flex;gap:7px}
+.url-row .f-input{margin-bottom:0;flex:1;font-size:11px}
+.url-row .btn{width:auto;padding:11px 13px;white-space:nowrap;font-size:12px}
+.url-divider{text-align:center;font-family:'Space Mono',monospace;font-size:9px;color:var(--m);margin:9px 0}
+
+/* CANVAS */
+canvas{width:100%;height:54px;display:block;border-radius:6px;background:var(--bg)}
+
+/* LISTENERS */
+.l-count{color:var(--c)}
+.no-listeners{font-family:'Space Mono',monospace;font-size:11px;color:var(--m);text-align:center;padding:12px 0}
+.listener-item{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--b);font-family:'Space Mono',monospace;font-size:11px}
+.listener-item:last-child{border:none}
+.listener-av{width:26px;height:26px;border-radius:6px;background:linear-gradient(135deg,var(--p),var(--c));display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0}
+
+/* SYNC BOX */
+.sync-box{background:rgba(0,229,255,.04);border:1px solid rgba(0,229,255,.1);border-radius:8px;padding:10px 13px;font-family:'Space Mono',monospace;font-size:11px;color:var(--m);line-height:1.85}
+.sync-box b{color:var(--c)}
+
+/* HINT */
+.hint-box{background:rgba(0,229,255,.04);border:1px solid rgba(0,229,255,.1);border-radius:8px;padding:10px 13px;font-family:'Space Mono',monospace;font-size:10px;color:var(--m);line-height:1.9;margin-bottom:10px}
+.hint-box b{color:var(--c)}
+.hint-box strong{color:var(--t)}
+
+/* TOAST */
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(80px);background:#161b26;border:1px solid var(--b);border-radius:8px;padding:8px 16px;font-family:'Space Mono',monospace;font-size:11px;z-index:999;transition:transform .28s ease;white-space:nowrap;max-width:92vw;text-align:center}
+.toast.on{transform:translateX(-50%) translateY(0)}
+
+/* MOBILE UNLOCK OVERLAY */
+#unlock-overlay{position:fixed;inset:0;background:rgba(7,8,13,.96);z-index:100;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+#unlock-overlay.gone{display:none}
+.uo-icon{font-size:50px;animation:tap 1.5s infinite}
+@keyframes tap{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
+.uo-title{font-size:20px;font-weight:800}
+.uo-sub{font-family:'Space Mono',monospace;font-size:11px;color:var(--m);text-align:center;max-width:230px;line-height:1.65}
 </style>
 </head>
 <body>
 
-<!-- Tap to unlock audio on mobile -->
-<div id="tap-overlay" onclick="unlockAudio()">
-  <div class="tap-icon">🎵</div>
-  <div class="tap-title">Tap to Start</div>
-  <div class="tap-sub">Tap once to unlock audio on your device</div>
+<!-- Mobile audio unlock -->
+<div id="unlock-overlay" class="gone" onclick="unlockTap()">
+  <div class="uo-icon">👆</div>
+  <div class="uo-title">Tap to Enable Audio</div>
+  <div class="uo-sub">Your browser needs one tap before audio can play automatically</div>
 </div>
 
-<div class="wrap">
-  <div class="logo">
-    <div class="logo-icon">🌊</div>
-    <div class="logo-name">WaveRoom</div>
+<div id="app">
+  <div class="nav">
+    <div class="nav-left">
+      <div class="nav-icon">🌊</div>
+      <div class="nav-name">WaveRoom</div>
+    </div>
+    <div class="nav-badge">✦ DOLBY ENHANCED</div>
   </div>
 
-  <!-- HOME -->
-  <div id="s-home" class="screen active">
+  <!-- ══════════ HOME ══════════ -->
+  <div id="s-home" class="screen on">
     <div class="hero">
-      <h1>Hear The Same<br><em>Moment</em> Together</h1>
-      <p>Host shares their tab audio via WebRTC. Everyone hears it live — auto-synced with drift correction.</p>
-      <div class="two">
-        <div class="card" onclick="go('s-create')">
-          <div class="card-icon">🎙</div>
-          <div class="card-title">Host a Room</div>
-          <div class="card-desc">Share any tab audio to everyone live.</div>
+      <div class="hero-badge">⚡ Zero-lag multi-device sync</div>
+      <h1>One Audio.<br><em>Every Device.</em><br>Same Moment.</h1>
+      <p class="hero-sub">
+        Host pastes a URL or shares tab audio.<br>
+        Everyone in the room hears the exact same second<br>
+        through their own speakers — with Dolby-style processing.
+      </p>
+      <div class="home-cards">
+        <div class="hcard host-c" onclick="show('s-create')">
+          <div class="hcard-icon">🎙</div>
+          <div class="hcard-title">Host a Room</div>
+          <div class="hcard-desc">Load any audio URL. You control play/pause for everyone.</div>
         </div>
-        <div class="card" onclick="go('s-join')">
-          <div class="card-icon">🎧</div>
-          <div class="card-title">Join a Room</div>
-          <div class="card-desc">Enter code and hear it instantly in sync.</div>
+        <div class="hcard join-c" onclick="show('s-join')">
+          <div class="hcard-icon">🎧</div>
+          <div class="hcard-title">Join a Room</div>
+          <div class="hcard-desc">Enter a 6-letter code. Audio loads and syncs automatically.</div>
         </div>
-      </div>
-      <div class="how">
-        <div class="how-title">Works on all devices — no file upload needed</div>
-        <p>
-          <strong>Host</strong> selects a browser tab + checks "Share tab audio"<br>
-          <strong>Stream</strong> goes via WebRTC to all listeners<br>
-          <strong>Auto-sync</strong> corrects drift every 3 seconds<br>
-          <strong>Mobile listeners</strong> just tap once to unlock audio ✅
-        </p>
       </div>
     </div>
   </div>
 
-  <!-- CREATE -->
+  <!-- ══════════ CREATE ══════════ -->
   <div id="s-create" class="screen">
-    <div class="form-box">
-      <button class="back" onclick="go('s-home')">← Back</button>
-      <div class="ftitle">Host a Room</div>
-      <div class="fsub">You share tab audio — works with YouTube, Spotify, anything playing in a tab.</div>
-      <label>Room Name</label>
-      <input type="text" id="rname" placeholder="Friday Night Session" maxlength="40">
-      <button class="btn btn-cyan" onclick="createRoom()">Create Room →</button>
+    <div class="fbox">
+      <button class="back-btn" onclick="show('s-home')">← Back</button>
+      <div class="f-title">Host a Room</div>
+      <div class="f-sub">Create a room. Load any audio. Everyone hears it in sync — no uploads needed from listeners.</div>
+      <label class="f-label">Room Name</label>
+      <input class="f-input" id="room-name" type="text" placeholder="Friday Night Session" maxlength="40">
+      <button class="btn btn-c" onclick="createRoom()">Create Room →</button>
     </div>
   </div>
 
-  <!-- JOIN -->
+  <!-- ══════════ JOIN ══════════ -->
   <div id="s-join" class="screen">
-    <div class="form-box">
-      <button class="back" onclick="go('s-home')">← Back</button>
-      <div class="ftitle">Join a Room</div>
-      <div class="fsub">Enter the 6-letter code. Audio streams directly to you — nothing to upload.</div>
-      <label>Room Code</label>
-      <input type="text" id="code-input" placeholder="ABC123" maxlength="6">
-      <div id="join-err" class="err">Room not found. Check the code.</div>
-      <button class="btn btn-purple" onclick="joinRoom()">Join Room →</button>
+    <div class="fbox">
+      <button class="back-btn" onclick="show('s-home')">← Back</button>
+      <div class="f-title">Join a Room</div>
+      <div class="f-sub">Enter the 6-letter code. Audio loads automatically — nothing to upload.</div>
+      <label class="f-label">Room Code</label>
+      <input class="f-input" id="join-code" type="text" placeholder="ABC123" maxlength="6" autocomplete="off">
+      <div class="f-err" id="join-err">Room not found. Check the code and try again.</div>
+      <button class="btn btn-p" onclick="joinRoom()">Join Room →</button>
     </div>
   </div>
 
-  <!-- HOST ROOM -->
+  <!-- ══════════ HOST ROOM ══════════ -->
   <div id="s-host" class="screen">
-    <div class="room-top">
+    <div class="room-head">
       <div>
-        <div class="rname" id="h-rname">Room</div>
-        <div class="rcode" onclick="copyCode()">
-          <span id="h-code-text">------</span>
-          <small>copy</small>
+        <div class="room-name" id="h-room-name">Room</div>
+        <div class="room-code" onclick="copyCode()">
+          <span id="h-code">------</span>
+          <small>tap to copy</small>
         </div>
       </div>
-      <div id="h-pill" class="pill pill-wait"><div class="dot dot-m"></div><span>Not sharing</span></div>
+      <div id="h-pill" class="pill p-wait"><div class="dot d-m"></div><span>Paused</span></div>
     </div>
 
-    <div class="panel" style="background:rgba(0,229,255,.04);border-color:rgba(0,229,255,.15)">
-      <div style="font-family:'Space Mono',monospace;font-size:11px;color:var(--muted);line-height:1.9">
-        <strong style="color:var(--accent)">How to share audio:</strong><br>
-        1. Click <strong style="color:var(--text)">Start Sharing</strong> below<br>
-        2. Pick a <strong style="color:var(--text)">Browser Tab</strong> (NOT screen/window)<br>
-        3. ✅ Check <strong style="color:var(--text)">"Share tab audio"</strong> checkbox<br>
-        4. Everyone hears it instantly — <strong style="color:var(--green)">Chrome only for hosting</strong>
-      </div>
-    </div>
-
+    <!-- Load Track Panel -->
     <div class="panel">
-      <div class="panel-title">Audio Visualizer</div>
-      <canvas id="h-canvas"></canvas>
-    </div>
-
-    <div class="panel">
-      <div class="panel-title">Controls</div>
-      <div class="play-row">
-        <button id="share-btn" class="btn btn-cyan" onclick="startShare()">🎙 Start Sharing</button>
-        <button id="stop-btn" class="btn btn-red" onclick="stopShare()" disabled>⏹ Stop</button>
+      <div class="ptitle">Load Audio for Everyone</div>
+      <div class="hint-box">
+        Paste a <b>direct audio URL</b> (.mp3 .wav .ogg) — all listeners load it on their own device simultaneously.<br>
+        <strong>Try:</strong> Search "site:archive.org mp3" for free music
       </div>
-    </div>
-
-    <div class="panel">
-      <div class="panel-title" style="display:flex;justify-content:space-between">
-        <span>Listeners</span><span class="lcount" id="h-lcount">0</span>
+      <div class="url-row url-section">
+        <input class="f-input" id="h-url" type="url" placeholder="https://example.com/song.mp3" autocomplete="off">
+        <button class="btn btn-c" onclick="hostLoadUrl()">Load</button>
       </div>
-      <div id="h-llist"><div class="no-l">No one joined yet — share your code!</div></div>
-    </div>
-    <div style="margin-top:10px"><button class="btn btn-ghost" onclick="leave()">Leave Room</button></div>
-  </div>
-
-  <!-- LISTENER ROOM -->
-  <div id="s-listener" class="screen">
-    <div class="room-top">
-      <div>
-        <div class="rname" id="l-rname">Room</div>
-        <div style="font-family:'Space Mono',monospace;font-size:12px;color:var(--muted);margin-top:4px" id="l-code-label"></div>
-      </div>
-      <div id="l-pill" class="pill pill-wait"><div class="dot dot-m"></div><span>Waiting...</span></div>
+      <div class="url-divider">— or pick from your device (only you hear local files) —</div>
+      <label class="btn btn-g" style="cursor:pointer" onclick="G('h-file').click()">
+        📁 Choose File
+      </label>
+      <input type="file" id="h-file" accept="audio/*" style="display:none" onchange="hostLoadFile()">
     </div>
 
-    <div class="panel">
+    <!-- Player (hidden until track loaded) -->
+    <div class="panel" id="h-player" style="display:none">
+      <div class="dolby-badge">DOLBY ✦</div>
       <div class="track-info">
-        <div class="track-icon">🎵</div>
+        <div class="track-art" id="h-art">🎵</div>
         <div>
-          <div class="track-name" id="l-track-name">Waiting for host...</div>
-          <div class="track-sub">Audio will play automatically when host starts</div>
+          <div class="track-name" id="h-track-name">—</div>
+          <div class="track-sub" id="h-track-sub">—</div>
         </div>
+      </div>
+      <div class="seekbar" id="h-seekbar" onclick="hostSeek(event)">
+        <div class="seekbar-track"><div class="seekbar-fill" id="h-prog"></div></div>
+        <div class="seekbar-times"><span id="h-cur">0:00</span><span id="h-dur">0:00</span></div>
+      </div>
+      <div class="btn-row" style="margin-top:10px">
+        <button class="btn btn-c" onclick="hostPlay()">▶ Play</button>
+        <button class="btn btn-g" onclick="hostPause()">⏸ Pause</button>
+        <button class="btn btn-g" onclick="hostRestart()">⏮ Restart</button>
       </div>
       <div class="vol-row">
-        <span class="vol-label">🔊 Vol</span>
-        <input type="range" min="0" max="1" step="0.01" value="1" oninput="setVol(this.value)">
+        <span class="vol-lbl">🔊 Volume</span>
+        <input type="range" min="0" max="1" step="0.01" value="0.9" oninput="setHostVol(this.value)">
+      </div>
+      <!-- Dolby EQ presets -->
+      <div class="eq-row">
+        <span class="eq-label">✦ Sound</span>
+        <button class="eq-btn active" id="eq-flat" onclick="setEQ('flat')">Flat</button>
+        <button class="eq-btn" id="eq-dolby" onclick="setEQ('dolby')">Dolby</button>
+        <button class="eq-btn" id="eq-bass" onclick="setEQ('bass')">Bass+</button>
+        <button class="eq-btn" id="eq-vocal" onclick="setEQ('vocal')">Vocal</button>
+        <button class="eq-btn" id="eq-spatial" onclick="setEQ('spatial')">Spatial</button>
+      </div>
+    </div>
+
+    <!-- Visualizer -->
+    <div class="panel">
+      <div class="ptitle">Live Visualizer</div>
+      <canvas id="h-viz"></canvas>
+    </div>
+
+    <!-- Listeners -->
+    <div class="panel">
+      <div class="ptitle" style="display:flex;justify-content:space-between">
+        <span>Listeners Connected</span><span class="l-count" id="h-l-count">0</span>
+      </div>
+      <div id="h-listeners"><div class="no-listeners">No one joined yet — share your code!</div></div>
+    </div>
+
+    <div style="margin-top:10px"><button class="btn btn-g" onclick="leave()">Leave Room</button></div>
+    <audio id="h-audio" crossorigin="anonymous" style="display:none"></audio>
+  </div>
+
+  <!-- ══════════ LISTENER ROOM ══════════ -->
+  <div id="s-listen" class="screen">
+    <div class="room-head">
+      <div>
+        <div class="room-name" id="l-room-name">Room</div>
+        <div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--m);margin-top:3px" id="l-code-label"></div>
+      </div>
+      <div id="l-pill" class="pill p-wait"><div class="dot d-m"></div><span>Waiting...</span></div>
+    </div>
+
+    <div class="panel">
+      <div class="dolby-badge">DOLBY ✦</div>
+      <div class="track-info">
+        <div class="track-art" id="l-art">🎵</div>
+        <div>
+          <div class="track-name" id="l-track-name">Waiting for host...</div>
+          <div class="track-sub">Host controls playback — you control your own volume</div>
+        </div>
+      </div>
+      <div class="seekbar">
+        <div class="seekbar-track"><div class="seekbar-fill" id="l-prog"></div></div>
+        <div class="seekbar-times"><span id="l-cur">0:00</span><span id="l-dur">0:00</span></div>
+      </div>
+      <div class="vol-row" style="margin-top:10px">
+        <span class="vol-lbl">🔊 Your Volume</span>
+        <input type="range" min="0" max="1" step="0.01" value="0.9" oninput="setListenerVol(this.value)">
+      </div>
+      <!-- Dolby EQ for listener too -->
+      <div class="eq-row">
+        <span class="eq-label">✦ Sound</span>
+        <button class="eq-btn active" id="leq-flat" onclick="setEQL('flat')">Flat</button>
+        <button class="eq-btn" id="leq-dolby" onclick="setEQL('dolby')">Dolby</button>
+        <button class="eq-btn" id="leq-bass" onclick="setEQL('bass')">Bass+</button>
+        <button class="eq-btn" id="leq-vocal" onclick="setEQL('vocal')">Vocal</button>
+        <button class="eq-btn" id="leq-spatial" onclick="setEQL('spatial')">Spatial</button>
       </div>
     </div>
 
     <div class="panel">
-      <div class="sync-box" id="l-sync-info">
-        <strong>Sync Status:</strong> Waiting for host to start sharing...
+      <div class="sync-box" id="l-sync-box">
+        <b>Sync Status:</b> Waiting for host to load a track...
       </div>
     </div>
 
     <div class="panel">
-      <div class="panel-title">Visualizer</div>
-      <canvas id="l-canvas"></canvas>
+      <div class="ptitle">Live Visualizer</div>
+      <canvas id="l-viz"></canvas>
     </div>
 
-    <audio id="remote-audio" playsinline></audio>
-    <div style="margin-top:10px"><button class="btn btn-ghost" onclick="leave()">Leave Room</button></div>
+    <div style="margin-top:10px"><button class="btn btn-g" onclick="leave()">Leave Room</button></div>
+    <audio id="l-audio" crossorigin="anonymous" style="display:none"></audio>
   </div>
 </div>
 
@@ -282,307 +453,587 @@ canvas{width:100%;height:56px;display:block;border-radius:6px;background:var(--b
 
 <script src="/socket.io/socket.io.js"></script>
 <script>
-// ── STATE
-let socket=null, myCode=null, amHost=false;
-let localStream=null, peers={}, hostPeer=null;
-let audioCtx=null, analyser=null, raf=null, vizSrc=null;
+// ═══════════════════════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════════════════════
+const NTP_ROUNDS  = 10;   // more rounds = more accurate clock
+const SCHED_MS    = 500;  // schedule play 500ms ahead — gives all devices time to prepare
+const DRIFT_TOL   = 0.05; // 50ms drift tolerance before correction
+
+// ═══════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════
+let sock=null, roomCode=null, amHost=false;
+let clockOffset=0, ntpSamples=[], ntpDone=false;
+let pendingPlay=null, progRaf=null;
 let listeners={};
-let audioUnlocked=false;
-let clockOffset=0, syncSamples=[];
 
-const ICE={iceServers:[
-  {urls:'stun:stun.l.google.com:19302'},
-  {urls:'stun:stun1.l.google.com:19302'},
-  {urls:'stun:stun2.l.google.com:19302'}
-]};
+// Audio nodes
+let hostACtx=null, hostSrc=null, hostGain=null, hostEQ=null;
+let listACtx=null, listSrc=null, listGain=null, listEQ=null;
 
-// ── UNLOCK AUDIO (mobile fix)
-function unlockAudio() {
-  const overlay = document.getElementById('tap-overlay');
-  // Create and immediately suspend a context to unlock audio
-  const ctx = new (window.AudioContext||window.webkitAudioContext)();
-  const buf = ctx.createBuffer(1,1,22050);
-  const src = ctx.createBufferSource();
-  src.buffer = buf;
-  src.connect(ctx.destination);
-  src.start(0);
-  ctx.resume();
-  audioUnlocked = true;
-  overlay.classList.add('hidden');
+// Visualizer
+let vizACtx=null, vizAnalyser=null, vizRaf=null;
 
-  // If we already have remote audio waiting, play it
-  const audio = document.getElementById('remote-audio');
-  if (audio.srcObject) {
-    audio.play().catch(()=>{});
-  }
+// ═══════════════════════════════════════════════════
+// DOM
+// ═══════════════════════════════════════════════════
+const G = id => document.getElementById(id);
+
+function show(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('on'));
+  G(id).classList.add('on');
 }
 
-// ── SCREENS
-function go(id) {
-  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
+function toast(msg, dur=3500) {
+  const t = G('toast'); t.textContent=msg; t.classList.add('on');
+  setTimeout(()=>t.classList.remove('on'), dur);
 }
 
-// ── SOCKET
-function initSocket() {
-  if (socket && socket.connected) return;
-  socket = io({transports:['websocket','polling']});
-  socket.on('connect', ()=>{
-    console.log('Connected:', socket.id);
-    if (!amHost) startClockSync();
-  });
-  socket.on('connect_error', ()=>toast('Connection error — refresh'));
-
-  socket.on('pong-time', ({serverTime, clientSendTime})=>{
-    const now=Date.now(), rtt=now-clientSendTime;
-    const offset=(now+clientSendTime)/2-serverTime;
-    syncSamples.push({rtt,offset});
-    if (syncSamples.length<6) {
-      setTimeout(()=>socket.emit('ping-time',{clientTime:Date.now()}), 80);
-    } else {
-      syncSamples.sort((a,b)=>a.rtt-b.rtt);
-      clockOffset=syncSamples[0].offset;
-      console.log('Clock offset:',clockOffset.toFixed(1),'ms');
-    }
-  });
-
-  // HOST: new listener joined → send WebRTC offer
-  socket.on('listener-joined', async ({id})=>{
-    listeners[id]=true; renderListeners();
-    if (localStream) await sendOffer(id);
-  });
-  socket.on('listener-left', ({id})=>{ delete listeners[id]; renderListeners(); });
-  socket.on('listener-count', n=>{ document.getElementById('h-lcount').textContent=n; });
-
-  // LISTENER: receive WebRTC offer from host
-  socket.on('offer', async ({from, offer})=>{
-    hostPeer = new RTCPeerConnection(ICE);
-    hostPeer.ontrack = e => {
-      console.log('Got remote track');
-      const audio = document.getElementById('remote-audio');
-      audio.srcObject = e.streams[0];
-      // Try to play — if blocked, show tap overlay
-      audio.play().then(()=>{
-        document.getElementById('tap-overlay').classList.add('hidden');
-        audioUnlocked=true;
-        onAudioPlaying(e.streams[0]);
-      }).catch(()=>{
-        // Show tap overlay — will play on tap
-        document.getElementById('tap-overlay').classList.remove('hidden');
-        document.getElementById('tap-overlay').onclick = ()=>{
-          audio.play().then(()=>{
-            document.getElementById('tap-overlay').classList.add('hidden');
-            audioUnlocked=true;
-            onAudioPlaying(e.streams[0]);
-          });
-        };
-      });
-    };
-    hostPeer.onicecandidate = e=>{
-      if (e.candidate) socket.emit('ice-candidate',{to:from,candidate:e.candidate});
-    };
-    hostPeer.onconnectionstatechange = ()=>{
-      console.log('Peer state:', hostPeer.connectionState);
-      if (hostPeer.connectionState==='connected') updateSyncInfo('✅ Connected to host — audio streaming live');
-      if (hostPeer.connectionState==='failed') updateSyncInfo('❌ Connection failed — try refreshing');
-    };
-    await hostPeer.setRemoteDescription(new RTCSessionDescription(offer));
-    const answer = await hostPeer.createAnswer();
-    await hostPeer.setLocalDescription(answer);
-    socket.emit('answer',{to:from,answer});
-  });
-
-  socket.on('answer', async ({from,answer})=>{
-    if (peers[from]) await peers[from].setRemoteDescription(new RTCSessionDescription(answer));
-  });
-  socket.on('ice-candidate', async ({from,candidate})=>{
-    const pc = amHost ? peers[from] : hostPeer;
-    if (pc) await pc.addIceCandidate(new RTCIceCandidate(candidate)).catch(()=>{});
-  });
-
-  socket.on('host-left', ()=>{ toast('Host ended the session'); leave(); });
+function fmt(s) {
+  if (!s||isNaN(s)) return '0:00';
+  return Math.floor(s/60)+':'+(('0'+Math.floor(s%60)).slice(-2));
 }
 
-function onAudioPlaying(stream) {
-  setPill('l-pill','sync','● Live & Synced');
-  document.getElementById('l-track-name').textContent = 'Receiving audio from host';
-  updateSyncInfo('🎧 Audio streaming live — auto-synced every 3 seconds');
-  startViz(stream, 'l-canvas', true);
+// ═══════════════════════════════════════════════════
+// MOBILE UNLOCK
+// ═══════════════════════════════════════════════════
+function unlockTap() {
+  G('unlock-overlay').classList.add('gone');
+  if (vizACtx) vizACtx.resume();
+  if (listACtx) listACtx.resume();
+  const la = G('l-audio');
+  if (la && la.src && la.paused) la.play().catch(()=>{});
 }
 
-// ── CLOCK SYNC
-function startClockSync() {
-  syncSamples=[];
-  socket.emit('ping-time',{clientTime:Date.now()});
-}
+// ═══════════════════════════════════════════════════
+// DOLBY-STYLE AUDIO PROCESSING
+// ═══════════════════════════════════════════════════
+// Creates: AudioContext → Source → EQ chain → Compressor → Gain → Destination
+// Each EQ preset applies different filter settings for Dolby-like effect
 
-// ── CREATE ROOM
-function createRoom() {
-  const name = document.getElementById('rname').value.trim() || 'Audio Room';
-  initSocket(); amHost=true;
-  socket.emit('create-room',{name},(res)=>{
-    if (!res||!res.ok) { toast('Failed to create room'); return; }
-    myCode=res.code;
-    document.getElementById('h-rname').textContent=res.name;
-    document.getElementById('h-code-text').textContent=res.code;
-    go('s-host');
-    toast('Room created! Code: '+res.code+' 🎉');
-  });
-}
+const EQ_PRESETS = {
+  flat:    { sub:0,  bass:0,  mid:0,  high:0,  presence:0,  comp:false },
+  dolby:   { sub:3,  bass:4,  mid:-1, high:3,  presence:2,  comp:true  }, // warm + airy
+  bass:    { sub:8,  bass:7,  mid:-2, high:0,  presence:0,  comp:true  }, // heavy bass
+  vocal:   { sub:-2, bass:-1, mid:4,  high:5,  presence:3,  comp:true  }, // clear vocals
+  spatial: { sub:2,  bass:2,  mid:0,  high:5,  presence:4,  comp:true  }  // wide/open
+};
 
-// ── JOIN ROOM
-function joinRoom() {
-  const code = document.getElementById('code-input').value.trim().toUpperCase();
-  if (!code) { toast('Enter a room code'); return; }
-  initSocket(); amHost=false;
-  socket.emit('join-room',{code},(res)=>{
-    if (!res||!res.ok) { document.getElementById('join-err').classList.add('show'); return; }
-    document.getElementById('join-err').classList.remove('show');
-    myCode=code;
-    document.getElementById('l-rname').textContent=res.name;
-    document.getElementById('l-code-label').textContent='Code: '+code;
-    go('s-listener');
-    toast('Joined! Waiting for host to share audio 🎧');
-  });
-}
-
-// ── START SHARING (HOST)
-async function startShare() {
+function buildAudioChain(audioEl, isHost) {
   try {
-    const stream = await navigator.mediaDevices.getDisplayMedia({video:true,audio:true});
-    if (!stream.getAudioTracks().length) {
-      stream.getTracks().forEach(t=>t.stop());
-      toast('⚠️ No audio — did you check "Share tab audio"?');
-      return;
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const src = ctx.createMediaElementSource(audioEl);
+
+    // 5-band EQ
+    const subFilter   = ctx.createBiquadFilter(); // sub bass ~60Hz
+    const bassFilter  = ctx.createBiquadFilter(); // bass ~200Hz
+    const midFilter   = ctx.createBiquadFilter(); // mids ~1kHz
+    const highFilter  = ctx.createBiquadFilter(); // highs ~8kHz
+    const presFilter  = ctx.createBiquadFilter(); // presence ~14kHz
+
+    subFilter.type   = 'lowshelf';   subFilter.frequency.value   = 60;
+    bassFilter.type  = 'peaking';    bassFilter.frequency.value  = 200;   bassFilter.Q.value = 0.8;
+    midFilter.type   = 'peaking';    midFilter.frequency.value   = 1000;  midFilter.Q.value = 0.8;
+    highFilter.type  = 'peaking';    highFilter.frequency.value  = 8000;  highFilter.Q.value = 0.8;
+    presFilter.type  = 'highshelf';  presFilter.frequency.value  = 14000;
+
+    // Compressor (for Dolby warmth)
+    const comp = ctx.createDynamicsCompressor();
+    comp.threshold.value = -20;
+    comp.knee.value = 10;
+    comp.ratio.value = 4;
+    comp.attack.value = 0.003;
+    comp.release.value = 0.1;
+
+    // Stereo widener (simple mid-side processing)
+    const splitter = ctx.createChannelSplitter(2);
+    const merger   = ctx.createChannelMerger(2);
+    const wideGainL = ctx.createGain();
+    const wideGainR = ctx.createGain();
+    wideGainL.gain.value = 1.15;
+    wideGainR.gain.value = 1.15;
+
+    // Master gain
+    const gain = ctx.createGain();
+    gain.gain.value = 0.9;
+
+    // Chain: src → sub → bass → mid → high → pres → comp → gain → dest
+    src.connect(subFilter);
+    subFilter.connect(bassFilter);
+    bassFilter.connect(midFilter);
+    midFilter.connect(highFilter);
+    highFilter.connect(presFilter);
+    presFilter.connect(comp);
+    comp.connect(gain);
+    gain.connect(ctx.destination);
+
+    const eqNodes = { subFilter, bassFilter, midFilter, highFilter, presFilter, comp, gain };
+
+    if (isHost) {
+      hostACtx=ctx; hostSrc=src; hostGain=gain; hostEQ=eqNodes;
+    } else {
+      listACtx=ctx; listSrc=src; listGain=gain; listEQ=eqNodes;
     }
-    // Keep video off to save bandwidth
-    stream.getVideoTracks().forEach(t=>t.stop());
-    localStream=stream;
 
-    startViz(localStream,'h-canvas',false);
-    setPill('h-pill','live','● Live');
-    document.getElementById('share-btn').disabled=true;
-    document.getElementById('stop-btn').disabled=false;
+    // Also connect to analyser for visualizer
+    if (!vizACtx) {
+      vizACtx = ctx;
+      vizAnalyser = ctx.createAnalyser();
+      vizAnalyser.fftSize = 512;
+      gain.connect(vizAnalyser);
+    }
 
-    // Send to all existing listeners
-    for (const id of Object.keys(listeners)) await sendOffer(id);
-
-    localStream.getTracks().forEach(t=>{ t.onended=()=>stopShare(); });
-    toast('🎙 Streaming live!');
+    return eqNodes;
   } catch(e) {
-    if (e.name!=='NotAllowedError') toast('Could not capture audio — use Chrome');
+    console.warn('Audio chain error:', e);
+    return null;
   }
 }
 
-// ── SEND OFFER
-async function sendOffer(listenerId) {
-  if (peers[listenerId]) { peers[listenerId].close(); }
-  const pc = new RTCPeerConnection(ICE);
-  peers[listenerId]=pc;
-  localStream.getTracks().forEach(t=>pc.addTrack(t,localStream));
-  pc.onicecandidate=e=>{ if(e.candidate) socket.emit('ice-candidate',{to:listenerId,candidate:e.candidate}); };
-  const offer=await pc.createOffer();
-  await pc.setLocalDescription(offer);
-  socket.emit('offer',{to:listenerId,offer});
+function applyEQPreset(eqNodes, preset) {
+  if (!eqNodes) return;
+  const p = EQ_PRESETS[preset];
+  eqNodes.subFilter.gain.value  = p.sub;
+  eqNodes.bassFilter.gain.value = p.bass;
+  eqNodes.midFilter.gain.value  = p.mid;
+  eqNodes.highFilter.gain.value = p.high;
+  eqNodes.presFilter.gain.value = p.presence;
+  eqNodes.comp.ratio.value = p.comp ? 4 : 1;
 }
 
-// ── STOP SHARING
-function stopShare() {
-  if (localStream) { localStream.getTracks().forEach(t=>t.stop()); localStream=null; }
-  Object.values(peers).forEach(pc=>pc.close()); peers={};
-  stopViz();
-  setPill('h-pill','wait','Not sharing');
-  document.getElementById('share-btn').disabled=false;
-  document.getElementById('stop-btn').disabled=true;
-  toast('⏹ Stopped');
+function setEQ(preset) {
+  applyEQPreset(hostEQ, preset);
+  ['flat','dolby','bass','vocal','spatial'].forEach(p => {
+    const btn = G('eq-'+p);
+    if (btn) btn.classList.toggle('active', p===preset);
+  });
 }
 
-// ── LEAVE
-function leave() {
-  stopShare();
-  if (hostPeer) { hostPeer.close(); hostPeer=null; }
-  stopViz();
-  const audio=document.getElementById('remote-audio');
-  if (audio) { audio.pause(); audio.srcObject=null; }
-  if (socket) { socket.disconnect(); socket=null; }
-  myCode=null; listeners={};
-  go('s-home');
+function setEQL(preset) {
+  applyEQPreset(listEQ, preset);
+  ['flat','dolby','bass','vocal','spatial'].forEach(p => {
+    const btn = G('leq-'+p);
+    if (btn) btn.classList.toggle('active', p===preset);
+  });
 }
 
-// ── HELPERS
-function setVol(v) { document.getElementById('remote-audio').volume=parseFloat(v); }
-function copyCode() {
-  navigator.clipboard.writeText(document.getElementById('h-code-text').textContent)
-    .then(()=>toast('Code copied! 📋'));
-}
-function updateSyncInfo(html) {
-  document.getElementById('l-sync-info').innerHTML='<strong>Sync Status:</strong> '+html;
-}
-function setPill(id,type,label) {
-  const el=document.getElementById(id);
-  const cls={live:'pill-live',wait:'pill-wait',sync:'pill-sync'};
-  const dot={live:'dot-g',wait:'dot-m',sync:'dot-c'};
-  el.className='pill '+cls[type];
-  el.innerHTML='<div class="dot '+dot[type]+'"></div><span>'+label+'</span>';
-}
-function renderListeners() {
-  const ids=Object.keys(listeners);
-  const el=document.getElementById('h-llist');
-  document.getElementById('h-lcount').textContent=ids.length;
-  if (!ids.length) { el.innerHTML='<div class="no-l">No one joined yet — share your code!</div>'; return; }
-  el.innerHTML=ids.map((id,i)=>'<div class="litem"><div class="lavatar">🎧</div><span>Listener '+(i+1)+'</span><span style="margin-left:auto;font-size:10px;color:var(--green);">● live</span></div>').join('');
-}
-function toast(msg) {
-  const t=document.getElementById('toast');
-  t.textContent=msg; t.classList.add('show');
-  setTimeout(()=>t.classList.remove('show'),3500);
-}
+// ═══════════════════════════════════════════════════
+// SOCKET
+// ═══════════════════════════════════════════════════
+function initSock() {
+  if (sock && sock.connected) return;
+  sock = io({ transports: ['websocket','polling'] });
 
-// ── VISUALIZER
-function startViz(streamOrElement, canvasId, isStream) {
-  stopViz();
-  try {
-    audioCtx=new (window.AudioContext||window.webkitAudioContext)();
-    let src;
-    if (isStream) {
-      src=audioCtx.createMediaStreamSource(streamOrElement);
-    } else {
-      src=audioCtx.createMediaStreamSource(streamOrElement);
+  sock.on('connect', () => { console.log('Connected:', sock.id); doNTP(); });
+  sock.on('connect_error', () => toast('Connection error — refresh page'));
+
+  sock.on('ntp:pong', ({ clientTime, serverTime }) => {
+    const now = Date.now();
+    const rtt = now - clientTime;
+    ntpSamples.push({ rtt, offset: now - (serverTime + rtt/2) });
+    if (ntpSamples.length < NTP_ROUNDS)
+      setTimeout(() => sock.emit('ntp:ping', { clientTime: Date.now() }), 50);
+    else finishNTP();
+  });
+
+  // HOST events
+  sock.on('room:listener_joined', ({ id }) => {
+    listeners[id] = true; renderListeners();
+    // Immediately sync new listener
+    const a = G('h-audio');
+    if (a.src) {
+      if (!a.paused) {
+        const playAt = srvNow() + SCHED_MS;
+        sock.emit('audio:play', { position: a.currentTime, serverPlayAt: playAt });
+      } else {
+        sock.emit('audio:pause', { position: a.currentTime });
+      }
     }
-    analyser=audioCtx.createAnalyser();
-    analyser.fftSize=256;
-    src.connect(analyser);
-    // Don't reconnect to destination — audio element handles output
-    drawViz(canvasId);
-  } catch(e) { console.warn('Viz:',e); }
+  });
+  sock.on('room:listener_left', ({ id }) => { delete listeners[id]; renderListeners(); });
+  sock.on('room:count', n => G('h-l-count').textContent = n);
+
+  // LISTENER events
+  sock.on('track:set', ({ url, title }) => loadListenerTrack(url, title));
+
+  sock.on('audio:play', ({ position, serverPlayAt }) => schedPlay(position, serverPlayAt));
+
+  sock.on('audio:pause', ({ position }) => {
+    cancelSched();
+    const a = G('l-audio');
+    if (!a.src) return;
+    a.pause(); a.currentTime = position;
+    setPill('l-pill', 'p-wait', 'd-m', 'Paused');
+    setSyncInfo('Host paused.');
+    G('l-art').classList.remove('spin');
+  });
+
+  sock.on('audio:seek', ({ position, playing, serverPlayAt }) => {
+    cancelSched();
+    const a = G('l-audio');
+    if (!a.src) return;
+    a.currentTime = position;
+    if (playing) schedPlay(position, serverPlayAt);
+    else { a.pause(); G('l-art').classList.remove('spin'); }
+  });
+
+  sock.on('room:host_left', () => { toast('Host ended the session'); leave(); });
 }
-function drawViz(canvasId) {
-  const canvas=document.getElementById(canvasId);
-  if (!canvas||!analyser) return;
-  const ctx=canvas.getContext('2d');
-  const W=canvas.offsetWidth||600, H=canvas.offsetHeight||56;
-  canvas.width=W; canvas.height=H;
-  const buf=new Uint8Array(analyser.frequencyBinCount);
+
+// ═══════════════════════════════════════════════════
+// NTP CLOCK SYNC
+// ═══════════════════════════════════════════════════
+function doNTP() {
+  ntpSamples=[]; ntpDone=false;
+  sock.emit('ntp:ping', { clientTime: Date.now() });
+}
+
+function finishNTP() {
+  // Use best 3 samples (lowest RTT = least network jitter)
+  ntpSamples.sort((a,b) => a.rtt - b.rtt);
+  const best = ntpSamples.slice(0, 3);
+  clockOffset = best.reduce((s,x) => s + x.offset, 0) / best.length;
+  ntpDone = true;
+  console.log('NTP done. offset='+clockOffset.toFixed(1)+'ms bestRTT='+ntpSamples[0].rtt+'ms');
+}
+
+function srvNow() {
+  return Date.now() - clockOffset; // our best estimate of server's current time
+}
+
+// ═══════════════════════════════════════════════════
+// ZERO-LAG SCHEDULED PLAY
+// ═══════════════════════════════════════════════════
+function schedPlay(position, serverPlayAt) {
+  cancelSched();
+  const a = G('l-audio');
+  if (!a.src) { setSyncInfo('⚠️ Waiting for audio to load...'); return; }
+
+  // Convert server timestamp → local time using our measured offset
+  const localPlayAt = serverPlayAt + clockOffset;
+  const msLeft = localPlayAt - Date.now();
+
+  console.log('schedPlay: msLeft='+msLeft.toFixed(0)+'ms pos='+position.toFixed(3));
+
+  function doPlay() {
+    // Correct for any remaining latency
+    const late = Math.max(0, (Date.now() - localPlayAt)) / 1000;
+    const targetPos = Math.max(0, position + late);
+    const drift = Math.abs(a.currentTime - targetPos);
+    if (drift > DRIFT_TOL) a.currentTime = targetPos;
+
+    a.play().then(() => {
+      G('l-art').classList.add('spin');
+      setPill('l-pill', 'p-sync', 'd-c', '● In Sync');
+      setSyncInfo('🎧 Playing in sync — drift: <b>'+Math.round(drift*1000)+'ms</b>');
+      G('unlock-overlay').classList.add('gone');
+      if (!vizACtx) buildAudioChain(a, false);
+      if (listACtx) listACtx.resume();
+      startProg(a, 'l-prog', 'l-cur', 'l-dur');
+      startViz('l-viz');
+    }).catch(() => {
+      // Autoplay blocked — show tap overlay
+      G('unlock-overlay').classList.remove('gone');
+      setSyncInfo('👆 Tap the screen once to start audio');
+      G('unlock-overlay').onclick = () => {
+        a.play().then(() => {
+          unlockTap();
+          G('l-art').classList.add('spin');
+          setPill('l-pill', 'p-sync', 'd-c', '● In Sync');
+          if (!vizACtx) buildAudioChain(a, false);
+          startViz('l-viz');
+        });
+      };
+    });
+  }
+
+  if (msLeft > 15) {
+    // Pre-seek slightly before target and wait
+    a.currentTime = Math.max(0, position - 0.01);
+    pendingPlay = setTimeout(doPlay, msLeft);
+  } else {
+    // Already late — compensate position
+    const elapsed = (-msLeft) / 1000;
+    a.currentTime = Math.max(0, position + elapsed);
+    doPlay();
+  }
+}
+
+function cancelSched() {
+  if (pendingPlay) { clearTimeout(pendingPlay); pendingPlay = null; }
+}
+
+// ═══════════════════════════════════════════════════
+// CREATE / JOIN
+// ═══════════════════════════════════════════════════
+function createRoom() {
+  const name = G('room-name').value.trim() || 'Audio Room';
+  initSock(); amHost = true;
+  sock.emit('room:create', { name }, res => {
+    if (!res.ok) { toast('Could not create room'); return; }
+    roomCode = res.code;
+    G('h-room-name').textContent = res.name;
+    G('h-code').textContent = res.code;
+    show('s-host');
+    toast('Room created! Share code: ' + res.code + ' 🎉');
+  });
+}
+
+function joinRoom() {
+  const code = G('join-code').value.trim().toUpperCase();
+  if (!code) { toast('Enter a room code'); return; }
+  initSock(); amHost = false;
+  sock.emit('room:join', { code }, res => {
+    if (!res.ok) { G('join-err').classList.add('on'); return; }
+    G('join-err').classList.remove('on');
+    roomCode = code;
+    G('l-room-name').textContent = res.name;
+    G('l-code-label').textContent = 'Room: ' + code;
+    show('s-listen');
+    toast('Joined! Audio will sync automatically 🎧');
+
+    // If host already has a track loaded, load it now
+    if (res.track) {
+      loadListenerTrack(res.track.url, res.track.title, () => {
+        if (res.state && res.state.playing && res.state.serverPlayAt) {
+          // Resync from current position
+          const elapsed = (srvNow() - res.state.serverPlayAt) / 1000;
+          const pos = res.state.position + elapsed;
+          schedPlay(Math.max(0, pos), srvNow() + SCHED_MS);
+        } else if (res.state) {
+          G('l-audio').currentTime = res.state.position || 0;
+        }
+      });
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════════
+// LOAD TRACK
+// ═══════════════════════════════════════════════════
+function hostLoadUrl() {
+  const url = G('h-url').value.trim();
+  if (!url) { toast('Enter an audio URL'); return; }
+  const title = url.split('/').pop().split('?')[0].replace(/\.[^.]+$/,'') || 'Audio';
+  loadHostAudio(url, title);
+}
+
+function hostLoadFile() {
+  const f = G('h-file').files[0];
+  if (!f) return;
+  const url = URL.createObjectURL(f);
+  const title = f.name.replace(/\.[^.]+$/,'');
+  loadHostAudio(url, title);
+  toast('⚠️ Local file: only you can hear it. Use a URL so everyone hears it.');
+}
+
+function loadHostAudio(url, title) {
+  const a = G('h-audio');
+  // Tear down old chain
+  if (hostACtx) { hostACtx.close().catch(()=>{}); hostACtx=null; hostSrc=null; hostGain=null; hostEQ=null; }
+
+  a.src = url; a.load();
+  G('h-track-name').textContent = title;
+  G('h-track-sub').textContent = 'Loading...';
+  G('h-player').style.display = 'block';
+
+  a.addEventListener('loadedmetadata', () => {
+    G('h-dur').textContent = fmt(a.duration);
+    G('h-track-sub').textContent = fmt(a.duration);
+    buildAudioChain(a, true);
+    startProg(a, 'h-prog', 'h-cur', 'h-dur');
+    startViz('h-viz');
+    toast('Track loaded — press Play to start! ▶');
+  }, { once: true });
+
+  a.addEventListener('error', () => toast('❌ Could not load audio — check the URL'), { once: true });
+
+  // Tell all listeners to load the same URL
+  sock.emit('track:set', { url, title });
+}
+
+function loadListenerTrack(url, title, cb) {
+  const a = G('l-audio');
+  if (listACtx) { listACtx.close().catch(()=>{}); listACtx=null; listSrc=null; listGain=null; listEQ=null; vizACtx=null; vizAnalyser=null; }
+
+  a.src = url; a.load();
+  G('l-track-name').textContent = title;
+  setSyncInfo('Loading track...');
+
+  a.addEventListener('canplaythrough', () => {
+    G('l-dur').textContent = fmt(a.duration);
+    setSyncInfo('Track ready — waiting for host to play');
+    buildAudioChain(a, false);
+    if (cb) cb();
+  }, { once: true });
+
+  a.addEventListener('error', () => {
+    setSyncInfo('❌ Could not load track — URL may block cross-origin requests');
+  }, { once: true });
+}
+
+// ═══════════════════════════════════════════════════
+// HOST PLAYBACK CONTROLS
+// ═══════════════════════════════════════════════════
+function hostPlay() {
+  const a = G('h-audio');
+  if (!a.src) { toast('Load a track first'); return; }
+  if (hostACtx) hostACtx.resume();
+  const pos = a.currentTime;
+  const playAt = srvNow() + SCHED_MS;
+  // Host also schedules its own play at the same time
+  setTimeout(() => { a.play(); G('h-art').classList.add('spin'); }, SCHED_MS);
+  setPill('h-pill', 'p-live', 'd-g', '● Playing');
+  sock.emit('audio:play', { position: pos, serverPlayAt: playAt });
+}
+
+function hostPause() {
+  const a = G('h-audio');
+  a.pause(); G('h-art').classList.remove('spin');
+  setPill('h-pill', 'p-wait', 'd-m', 'Paused');
+  sock.emit('audio:pause', { position: a.currentTime });
+}
+
+function hostRestart() {
+  const a = G('h-audio');
+  a.currentTime = 0;
+  if (hostACtx) hostACtx.resume();
+  const playAt = srvNow() + SCHED_MS;
+  setTimeout(() => { a.play(); G('h-art').classList.add('spin'); }, SCHED_MS);
+  setPill('h-pill', 'p-live', 'd-g', '● Playing');
+  sock.emit('audio:play', { position: 0, serverPlayAt: playAt });
+}
+
+function hostSeek(e) {
+  const a = G('h-audio');
+  if (!a.duration) return;
+  const bar = e.currentTarget.querySelector('.seekbar-track');
+  const rect = bar.getBoundingClientRect();
+  const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+  const seekTo = ratio * a.duration;
+  a.currentTime = seekTo;
+  const playing = !a.paused;
+  const playAt = srvNow() + SCHED_MS;
+  if (playing) setTimeout(() => a.play(), SCHED_MS);
+  sock.emit('audio:seek', { position: seekTo, playing, serverPlayAt: playAt });
+}
+
+function setHostVol(v) {
+  const a = G('h-audio'); a.volume = parseFloat(v);
+  if (hostGain) hostGain.gain.value = parseFloat(v);
+}
+
+function setListenerVol(v) {
+  const a = G('l-audio'); a.volume = parseFloat(v);
+  if (listGain) listGain.gain.value = parseFloat(v);
+}
+
+// ═══════════════════════════════════════════════════
+// LEAVE
+// ═══════════════════════════════════════════════════
+function leave() {
+  cancelSched();
+  if (progRaf) { cancelAnimationFrame(progRaf); progRaf=null; }
+  stopViz();
+  ['h-audio','l-audio'].forEach(id => { const a=G(id); if(a){a.pause();a.src='';} });
+  if (hostACtx) { hostACtx.close().catch(()=>{}); hostACtx=null; }
+  if (listACtx) { listACtx.close().catch(()=>{}); listACtx=null; }
+  vizACtx=null; vizAnalyser=null;
+  if (sock) { sock.disconnect(); sock=null; }
+  roomCode=null; listeners={};
+  show('s-home');
+}
+
+// ═══════════════════════════════════════════════════
+// UI HELPERS
+// ═══════════════════════════════════════════════════
+function copyCode() {
+  navigator.clipboard.writeText(G('h-code').textContent).then(() => toast('Code copied! 📋'));
+}
+
+function setSyncInfo(html) {
+  G('l-sync-box').innerHTML = '<b>Sync Status:</b> ' + html;
+}
+
+function setPill(id, cls, dotCls, label) {
+  const el = G(id);
+  el.className = 'pill ' + cls;
+  el.innerHTML = '<div class="dot '+dotCls+'"></div><span>'+label+'</span>';
+}
+
+function renderListeners() {
+  const ids = Object.keys(listeners);
+  G('h-l-count').textContent = ids.length;
+  const el = G('h-listeners');
+  if (!ids.length) { el.innerHTML='<div class="no-listeners">No one joined yet — share your code!</div>'; return; }
+  el.innerHTML = ids.map((id,i) =>
+    '<div class="listener-item"><div class="listener-av">🎧</div><span>Listener '+(i+1)+'</span>'+
+    '<span style="margin-left:auto;font-size:9px;color:var(--g)">● synced</span></div>'
+  ).join('');
+}
+
+function startProg(audio, fillId, curId, durId) {
+  if (progRaf) { cancelAnimationFrame(progRaf); progRaf=null; }
+  function tick() {
+    progRaf = requestAnimationFrame(tick);
+    const pct = audio.duration ? (audio.currentTime/audio.duration*100) : 0;
+    G(fillId).style.width = pct + '%';
+    G(curId).textContent = fmt(audio.currentTime);
+    if (audio.duration) G(durId).textContent = fmt(audio.duration);
+  }
+  tick();
+}
+
+// ═══════════════════════════════════════════════════
+// VISUALIZER — frequency bars with glow
+// ═══════════════════════════════════════════════════
+function startViz(canvasId) {
+  if (vizRaf) { cancelAnimationFrame(vizRaf); vizRaf=null; }
+  if (!vizAnalyser) return;
+  const canvas = G(canvasId);
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.offsetWidth || 700, H = canvas.offsetHeight || 54;
+  canvas.width = W; canvas.height = H;
+  const buf = new Uint8Array(vizAnalyser.frequencyBinCount);
+  const barW = (W / buf.length) * 2.5;
+
   function frame() {
-    raf=requestAnimationFrame(frame);
-    analyser.getByteFrequencyData(buf);
-    ctx.fillStyle='#07080d'; ctx.fillRect(0,0,W,H);
-    const bw=(W/buf.length)*2.2; let x=0;
-    for(let i=0;i<buf.length;i++){
-      const h=(buf[i]/255)*H;
-      ctx.fillStyle='hsla('+(160+i/buf.length*100)+',100%,60%,.9)';
-      ctx.fillRect(x,H-h,bw,h); x+=bw+1;
+    vizRaf = requestAnimationFrame(frame);
+    vizAnalyser.getByteFrequencyData(buf);
+    ctx.clearRect(0,0,W,H);
+    ctx.fillStyle = '#07080d';
+    ctx.fillRect(0,0,W,H);
+    let x=0;
+    for (let i=0; i<buf.length; i++) {
+      const ratio = buf[i]/255;
+      const h = ratio * H;
+      const hue = 170 + (i/buf.length) * 120;
+      const alpha = 0.7 + ratio * 0.3;
+      // Bar
+      ctx.fillStyle = `hsla(${hue},100%,60%,${alpha})`;
+      ctx.fillRect(x, H-h, barW, h);
+      // Glow top
+      if (ratio > 0.5) {
+        ctx.fillStyle = `hsla(${hue},100%,80%,0.6)`;
+        ctx.fillRect(x, H-h-2, barW, 2);
+      }
+      x += barW + 1;
     }
   }
   frame();
 }
+
 function stopViz() {
-  if (raf){cancelAnimationFrame(raf);raf=null;}
-  if (audioCtx){audioCtx.close().catch(()=>{});audioCtx=null;}
+  if (vizRaf) { cancelAnimationFrame(vizRaf); vizRaf=null; }
 }
 
-document.getElementById('code-input').addEventListener('input',function(){
-  this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'');
+// ═══════════════════════════════════════════════════
+// INPUT FORMATTING
+// ═══════════════════════════════════════════════════
+G('join-code').addEventListener('input', function() {
+  this.value = this.value.toUpperCase().replace(/[^A-Z0-9]/g,'');
 });
 </script>
 </body>
