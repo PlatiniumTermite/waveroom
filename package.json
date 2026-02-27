@@ -1,18 +1,18 @@
 {
   "name": "waveroom",
-  "version": "2.1.0",
-  "description": "Real-time synchronized audio with AI Spatial Audio",
+  "version": "3.0.0",
+  "description": "AI-Powered Synchronized Spatial Audio Platform",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "build": "pip3 install --quiet --user yt-dlp || curl -sL https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp && chmod +x /usr/local/bin/yt-dlp || true"
+    "build": "pip3 install --quiet --user --upgrade yt-dlp 2>/dev/null || python3 -m pip install --quiet --user --upgrade yt-dlp 2>/dev/null || (curl -sL https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o $HOME/.local/bin/yt-dlp && chmod +x $HOME/.local/bin/yt-dlp) || true && mkdir -p $HOME/.yt-cache"
   },
   "engines": {
     "node": ">=18.0.0"
   },
   "dependencies": {
-    "express": "^4.18.2",
-    "socket.io": "^4.7.2",
+    "express": "^4.21.0",
+    "socket.io": "^4.7.5",
     "node-fetch": "^2.7.0"
   }
 }
