@@ -443,7 +443,15 @@ canvas{width:100%;height:58px;display:block;border-radius:7px;background:var(--b
           <div class="tsub">Host controls playback · you control volume</div>
         </div>
       </div>
-      <div class="seekbar">
+      <!-- YouTube player lives here on listener side -->
+      <div id="l-yt-wrap" style="display:none;margin-top:10px;border-radius:10px;overflow:hidden;position:relative;padding-bottom:56.25%;height:0;">
+        <div id="l-yt-player" style="position:absolute;top:0;left:0;width:100%;height:100%;"></div>
+      </div>
+      <!-- Tap to play overlay for mobile autoplay -->
+      <div id="l-tap-play" style="display:none;margin-top:10px;">
+        <button class="btn bp" style="width:100%;padding:14px;font-size:15px;" onclick="listenerTapPlay()">▶ Tap to Play</button>
+      </div>
+      <div class="seekbar" id="l-seekbar-wrap">
         <div class="seek-track"><div class="seek-fill" id="l-fill"></div></div>
         <div class="seek-times"><span id="l-cur">0:00</span><span id="l-dur">0:00</span></div>
       </div>
@@ -489,9 +497,9 @@ canvas{width:100%;height:58px;display:block;border-radius:7px;background:var(--b
     </div>
 
     <div style="margin-top:10px"><button class="btn bg" onclick="leave()">← Leave</button></div>
-    <audio id="l-audio" crossorigin="anonymous" style="display:none" preload="auto"></audio>
+    <audio id="l-audio" style="display:none" preload="auto"></audio>
     <!-- Live stream playback target -->
-    <audio id="l-stream-audio" style="display:none" autoplay></audio>
+    <audio id="l-stream-audio" style="display:none" playsinline></audio>
   </div>
 </div>
 <div id="toast" class="toast"></div>
@@ -591,11 +599,18 @@ function copyCode(){
 // ════════════════════════════════════════════
 function doUnlock(){
   G('unlock').classList.add('gone');
-  [lAudioCtx, hAudioCtx].forEach(c=>{ if(c) c.resume(); });
-  // Try playing pending audio
+  // Resume all audio contexts
+  [lAudioCtx, hAudioCtx].forEach(c=>{ if(c) c.resume().catch(()=>{}); });
+  // Attempt to play listener audio
   const la=G('l-audio');
-  if(la && la.src && la.paused && lAudioReady){
-    la.play().catch(()=>{});
+  if(la && la.src && lAudioReady){
+    la.volume = parseFloat(G('l-vol').value)||0.85;
+    la.play().catch(e=>console.warn('[unlock] play failed:', e.message));
+  }
+  // Attempt stream audio
+  const sa=G('l-stream-audio');
+  if(sa && sa.src){
+    sa.play().catch(()=>{});
   }
 }
 
@@ -755,10 +770,12 @@ function flushMSE(){
       lPlaying=true;
       audio.volume=parseFloat(G('l-vol').value)||0.85;
       audio.play().catch(()=>{
+        // Autoplay blocked — show big tap overlay
         G('unlock').classList.remove('gone');
+        setSyncInfo('👆 Tap screen to hear live audio');
         G('unlock').onclick=()=>{
-          doUnlock();
-          audio.play().catch(()=>{});
+          G('unlock').classList.add('gone');
+          audio.play().catch(e=>console.warn('[stream]',e));
         };
       });
     }
@@ -941,58 +958,114 @@ function startYtProg(){
 
 // LISTENER: load + sync YouTube player
 function initListenerYt(videoId, onReady){
-  G('yt-listener-wrap').style.display = 'block';
+  // Show YouTube player in LISTENER screen (l-yt-wrap / l-yt-player)
+  const wrap = G('l-yt-wrap');
+  if(wrap) wrap.style.display = 'block';
+  const sbWrap = G('l-seekbar-wrap');
+  if(sbWrap) sbWrap.style.display = 'none';
+
   if(ytListenerPlayer){ try{ytListenerPlayer.destroy();}catch(e){} ytListenerPlayer=null; ytListenerReady=false; }
 
   loadYtApi(()=>{
-    ytListenerPlayer = new YT.Player('yt-listener-player',{
+    ytListenerPlayer = new YT.Player('l-yt-player', {
       height:'100%', width:'100%',
       videoId: videoId,
-      playerVars:{ autoplay:0, controls:0, rel:0, modestbranding:1, playsinline:1, mute:0 },
+      playerVars:{ autoplay:1, controls:1, rel:0, modestbranding:1, playsinline:1 },
       events:{
-        onReady(e){
+        onReady: function(e){
           ytListenerReady = true;
           const vol = parseFloat(G('l-vol').value)||0.85;
           ytListenerPlayer.setVolume(vol*100);
+          console.log('[YT-L] ready vol='+Math.round(vol*100));
           if(onReady) onReady();
         },
-        onError(e){ console.error('[YT listener] error',e.data); }
+        onStateChange: function(e){
+          if(e.data === 1){ G('l-art').classList.add('spin'); setPill('l-pill','ps','dc','● In Sync'); }
+          else if(e.data === 2){ G('l-art').classList.remove('spin'); }
+        },
+        onError: function(e){
+          const errs={2:'Bad video ID',100:'Not found',101:'Embedding disabled',150:'Embedding disabled'};
+          setSyncInfo('❌ '+(errs[e.data]||'YouTube error '+e.data));
+          console.error('[YT-L] error',e.data);
+        }
       }
     });
   });
 }
 
 function schedYtPlay(position, serverPlayAt){
-  if(!ytListenerPlayer||!ytListenerReady){ return; }
+  if(!ytListenerPlayer || !ytListenerReady){
+    setSyncInfo('⟳ Loading YouTube player...');
+    setTimeout(()=>schedYtPlay(position, serverPlayAt), 1000);
+    return;
+  }
   const localPlayAt = serverPlayAt + clockOffset;
   const msLeft = localPlayAt - Date.now();
-  const execute = ()=>{
-    const late = Math.max(0,(Date.now()-localPlayAt))/1000;
+
+  function execute(){
+    const late = Math.max(0,(Date.now()-localPlayAt)/1000);
     const target = Math.max(0, position+late);
-    ytListenerPlayer.seekTo(target, true);
-    ytListenerPlayer.playVideo();
-    setPill('l-pill','ps','dc','● In Sync');
-    setSyncInfo('🎧 Playing in sync');
-    G('l-art').classList.add('spin');
-    G('l-tname').textContent = currentTrack?.title || 'YouTube';
-    // Drift correction
-    clearInterval(driftTimer);
-    driftTimer = setInterval(()=>{
-      if(!ytListenerPlayer) return;
+    try{
+      ytListenerPlayer.seekTo(target, true);
+      ytListenerPlayer.playVideo();
+    }catch(e){ console.error('[YT-L] play error',e); return; }
+
+    // Check 1s later if actually playing — show tap button if autoplay blocked
+    setTimeout(()=>{
       try{
         const state = ytListenerPlayer.getPlayerState();
-        if(state !== 1) return; // only when playing
-        const elapsed = (srvNow()-serverPlayAt)/1000;
-        const expected = position+elapsed;
-        const actual = ytListenerPlayer.getCurrentTime();
-        const d = Math.abs(actual-expected);
-        if(d > DRIFT_HARD){ ytListenerPlayer.seekTo(expected,true); console.warn('[YT SYNC] corrected',d.toFixed(2)+'s'); }
-        if(G('l-drift')) G('l-drift').textContent = Math.round(d*1000)+'ms';
+        if(state === 1){
+          onYtPlaying(serverPlayAt, position);
+        } else {
+          // Autoplay blocked — show visible tap-to-play button
+          const btn = G('l-tap-play');
+          if(btn) btn.style.display='block';
+          setSyncInfo('👆 Press "Tap to Play" to hear audio');
+          window._ytPending = {position, serverPlayAt};
+        }
       }catch(e){}
-    }, 3000);
-  };
-  if(msLeft > 20){ setSyncInfo('⟳ Syncing...'); setTimeout(execute, msLeft); }
+    }, 1000);
+  }
+
+  setPill('l-pill','pw','dm','Buffering...');
+  setSyncInfo('⟳ Syncing...');
+  if(msLeft > 20) setTimeout(execute, msLeft);
   else execute();
+}
+
+function onYtPlaying(serverPlayAt, position){
+  setPill('l-pill','ps','dc','● In Sync');
+  setSyncInfo('🎧 Playing in sync');
+  G('l-art').classList.add('spin');
+  if(G('l-stats')) G('l-stats').style.display='flex';
+  if(G('l-mode-val')) G('l-mode-val').textContent='YT';
+  const btn = G('l-tap-play');
+  if(btn) btn.style.display='none';
+  clearInterval(driftTimer);
+  driftTimer = setInterval(()=>{
+    if(!ytListenerPlayer) return;
+    try{
+      if(ytListenerPlayer.getPlayerState()!==1) return;
+      const exp = position+(srvNow()-serverPlayAt)/1000;
+      const act = ytListenerPlayer.getCurrentTime();
+      const d = act-exp;
+      if(Math.abs(d)>DRIFT_HARD){ ytListenerPlayer.seekTo(exp,true); console.warn('[YT] corrected',d.toFixed(2)+'s'); }
+      if(G('l-drift')) G('l-drift').textContent=Math.round(Math.abs(d)*1000)+'ms';
+    }catch(e){}
+  },3000);
+}
+
+function listenerTapPlay(){
+  const p = window._ytPending;
+  if(!ytListenerPlayer||!ytListenerReady) return;
+  const pos = p ? Math.max(0,p.position+(srvNow()-p.serverPlayAt)/1000) : 0;
+  try{
+    ytListenerPlayer.seekTo(pos, true);
+    ytListenerPlayer.playVideo();
+  }catch(e){}
+  const btn = G('l-tap-play');
+  if(btn) btn.style.display='none';
+  if(p) setTimeout(()=>onYtPlaying(p.serverPlayAt,p.position), 500);
 }
 
 function loadDirectUrl(){
@@ -1237,7 +1310,7 @@ function initSock(){
   });
   sock.on('yt:play',({position,serverPlayAt})=>{
     console.log('[L] yt:play pos='+position.toFixed(2));
-    if(!ytListenerReady){ setTimeout(()=>schedYtPlay(position,serverPlayAt), 1500); return; }
+    // schedYtPlay handles the "not ready yet" retry internally
     schedYtPlay(position, serverPlayAt);
   });
   sock.on('yt:pause',({position})=>{
@@ -1275,7 +1348,8 @@ function initSock(){
     cancelSched(); clearInterval(driftTimer);
     const a=G('l-audio'); if(!a.src) return;
     a.pause();
-    if(Math.abs(a.currentTime-position)>0.5) a.currentTime=position;
+    if(typeof position==='number' && Math.abs(a.currentTime-position)>0.5) a.currentTime=position;
+    if(a.playbackRate!==1) a.playbackRate=1;
     G('l-art').classList.remove('spin');
     setPill('l-pill','pw','dm','Paused');
     setSyncInfo('Host paused.');
@@ -1331,36 +1405,39 @@ function loadListenerTrack(url, title, onReadyCb){
   lAudioReady=false;
   lPendingSchedPlay=null;
 
-  // Kill previous audio chain
-  if(lAudioCtx){ lAudioCtx.close().catch(()=>{}); lAudioCtx=null; lChain=null; }
+  // Close previous Web Audio chain (don't reuse — createMediaElementSource can't rewrap)
+  if(lAudioCtx){ try{lAudioCtx.close();}catch(e){} lAudioCtx=null; lChain=null; }
 
   const a=G('l-audio');
   a.pause();
-  a.src=''; a.load(); // fully reset src so new events fire
+  a.removeAttribute('src');
+  a.load();
+
   G('l-tname').textContent=title||'Loading...';
   G('l-dur').textContent='0:00';
   setSyncInfo('<span class="spin">⟳</span> Loading track...');
 
-  a.src=url;
-  a.preload='auto';
+  // Set volume directly — no Web Audio chain needed for basic playback
+  a.volume = parseFloat(G('l-vol').value)||0.85;
+
+  // Use a fresh Audio element to avoid stuck state
+  // then swap src into the page element
+  a.src = url;
+  a.preload = 'auto';
   a.load();
 
-  function onCanPlay(){
-    a.removeEventListener('canplay',  onCanPlay);
-    a.removeEventListener('error',    onError);
+  let fired = false;
+  function markReady(){
+    if(fired) return; fired=true;
+    a.removeEventListener('canplay',    markReady);
+    a.removeEventListener('loadeddata', markReady);
+    a.removeEventListener('error',      onError);
     lAudioReady=true;
-    console.log('[L] canplay fired, duration=',a.duration);
+    console.log('[L] audio ready, duration=', a.duration);
     if(a.duration) G('l-dur').textContent=fmt(a.duration);
-    setSyncInfo('✅ Ready — waiting for host to play...');
-
-    // Build audio chain now that media element has data
-    if(!lAudioCtx) buildAudioChain(a,'l');
-
+    setSyncInfo('✅ Ready — waiting for host...');
     if(onReadyCb) onReadyCb();
-
-    // Fire any play command that arrived before we were ready
     if(lPendingSchedPlay){
-      console.log('[L] firing queued play command');
       const {position,serverPlayAt}=lPendingSchedPlay;
       lPendingSchedPlay=null;
       schedPlay(position, serverPlayAt);
@@ -1368,18 +1445,29 @@ function loadListenerTrack(url, title, onReadyCb){
   }
 
   function onError(){
-    a.removeEventListener('canplay', onCanPlay);
-    a.removeEventListener('error',   onError);
+    a.removeEventListener('canplay',    markReady);
+    a.removeEventListener('loadeddata', markReady);
+    a.removeEventListener('error',      onError);
     lAudioReady=false;
     const codes=['','Aborted','Network error','Decode error','Not supported'];
     const msg=codes[a.error?.code]||'Load failed';
-    console.error('[L] audio error:',msg);
+    console.error('[L] audio error:',msg, a.src);
     setSyncInfo('❌ '+msg);
-    toast('❌ Audio error: '+msg, 4000);
+    toast('❌ Audio failed to load: '+msg, 5000);
   }
 
-  a.addEventListener('canplay', onCanPlay);
-  a.addEventListener('error',   onError);
+  // Listen to both canplay AND loadeddata — whichever fires first
+  a.addEventListener('canplay',    markReady);
+  a.addEventListener('loadeddata', markReady);
+  a.addEventListener('error',      onError);
+
+  // Safety timeout — if neither fires in 8s, try playing anyway
+  setTimeout(()=>{
+    if(!lAudioReady && a.src){
+      console.warn('[L] canplay timeout — forcing ready');
+      markReady();
+    }
+  }, 8000);
 }
 
 // ════════════════════════════════════════════
@@ -1389,69 +1477,92 @@ function schedPlay(position, serverPlayAt){
   cancelSched();
   const a=G('l-audio');
   if(!a.src){ console.warn('[sched] no src'); return; }
-  if(!lAudioReady){ console.warn('[sched] audio not ready'); lPendingSchedPlay={position,serverPlayAt}; return; }
+  if(!lAudioReady){
+    console.warn('[sched] not ready yet, queuing');
+    lPendingSchedPlay={position,serverPlayAt};
+    return;
+  }
 
   const localPlayAt = serverPlayAt + clockOffset;
   const msLeft      = localPlayAt - Date.now();
 
   setPill('l-pill','pw','dm','Buffering...');
-  setSyncInfo(`⟳ Syncing in ${Math.max(0,Math.round(msLeft))}ms...`);
+  setSyncInfo('⟳ Syncing...');
 
-  // Pre-seek
-  const preSeekTarget = Math.max(0, position + Math.max(0, -msLeft/1000));
-  if(Math.abs(a.currentTime - preSeekTarget) > DRIFT_TOL) a.currentTime=preSeekTarget;
+  // Seek to approximate position now so buffer is ready
+  const seekTo = Math.max(0, position + Math.max(0, -msLeft/1000));
+  if(Math.abs(a.currentTime - seekTo) > 0.5) a.currentTime = seekTo;
+  a.volume = parseFloat(G('l-vol').value)||0.85;
 
   function execute(){
-    const late  = Math.max(0,(Date.now()-localPlayAt))/1000;
-    const target= Math.max(0, position+late);
-    if(Math.abs(a.currentTime-target)>DRIFT_TOL) a.currentTime=target;
+    // Recalculate exact position accounting for any delay
+    const late   = Math.max(0, (Date.now()-localPlayAt)/1000);
+    const target = Math.max(0, position + late);
+    if(Math.abs(a.currentTime - target) > DRIFT_TOL) a.currentTime = target;
 
-    a.play().then(()=>{
-      console.log('[L] playing ✅ at',a.currentTime.toFixed(2));
-      G('l-art').classList.add('spin');
-      setPill('l-pill','ps','dc','● In Sync');
-      setSyncInfo('🎧 Playing in sync');
-      G('unlock').classList.add('gone');
-      if(G('l-stats'))G('l-stats').style.display='flex';
-      if(G('l-mode-val'))G('l-mode-val').textContent='URL';
-
-      // Audio chain should already exist from canplay, but build if missing
-      if(!lAudioCtx){ buildAudioChain(a,'l'); }
-      if(lAudioCtx) lAudioCtx.resume();
-      startProg(a,'l-fill','l-cur','l-dur');
-      setTimeout(()=>startViz('l-viz'), 100);
-
-      // Continuous drift correction
-      clearInterval(driftTimer);
-      driftTimer=setInterval(()=>{
-        if(a.paused) return;
-        const elapsed=(srvNow()-serverPlayAt)/1000;
-        const expected=position+elapsed;
-        const d=Math.abs(a.currentTime-expected);
-        if(d>DRIFT_HARD){ a.currentTime=expected; console.warn('[SYNC] corrected',d.toFixed(3)+'s'); }
-        if(G('l-drift')) G('l-drift').textContent=Math.round(d*1000)+'ms';
-      }, 3000);
-    }).catch(err=>{
-      console.warn('[play] blocked:',err.message);
-      G('unlock').classList.remove('gone');
-      setSyncInfo('👆 Tap to play');
-      G('unlock').onclick=()=>{
-        doUnlock();
-        a.currentTime=Math.max(0,position+(srvNow()-serverPlayAt)/1000);
-        a.play().then(()=>{
-          G('l-art').classList.add('spin');
-          setPill('l-pill','ps','dc','● In Sync');
-          if(!lAudioCtx) buildAudioChain(a,'l');
-          if(lAudioCtx) lAudioCtx.resume();
-          startViz('l-viz');
-          startProg(a,'l-fill','l-cur','l-dur');
-        });
-      };
-    });
+    const playPromise = a.play();
+    if(playPromise !== undefined){
+      playPromise.then(()=>{
+        onPlaying(serverPlayAt, position);
+      }).catch(err=>{
+        console.warn('[play] autoplay blocked:', err.message);
+        // Show tap-to-play overlay
+        G('unlock').classList.remove('gone');
+        setSyncInfo('👆 Tap anywhere to start audio');
+        G('unlock').onclick = ()=>{
+          G('unlock').classList.add('gone');
+          // Resync time before playing
+          a.currentTime = Math.max(0, position + (srvNow()-serverPlayAt)/1000);
+          a.volume = parseFloat(G('l-vol').value)||0.85;
+          a.play().then(()=>onPlaying(serverPlayAt,position)).catch(e=>console.error(e));
+        };
+      });
+    } else {
+      // Old browser — no promise
+      onPlaying(serverPlayAt, position);
+    }
   }
 
-  if(msLeft>20) pendingPlay=setTimeout(execute, msLeft);
-  else execute();
+  function onPlaying(srvPlayAt, startPos){
+    console.log('[L] ✅ playing at', a.currentTime.toFixed(2));
+    G('l-art').classList.add('spin');
+    setPill('l-pill','ps','dc','● In Sync');
+    setSyncInfo('🎧 Playing in sync');
+    G('unlock').classList.add('gone');
+    if(G('l-stats'))  G('l-stats').style.display='flex';
+    if(G('l-mode-val')) G('l-mode-val').textContent='URL';
+
+    // Build EQ chain lazily (after play = user gesture, so AudioContext allowed)
+    if(!lAudioCtx){ try{ buildAudioChain(a,'l'); }catch(e){} }
+    if(lAudioCtx)  lAudioCtx.resume().catch(()=>{});
+
+    startProg(a,'l-fill','l-cur','l-dur');
+    startViz('l-viz');
+
+    // Drift correction every 3s
+    clearInterval(driftTimer);
+    driftTimer = setInterval(()=>{
+      if(a.paused) return;
+      const elapsed  = (srvNow()-srvPlayAt)/1000;
+      const expected = startPos + elapsed;
+      const drift    = a.currentTime - expected;
+      if(Math.abs(drift) > DRIFT_HARD){
+        a.currentTime = expected;
+        console.warn('[SYNC] corrected', drift.toFixed(3)+'s');
+      } else if(Math.abs(drift) > DRIFT_TOL){
+        // Soft correction via playback rate
+        a.playbackRate = drift > 0 ? 0.98 : 1.02;
+        setTimeout(()=>{ if(a) a.playbackRate=1.0; }, 2000);
+      }
+      if(G('l-drift')) G('l-drift').textContent = Math.round(Math.abs(drift)*1000)+'ms';
+    }, 3000);
+  }
+
+  if(msLeft > 20){
+    pendingPlay = setTimeout(execute, msLeft);
+  } else {
+    execute();
+  }
 }
 
 function cancelSched(){
@@ -1627,9 +1738,9 @@ function hostVol(v){
 }
 function listVol(v){
   const val=parseFloat(v);
-  G('l-audio').volume=val;
-  G('l-stream-audio').volume=val;
-  if(lChain) lChain.master.gain.value=val;
+  const la=G('l-audio'); if(la) la.volume=val;
+  const sa=G('l-stream-audio'); if(sa) sa.volume=val;
+  if(lChain){ try{lChain.master.gain.value=val;}catch(e){} }
   if(ytListenerPlayer&&ytListenerReady){ try{ytListenerPlayer.setVolume(val*100);}catch(e){} }
   G('l-vol-val').textContent=Math.round(val*100)+'%';
 }
@@ -1718,3 +1829,4 @@ window.addEventListener('load', ()=>{
 </script>
 </body>
 </html>
+
