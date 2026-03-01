@@ -4,916 +4,810 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
 <title>WaveRoom — Sync Audio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --bg:#07090f;--panel:#0e1118;--border:#1a1f2e;
-  --cyan:#00e5ff;--green:#00ff88;--orange:#ff7b35;--red:#ff4466;
-  --text:#e8eaf0;--muted:#5a6070;--white:#fff;
-  --r:8px;
+  --bg:#06070c;--s:#0b0d17;--b:#161b2e;
+  --c:#00e5ff;--p:#8b5cf6;--g:#00ff88;
+  --r:#ff4466;--t:#e8edf8;--m:#4a5578;
+  --gold:#ffd700;--orange:#ff7b35
 }
-body{
-  background:var(--bg);color:var(--text);
-  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-  min-height:100vh;display:flex;align-items:center;justify-content:center;
-  padding:16px;
-}
-.app{width:100%;max-width:420px}
-
-/* SCREENS */
-.screen{display:none}
-.screen.on{display:block}
-
-/* CARD */
-.card{
-  background:var(--panel);border:1px solid var(--border);
-  border-radius:14px;padding:24px;margin-bottom:12px;
-}
-
-/* LOGO */
-.logo{
-  font-size:26px;font-weight:900;letter-spacing:-1px;
-  background:linear-gradient(135deg,var(--cyan),var(--green));
-  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
-  margin-bottom:4px;
-}
-.logo-sub{font-size:11px;color:var(--muted);font-family:'Courier New',monospace;margin-bottom:24px}
-
-/* INPUTS */
-.inp{
-  width:100%;background:#0a0d14;border:1px solid var(--border);
-  border-radius:var(--r);padding:13px 14px;color:var(--text);
-  font-size:15px;outline:none;transition:.15s;margin-bottom:10px;
-}
-.inp:focus{border-color:var(--cyan);box-shadow:0 0 0 3px rgba(0,229,255,.08)}
-.inp::placeholder{color:var(--muted)}
-#join-inp{
-  text-align:center;letter-spacing:8px;font-size:22px;
-  font-family:'Courier New',monospace;font-weight:700;text-transform:uppercase;
-}
-
-/* BUTTONS */
-.btn{
-  width:100%;padding:13px;border-radius:var(--r);border:none;
-  font-weight:700;font-size:14px;cursor:pointer;transition:.15s;
-  letter-spacing:.3px;
-}
-.btn:disabled{opacity:.4;cursor:not-allowed}
-.btn-cyan{background:linear-gradient(135deg,var(--cyan),#00b4cc);color:#000}
-.btn-green{background:linear-gradient(135deg,var(--green),#00cc6a);color:#000}
-.btn-red{background:var(--red);color:#fff}
-.btn-ghost{background:transparent;border:1px solid var(--border);color:var(--muted)}
-.btn-orange{background:var(--orange);color:#000}
-.btn + .btn{margin-top:8px}
-
-/* STATUS ROW */
-.srow{display:flex;align-items:center;gap:8px;margin-bottom:16px}
-.dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
-.dot-live{background:var(--red);box-shadow:0 0 8px var(--red);animation:pulse 1.2s infinite}
-.dot-sync{background:var(--green);box-shadow:0 0 8px var(--green)}
-.dot-wait{background:var(--muted)}
-.dot-conn{background:var(--cyan)}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
-
-/* CODE DISPLAY */
-.code-box{
-  background:#0a0d14;border:1px solid var(--border);border-radius:var(--r);
-  padding:14px;text-align:center;margin-bottom:12px;cursor:pointer;
-}
-.code-val{
-  font-family:'Courier New',monospace;font-size:32px;font-weight:900;
-  letter-spacing:8px;color:var(--cyan);
-}
-.code-hint{font-size:10px;color:var(--muted);margin-top:4px}
-
-/* VISUALIZER */
-canvas{width:100%;height:52px;border-radius:var(--r);display:block;background:#05060a}
-
-/* STATS */
-.stats{display:flex;gap:8px;margin-top:10px}
-.stat{flex:1;background:#0a0d14;border-radius:6px;padding:8px;text-align:center}
-.stat-val{font-size:13px;font-weight:700;font-family:'Courier New',monospace;color:var(--cyan)}
-.stat-lbl{font-size:9px;color:var(--muted);text-transform:uppercase;margin-top:2px}
-
-/* LISTENER COUNT */
-.lcnt{font-size:28px;font-weight:900;color:var(--green);text-align:center}
-.lcnt-lbl{font-size:10px;color:var(--muted);text-align:center}
-
-/* SHARE STEPS */
-.steps{margin:12px 0}
-.step{
-  display:flex;gap:10px;align-items:flex-start;
-  padding:9px 0;border-bottom:1px solid var(--border);font-size:13px;
-}
-.step:last-child{border-bottom:none}
-.step-n{
-  background:linear-gradient(135deg,var(--cyan),var(--green));color:#000;
-  width:22px;height:22px;border-radius:50%;display:flex;align-items:center;
-  justify-content:center;font-weight:900;font-size:11px;flex-shrink:0;
-}
-
-/* SECTION TITLE */
-.stitle{font-size:10px;font-weight:700;letter-spacing:1px;color:var(--muted);
-  text-transform:uppercase;margin-bottom:10px}
-
-/* ERROR */
-.err{
-  background:rgba(255,68,102,.08);border:1px solid rgba(255,68,102,.25);
-  border-radius:var(--r);padding:10px 12px;font-size:13px;color:var(--red);
-  display:none;margin-top:8px;
-}
-.err.on{display:block}
-
-/* TOAST */
-.toast{
-  position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);
-  background:#1a1f2e;border:1px solid var(--border);border-radius:20px;
-  padding:10px 20px;font-size:13px;font-weight:600;
-  transition:transform .3s;pointer-events:none;z-index:999;white-space:nowrap;
-}
+html,body{background:var(--bg);color:var(--t);font-family:'Syne',sans-serif;min-height:100vh;overscroll-behavior:none;-webkit-tap-highlight-color:transparent}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(var(--b) 1px,transparent 1px),linear-gradient(90deg,var(--b) 1px,transparent 1px);background-size:48px 48px;opacity:.08;pointer-events:none;z-index:0}
+body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;background:radial-gradient(ellipse 800px 500px at 10% 0%,rgba(0,229,255,.04),transparent),radial-gradient(ellipse 600px 600px at 90% 100%,rgba(139,92,246,.05),transparent)}
+#app{position:relative;z-index:1;max-width:840px;margin:0 auto;padding:22px 16px 60px}
+.nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:40px;flex-wrap:wrap;gap:8px}
+.nav-left{display:flex;align-items:center;gap:10px}
+.nav-icon{width:36px;height:36px;border-radius:9px;background:linear-gradient(135deg,var(--c),var(--p));display:flex;align-items:center;justify-content:center;font-size:18px}
+.nav-name{font-size:20px;font-weight:800;background:linear-gradient(135deg,var(--c),var(--p));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.nav-right{display:flex;align-items:center;gap:8px}
+.badge{font-family:'Space Mono',monospace;font-size:9px;border-radius:20px;padding:3px 9px;letter-spacing:.4px}
+.badge-gold{color:var(--gold);border:1px solid rgba(255,215,0,.25);background:rgba(255,215,0,.06)}
+.badge-conn{color:var(--m);border:1px solid var(--b);background:transparent;display:flex;align-items:center;gap:5px}
+.badge-conn.on{color:var(--g);border-color:rgba(0,255,136,.2)}
+.ndot{width:5px;height:5px;border-radius:50%;background:currentColor;flex-shrink:0}
+.badge-conn.on .ndot{animation:blk 1.8s infinite}
+@keyframes blk{0%,100%{opacity:1}50%{opacity:.25}}
+.screen{display:none}.screen.on{display:block;animation:fu .2s ease}
+@keyframes fu{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.hero{text-align:center;padding:4px 0 28px}
+.hero-chip{display:inline-flex;align-items:center;gap:5px;font-family:'Space Mono',monospace;font-size:10px;color:var(--c);border:1px solid rgba(0,229,255,.18);border-radius:20px;padding:3px 11px;margin-bottom:16px;background:rgba(0,229,255,.05)}
+.hero h1{font-size:clamp(26px,6vw,58px);font-weight:800;letter-spacing:-2px;line-height:1.05;margin-bottom:12px}
+.hero h1 em{font-style:normal;background:linear-gradient(135deg,var(--c),var(--p));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.hero-sub{font-family:'Space Mono',monospace;font-size:11px;color:var(--m);max-width:380px;margin:0 auto 28px;line-height:1.9}
+.home-cards{display:grid;grid-template-columns:1fr 1fr;gap:10px;max-width:520px;margin:0 auto 20px}
+@media(max-width:430px){.home-cards{grid-template-columns:1fr}}
+.hcard{background:var(--s);border:1px solid var(--b);border-radius:13px;padding:20px 16px;cursor:pointer;text-align:left;transition:border-color .18s,transform .18s,box-shadow .18s}
+.hcard:hover{border-color:rgba(0,229,255,.35);transform:translateY(-2px);box-shadow:0 6px 24px rgba(0,229,255,.07)}
+.hi{font-size:22px;margin-bottom:8px}.ht{font-size:14px;font-weight:700;margin-bottom:4px}
+.hd{font-size:10.5px;color:var(--m);font-family:'Space Mono',monospace;line-height:1.55}
+.feats{display:flex;justify-content:center;gap:16px;flex-wrap:wrap;max-width:520px;margin:0 auto}
+.feat{font-family:'Space Mono',monospace;font-size:10px;color:var(--m)}
+.fbox{max-width:400px;margin:0 auto}
+.back{background:none;border:none;color:var(--m);font-family:'Space Mono',monospace;font-size:11px;cursor:pointer;margin-bottom:24px;padding:0;transition:color .18s}
+.back:hover{color:var(--c)}
+.ftitle{font-size:26px;font-weight:800;letter-spacing:-1px;margin-bottom:5px}
+.fsub{font-family:'Space Mono',monospace;font-size:11px;color:var(--m);margin-bottom:20px;line-height:1.75}
+.fl{display:block;font-size:9px;font-weight:700;letter-spacing:1.3px;text-transform:uppercase;color:var(--m);margin-bottom:5px}
+.fi{width:100%;background:var(--s);border:1px solid var(--b);border-radius:8px;padding:11px 13px;color:var(--t);font-family:'Space Mono',monospace;font-size:13px;outline:none;transition:border-color .18s;margin-bottom:12px}
+.fi:focus{border-color:var(--c)}.fi::placeholder{color:var(--m)}
+#join-code{letter-spacing:6px;font-size:21px;text-transform:uppercase;text-align:center}
+.ferr{background:rgba(255,68,102,.08);border:1px solid rgba(255,68,102,.25);border-radius:7px;padding:9px 12px;font-family:'Space Mono',monospace;font-size:11px;color:var(--r);margin-bottom:11px;display:none;line-height:1.6}
+.ferr.on{display:block}
+.btn{width:100%;padding:12px;border-radius:8px;font-family:'Syne',sans-serif;font-size:13px;font-weight:700;cursor:pointer;border:none;transition:all .18s;display:flex;align-items:center;justify-content:center;gap:6px;letter-spacing:.2px}
+.bc{background:linear-gradient(135deg,var(--c),#00b8d9);color:#000}
+.bc:hover{box-shadow:0 5px 20px rgba(0,229,255,.3);transform:translateY(-1px)}
+.bp{background:linear-gradient(135deg,var(--p),#6d28d9);color:#fff}
+.bp:hover{box-shadow:0 5px 20px rgba(139,92,246,.3);transform:translateY(-1px)}
+.bg{background:var(--s);border:1px solid var(--b);color:var(--t)}
+.bg:hover{border-color:rgba(0,229,255,.35);color:var(--c)}
+.bo{background:linear-gradient(135deg,var(--orange),#e55a00);color:#fff}
+.bo:hover{box-shadow:0 5px 20px rgba(255,123,53,.3);transform:translateY(-1px)}
+.br{background:rgba(255,68,102,.1);border:1px solid rgba(255,68,102,.28);color:var(--r)}
+.btn:disabled{opacity:.25;cursor:not-allowed;transform:none!important;box-shadow:none!important}
+.brow{display:flex;gap:7px}.brow .btn{flex:1;padding:9px 5px;font-size:11.5px}
+.rhead{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:9px;margin-bottom:13px}
+.rname{font-size:20px;font-weight:800;letter-spacing:-.5px}
+.rcode{display:inline-flex;align-items:center;gap:6px;margin-top:4px;background:var(--s);border:1px solid var(--b);border-radius:7px;padding:5px 11px;font-family:'Space Mono',monospace;font-size:17px;font-weight:700;letter-spacing:4px;color:var(--c);cursor:pointer;transition:border-color .18s;user-select:none}
+.rcode:hover{border-color:var(--c)}
+.rcode small{font-size:9px;color:var(--m);letter-spacing:0;font-weight:400}
+.pill{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:100px;font-family:'Space Mono',monospace;font-size:10px;font-weight:700;white-space:nowrap}
+.pl{background:rgba(0,255,136,.08);color:var(--g);border:1px solid rgba(0,255,136,.18)}
+.pw{background:rgba(74,85,120,.1);color:var(--m);border:1px solid var(--b)}
+.ps{background:rgba(0,229,255,.07);color:var(--c);border:1px solid rgba(0,229,255,.18)}
+.po{background:rgba(255,123,53,.1);color:var(--orange);border:1px solid rgba(255,123,53,.25)}
+.dot{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+.dg{background:var(--g);animation:blk 1.3s infinite}.dm{background:var(--m)}.dc{background:var(--c);animation:blk 1.3s infinite}.do{background:var(--orange);animation:blk 1.3s infinite}
+.panel{background:var(--s);border:1px solid var(--b);border-radius:12px;padding:15px;margin-bottom:10px;position:relative;overflow:hidden}
+.panel::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.04),transparent)}
+.ptitle{font-size:9px;text-transform:uppercase;letter-spacing:1.2px;color:var(--m);font-family:'Space Mono',monospace;margin-bottom:10px}
+.dbadge{position:absolute;top:12px;right:12px;font-family:'Space Mono',monospace;font-size:8px;font-weight:700;color:var(--gold);border:1px solid rgba(255,215,0,.18);border-radius:4px;padding:2px 5px;background:rgba(255,215,0,.05);letter-spacing:.7px}
+.screen-share-box{background:rgba(255,123,53,.05);border:1px solid rgba(255,123,53,.15);border-radius:10px;padding:16px;text-align:center}
+.share-icon{font-size:40px;margin-bottom:10px}
+.share-title{font-size:16px;font-weight:700;margin-bottom:6px}
+.share-desc{font-family:'Space Mono',monospace;font-size:10.5px;color:var(--m);line-height:1.7;margin-bottom:14px}
+.share-steps{background:rgba(0,0,0,.3);border-radius:7px;padding:10px 12px;margin-bottom:14px;text-align:left}
+.share-step{font-family:'Space Mono',monospace;font-size:10px;color:var(--m);padding:2px 0;display:flex;gap:7px;align-items:flex-start;line-height:1.55}
+.share-step-num{color:var(--orange);font-weight:700;flex-shrink:0}
+.live-indicator{display:flex;align-items:center;justify-content:center;gap:7px;font-family:'Space Mono',monospace;font-size:11px;color:var(--orange);margin-bottom:10px}
+.live-dot{width:8px;height:8px;border-radius:50%;background:var(--orange);animation:blk .8s infinite}
+.vol{display:flex;align-items:center;gap:7px;margin-top:10px}
+.vol-lbl{font-family:'Space Mono',monospace;font-size:10px;color:var(--m);white-space:nowrap}
+input[type=range]{flex:1;accent-color:var(--c);cursor:pointer;height:16px}
+.vol-val{font-family:'Space Mono',monospace;font-size:10px;color:var(--m);min-width:30px;text-align:right}
+canvas{width:100%;height:58px;display:block;border-radius:7px;background:var(--bg)}
+.lcnt{color:var(--c);font-weight:700}
+.nol{font-family:'Space Mono',monospace;font-size:11px;color:var(--m);text-align:center;padding:12px 0}
+.litem{display:flex;align-items:center;gap:7px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.03);font-family:'Space Mono',monospace;font-size:11px}
+.litem:last-child{border:none}
+.lav{width:24px;height:24px;border-radius:5px;background:linear-gradient(135deg,var(--p),var(--c));display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0}
+.sbox{background:rgba(0,229,255,.03);border:1px solid rgba(0,229,255,.09);border-radius:8px;padding:9px 12px;font-family:'Space Mono',monospace;font-size:11px;color:var(--m);line-height:1.85}
+.sbox b{color:var(--c)}
+.stats-row{display:flex;gap:14px;margin-top:8px;flex-wrap:wrap}
+.stat{font-family:'Space Mono',monospace;font-size:9px}
+.stat-val{font-size:13px;font-weight:700;color:var(--c);display:block}
+.stat-lbl{color:var(--m);text-transform:uppercase;letter-spacing:.4px}
+.tinfo{display:flex;align-items:center;gap:11px;margin-bottom:8px}
+.tart{width:42px;height:42px;border-radius:9px;flex-shrink:0;background:linear-gradient(135deg,var(--p),var(--c));display:flex;align-items:center;justify-content:center;font-size:19px;animation:rot 12s linear infinite;animation-play-state:paused}
+.tart.spin{animation-play-state:running}
+@keyframes rot{to{transform:rotate(360deg)}}
+.tname{font-size:13px;font-weight:700;line-height:1.35}
+.tsub{font-family:'Space Mono',monospace;font-size:10px;color:var(--m);margin-top:2px}
+.live-wave{display:flex;align-items:center;justify-content:center;gap:2px;height:24px;margin:8px 0}
+.live-bar{width:3px;border-radius:3px;background:var(--orange);animation:wavebar 1s ease-in-out infinite}
+.live-bar:nth-child(2){animation-delay:.1s}.live-bar:nth-child(3){animation-delay:.2s}.live-bar:nth-child(4){animation-delay:.3s}.live-bar:nth-child(5){animation-delay:.4s}
+@keyframes wavebar{0%,100%{height:4px;opacity:.4}50%{height:18px;opacity:1}}
+.eq-wrap{margin-top:12px;padding:10px 12px;background:rgba(0,0,0,.2);border:1px solid rgba(255,215,0,.09);border-radius:8px}
+.eq-hdr{display:flex;align-items:center;gap:6px;margin-bottom:9px;font-family:'Space Mono',monospace;font-size:9px;color:var(--gold);text-transform:uppercase;letter-spacing:.8px}
+.eq-ai{font-size:7px;background:rgba(255,215,0,.08);border:1px solid rgba(255,215,0,.18);color:var(--gold);padding:1px 5px;border-radius:3px}
+.eq-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:4px}
+.eq-btn{padding:6px 2px;border-radius:5px;font-family:'Space Mono',monospace;font-size:9px;font-weight:700;cursor:pointer;border:1px solid rgba(255,255,255,.05);background:transparent;color:var(--m);transition:all .14s;text-align:center;line-height:1.3}
+.eq-btn.on,.eq-btn:hover{background:rgba(255,215,0,.09);color:var(--gold);border-color:rgba(255,215,0,.28)}
+.depth-row{display:flex;align-items:center;gap:6px;margin-top:7px;font-family:'Space Mono',monospace;font-size:9px;color:var(--m)}
+.depth-bar{flex:1;height:3px;background:var(--b);border-radius:10px;overflow:hidden}
+.depth-fill{height:100%;width:0%;background:linear-gradient(90deg,var(--c),var(--gold));transition:width .5s;border-radius:10px}
+.spin-ani{display:inline-block;animation:rot .7s linear infinite}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(80px);background:#111520;border:1px solid rgba(255,255,255,.09);border-radius:8px;padding:9px 16px;font-family:'Space Mono',monospace;font-size:11px;z-index:9999;transition:transform .26s cubic-bezier(.34,1.56,.64,1);white-space:nowrap;max-width:92vw;text-align:center;pointer-events:none;box-shadow:0 8px 28px rgba(0,0,0,.5)}
 .toast.on{transform:translateX(-50%) translateY(0)}
-
-/* TAP OVERLAY */
-#tap-overlay{
-  display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);
-  z-index:100;align-items:center;justify-content:center;flex-direction:column;gap:16px;
-}
-#tap-overlay.on{display:flex}
-#tap-overlay .big{font-size:48px}
-#tap-overlay p{font-size:17px;font-weight:700;color:var(--white)}
-#tap-overlay small{font-size:13px;color:var(--muted);text-align:center;padding:0 32px}
-
-/* VOLUME */
-.vol-row{display:flex;align-items:center;gap:10px;margin-top:10px}
-.vol-row input[type=range]{flex:1;accent-color:var(--cyan)}
-.vol-val{font-size:12px;font-family:'Courier New',monospace;color:var(--cyan);min-width:36px;text-align:right}
-
-/* CONN BADGE */
-.conn{font-size:10px;font-family:'Courier New',monospace;display:flex;align-items:center;gap:5px}
-
-/* WAVEFORM LIVE BARS */
-.wavebars{display:flex;align-items:center;gap:3px;height:24px}
-.wb{width:3px;border-radius:2px;background:var(--red);animation:wave var(--d,.6s) ease-in-out infinite alternate}
-.wb:nth-child(1){--d:.5s;height:40%}
-.wb:nth-child(2){--d:.7s;height:90%}
-.wb:nth-child(3){--d:.4s;height:60%}
-.wb:nth-child(4){--d:.8s;height:100%}
-.wb:nth-child(5){--d:.6s;height:50%}
-@keyframes wave{to{height:20%}}
-
-/* QUALITY BADGES */
-.badge{display:inline-block;padding:2px 7px;border-radius:4px;font-size:9px;
-  font-weight:700;letter-spacing:.5px;font-family:'Courier New',monospace}
-.badge-live{background:rgba(255,68,102,.15);color:var(--red);border:1px solid rgba(255,68,102,.3)}
-.badge-sync{background:rgba(0,255,136,.1);color:var(--green);border:1px solid rgba(0,255,136,.25)}
-
-hr{border:none;border-top:1px solid var(--border);margin:14px 0}
+#unlock{position:fixed;inset:0;background:rgba(6,7,12,.97);z-index:1000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:13px;cursor:pointer;backdrop-filter:blur(8px)}
+#unlock.gone{display:none}
+.ui{font-size:50px;animation:tp 1.4s infinite}
+@keyframes tp{0%,100%{transform:scale(1)}50%{transform:scale(1.1)}}
+.ut{font-size:19px;font-weight:800}
+.us{font-family:'Space Mono',monospace;font-size:11px;color:var(--m);text-align:center;max-width:230px;line-height:1.7}
 </style>
 </head>
 <body>
-<div class="app">
 
-<!-- ═══ HOME ═══ -->
-<div class="screen on" id="s-home">
-  <div class="card">
-    <div class="logo">WaveRoom</div>
-    <div class="logo-sub">// multi-device audio sync</div>
-
-    <div class="stitle">Create a Room</div>
-    <input class="inp" id="room-name" placeholder="Room name (optional)" maxlength="40">
-    <button class="btn btn-cyan" onclick="createRoom()">Create Room →</button>
-
-    <hr>
-
-    <div class="stitle">Join a Room</div>
-    <input class="inp" id="join-inp" placeholder="ABC123" maxlength="6" inputmode="text" autocomplete="off" spellcheck="false">
-    <button class="btn btn-green" onclick="joinRoom()">Join Room →</button>
-    <div class="err" id="join-err">Room not found. Check the code.</div>
-  </div>
-
-  <div class="card" style="padding:12px 16px">
-    <div class="conn" id="conn-row">
-      <div class="dot dot-wait" id="conn-dot"></div>
-      <span id="conn-txt">Connecting...</span>
-    </div>
-  </div>
+<div id="unlock" class="gone" onclick="tapUnlock()">
+  <div class="ui">👆</div>
+  <div class="ut">Tap to Enable Audio</div>
+  <div class="us">Browser needs one tap before<br>audio can play</div>
 </div>
 
-<!-- ═══ HOST ═══ -->
-<div class="screen" id="s-host">
-  <div class="card">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
-      <div>
-        <div class="logo" style="font-size:20px">WaveRoom</div>
-        <div id="h-room-name" style="font-size:12px;color:var(--muted)">Host</div>
-      </div>
-      <div id="h-status-row" class="srow" style="margin:0">
-        <div class="dot dot-wait" id="h-dot"></div>
-        <span id="h-status" style="font-size:12px">Ready</span>
-      </div>
+<div id="app">
+  <div class="nav">
+    <div class="nav-left">
+      <div class="nav-icon">🌊</div>
+      <div class="nav-name">WaveRoom</div>
     </div>
-
-    <!-- Room code -->
-    <div class="code-box" onclick="copyCode()" title="Tap to copy">
-      <div class="code-val" id="h-code">------</div>
-      <div class="code-hint">📋 Tap to copy — share this code with listeners</div>
+    <div class="nav-right">
+      <div class="badge badge-conn" id="conn-badge"><span class="ndot"></span><span id="conn-txt">Offline</span></div>
+      <div class="badge badge-gold">✦ LIVE SYNC</div>
     </div>
+  </div>
 
-    <!-- Listener count -->
-    <div style="text-align:center;margin-bottom:14px">
-      <div class="lcnt" id="h-lcnt">0</div>
-      <div class="lcnt-lbl">Listeners connected</div>
-    </div>
-
-    <!-- How to share -->
-    <div class="stitle">How to share audio</div>
-    <div class="steps">
-      <div class="step"><div class="step-n">1</div><div>Open the video or music you want to share in <b>another tab/app</b></div></div>
-      <div class="step"><div class="step-n">2</div><div>Tap <b>Start Sharing</b> below → choose that tab → tick <b style="color:var(--orange)">"Share tab audio"</b></div></div>
-      <div class="step"><div class="step-n">3</div><div>Listeners hear audio only — perfectly synced on all their devices</div></div>
-    </div>
-
-    <div id="h-live-indicator" style="display:none;margin-bottom:12px">
-      <div class="srow">
-        <div class="dot dot-live"></div>
-        <span style="font-size:13px;font-weight:700">LIVE — listeners are hearing your audio</span>
-        <div class="wavebars" style="margin-left:auto">
-          <div class="wb"></div><div class="wb"></div><div class="wb"></div>
-          <div class="wb"></div><div class="wb"></div>
+  <!-- HOME -->
+  <div id="s-home" class="screen on">
+    <div class="hero">
+      <div class="hero-chip">⚡ Real-time Audio · Multi-Device Speaker Sync</div>
+      <h1>One Audio.<br><em>Every Device.</em><br>Same Second.</h1>
+      <p class="hero-sub">Host shares screen audio — every listener hears it<br>perfectly synced. Use phones as one speaker system.<br>No uploads. No plugins. Works anywhere.</p>
+      <div class="home-cards">
+        <div class="hcard" onclick="show('s-create')">
+          <div class="hi">🎙</div>
+          <div class="ht">Host a Room</div>
+          <div class="hd">Share your screen/tab audio live. Control what everyone hears.</div>
+        </div>
+        <div class="hcard" onclick="show('s-join')">
+          <div class="hi">🎧</div>
+          <div class="ht">Join a Room</div>
+          <div class="hd">Enter 6-letter code. Audio syncs automatically across all devices.</div>
         </div>
       </div>
-      <canvas id="h-viz" style="margin-top:8px"></canvas>
+      <div class="feats">
+        <div class="feat">🖥 Tab / Screen Share</div>
+        <div class="feat">⚡ Sample-Accurate Sync</div>
+        <div class="feat">📡 NTP Clock Sync</div>
+        <div class="feat">🔊 AI Spatial Audio</div>
+      </div>
     </div>
-
-    <button class="btn btn-orange" id="h-start-btn" onclick="startShare()">🎙 Start Sharing</button>
-    <button class="btn btn-red"    id="h-stop-btn"  onclick="stopShare()" style="display:none">⏹ Stop Sharing</button>
-    <button class="btn btn-ghost"  onclick="leave()" style="margin-top:8px">← Leave Room</button>
   </div>
-</div>
 
-<!-- ═══ LISTENER ═══ -->
-<div class="screen" id="s-listen">
-  <div class="card">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+  <!-- CREATE -->
+  <div id="s-create" class="screen">
+    <div class="fbox">
+      <button class="back" onclick="show('s-home')">← Back</button>
+      <div class="ftitle">Host a Room</div>
+      <div class="fsub">Create a room. Share your screen/tab audio.<br>Listeners only hear audio — perfectly in sync.</div>
+      <label class="fl">Room Name (optional)</label>
+      <input class="fi" id="rname-input" type="text" placeholder="Friday Night Session" maxlength="40">
+      <button class="btn bc" onclick="createRoom()">Create Room →</button>
+    </div>
+  </div>
+
+  <!-- JOIN -->
+  <div id="s-join" class="screen">
+    <div class="fbox">
+      <button class="back" onclick="show('s-home')">← Back</button>
+      <div class="ftitle">Join a Room</div>
+      <div class="fsub">Enter the 6-letter code from the host.</div>
+      <label class="fl">Room Code</label>
+      <input class="fi" id="join-code" type="text" placeholder="ABC123" maxlength="6" autocomplete="off" spellcheck="false" inputmode="text">
+      <div class="ferr" id="join-err">Room not found. Check the code.</div>
+      <button class="btn bp" onclick="joinRoom()">Join Room →</button>
+    </div>
+  </div>
+
+  <!-- HOST ROOM -->
+  <div id="s-host" class="screen">
+    <div class="rhead">
       <div>
-        <div class="logo" style="font-size:20px">WaveRoom</div>
-        <div id="l-room-name" style="font-size:12px;color:var(--muted)">Listener</div>
+        <div class="rname" id="h-rname">Room</div>
+        <div class="rcode" onclick="copyCode()"><span id="h-code">------</span><small>copy</small></div>
       </div>
-      <div id="l-status-row" class="srow" style="margin:0">
-        <div class="dot dot-wait" id="l-dot"></div>
-        <span id="l-status" style="font-size:12px">Waiting...</span>
+      <div id="h-pill" class="pill pw"><div class="dot dm"></div><span>Ready</span></div>
+    </div>
+
+    <div class="panel">
+      <div class="screen-share-box">
+        <div class="share-icon">🖥</div>
+        <div class="share-title">Share Your Screen Audio</div>
+        <div class="share-desc">Listeners hear <b>audio only</b> — no video — perfectly synced.<br>Works with YouTube, Spotify, anything in your browser.</div>
+        <div class="share-steps">
+          <div class="share-step"><span class="share-step-num">1.</span>Open YouTube (or any music) in another Chrome tab</div>
+          <div class="share-step"><span class="share-step-num">2.</span>Click <b style="color:var(--t)">Start Sharing</b> → choose that Chrome Tab</div>
+          <div class="share-step"><span class="share-step-num">3.</span>✅ Tick <b style="color:var(--orange)">"Share tab audio"</b> checkbox</div>
+          <div class="share-step"><span class="share-step-num">4.</span>All listeners hear it live — no gaps, perfectly in sync</div>
+        </div>
+        <div style="background:rgba(255,123,53,.06);border:1px solid rgba(255,123,53,.18);border-radius:7px;padding:9px 12px;margin-bottom:14px;font-family:'Space Mono',monospace;font-size:10px;color:var(--orange);line-height:1.7">
+          💡 <b>Works with:</b> YouTube, Spotify Web, SoundCloud, Apple Music, Tidal, local files
+        </div>
+        <div id="h-live-indicator" style="display:none">
+          <div class="live-indicator"><div class="live-dot"></div>LIVE — streaming to all listeners</div>
+          <div class="live-wave">
+            <div class="live-bar"></div><div class="live-bar"></div><div class="live-bar"></div>
+            <div class="live-bar"></div><div class="live-bar"></div>
+          </div>
+        </div>
+        <div class="brow">
+          <button class="btn bo" id="share-btn" onclick="startShare()">🖥 Start Screen Share</button>
+          <button class="btn br" id="stop-btn" onclick="stopShare()" style="display:none">⏹ Stop</button>
+        </div>
       </div>
     </div>
 
-    <!-- Waiting state -->
-    <div id="l-waiting" style="text-align:center;padding:20px 0;color:var(--muted)">
-      <div style="font-size:36px;margin-bottom:8px">🎧</div>
-      <div style="font-size:14px">Waiting for host to start audio...</div>
+    <div class="panel">
+      <div class="ptitle">Live Frequency Spectrum</div>
+      <canvas id="h-viz"></canvas>
     </div>
 
-    <!-- Live state -->
-    <div id="l-live" style="display:none">
-      <div class="srow">
-        <div class="dot dot-live"></div>
-        <span style="font-size:13px;font-weight:700">Live Audio</span>
-        <span class="badge badge-sync" style="margin-left:auto" id="l-sync-badge">syncing...</span>
+    <div class="panel">
+      <div class="ptitle" style="display:flex;justify-content:space-between">
+        <span>Listeners</span><span class="lcnt" id="h-lcnt">0</span>
       </div>
-      <canvas id="l-viz" style="margin:10px 0"></canvas>
+      <div id="h-llist"><div class="nol">No one joined yet — share your code!</div></div>
     </div>
 
-    <!-- Volume -->
-    <div class="vol-row">
-      <span style="font-size:13px">🔊</span>
-      <input type="range" min="0" max="1" step="0.01" value="0.9" id="l-vol" oninput="setListenerVol(this.value)">
-      <span class="vol-val" id="l-vol-val">90%</span>
-    </div>
-
-    <!-- Stats -->
-    <div class="stats" id="l-stats" style="display:none">
-      <div class="stat"><div class="stat-val" id="l-lag">—</div><div class="stat-lbl">Latency</div></div>
-      <div class="stat"><div class="stat-val" id="l-drift">—</div><div class="stat-lbl">Drift</div></div>
-      <div class="stat"><div class="stat-val" id="l-buf">—</div><div class="stat-lbl">Buffer</div></div>
-    </div>
-
-    <button class="btn btn-ghost" onclick="leave()" style="margin-top:14px">← Leave Room</button>
+    <div style="margin-top:10px"><button class="btn br" onclick="leave()">🚪 End Room</button></div>
   </div>
+
+  <!-- LISTENER ROOM -->
+  <div id="s-listen" class="screen">
+    <div class="rhead">
+      <div>
+        <div class="rname" id="l-rname">Room</div>
+        <div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--m);margin-top:3px" id="l-clabel"></div>
+      </div>
+      <div id="l-pill" class="pill pw"><div class="dot dm"></div><span>Waiting...</span></div>
+    </div>
+
+    <!-- Waiting -->
+    <div class="panel" id="l-wait-panel">
+      <div class="tinfo">
+        <div class="tart" id="l-art">🎧</div>
+        <div>
+          <div class="tname">Waiting for host...</div>
+          <div class="tsub">Host controls audio · you control volume</div>
+        </div>
+      </div>
+      <div class="sbox" id="l-sync"><b>Status:</b> Waiting for host to start audio...</div>
+    </div>
+
+    <!-- Live -->
+    <div class="panel" id="l-live-panel" style="display:none">
+      <div class="dbadge">LIVE ✦</div>
+      <div class="tinfo">
+        <div class="tart spin">📡</div>
+        <div>
+          <div class="tname">Live Audio Stream</div>
+          <div class="tsub">Audio only — synced with host</div>
+        </div>
+      </div>
+      <div class="live-wave">
+        <div class="live-bar"></div><div class="live-bar"></div><div class="live-bar"></div>
+        <div class="live-bar"></div><div class="live-bar"></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="vol">
+        <span class="vol-lbl">🔊 Volume</span>
+        <input type="range" min="0" max="1" step="0.01" value="0.9" id="l-vol" oninput="setListenerVol(this.value)">
+        <span class="vol-val" id="l-vol-val">90%</span>
+      </div>
+      <div class="eq-wrap">
+        <div class="eq-hdr">🎛 AI Spatial Audio <span class="eq-ai">AI</span></div>
+        <div class="eq-grid">
+          <button class="eq-btn on" id="leq-flat"   onclick="setListenerEQ(this,'flat')">Flat<br><span style="font-size:7px;opacity:.5">Linear</span></button>
+          <button class="eq-btn"    id="leq-atmos"  onclick="setListenerEQ(this,'atmos')">Atmos<br><span style="font-size:7px;opacity:.5">3D</span></button>
+          <button class="eq-btn"    id="leq-cinema" onclick="setListenerEQ(this,'cinema')">Cinema<br><span style="font-size:7px;opacity:.5">Wide</span></button>
+          <button class="eq-btn"    id="leq-bass"   onclick="setListenerEQ(this,'bass')">Bass+<br><span style="font-size:7px;opacity:.5">Deep</span></button>
+          <button class="eq-btn"    id="leq-vocal"  onclick="setListenerEQ(this,'vocal')">Vocal<br><span style="font-size:7px;opacity:.5">Clear</span></button>
+        </div>
+        <div class="depth-row">
+          <span style="white-space:nowrap">Spatial Depth</span>
+          <div class="depth-bar"><div class="depth-fill" id="l-depth"></div></div>
+          <span style="min-width:26px;text-align:right" id="l-depth-val">0%</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="ptitle">Sync Status</div>
+      <div class="sbox" id="l-sync2"><b>Status:</b> Waiting...</div>
+      <div class="stats-row" id="l-stats" style="display:none">
+        <div class="stat"><span class="stat-val" id="l-latency">—</span><span class="stat-lbl">Latency</span></div>
+        <div class="stat"><span class="stat-val" id="l-drift">—</span><span class="stat-lbl">Drift</span></div>
+        <div class="stat"><span class="stat-val" id="l-buf-stat">—</span><span class="stat-lbl">Queue</span></div>
+        <div class="stat"><span class="stat-val" id="l-rtt">—</span><span class="stat-lbl">RTT</span></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="ptitle">Live Spectrum</div>
+      <canvas id="l-viz"></canvas>
+    </div>
+
+    <div style="margin-top:10px"><button class="btn bg" onclick="leave()">← Leave</button></div>
+  </div>
+
 </div>
-
-</div><!-- .app -->
-
-<!-- TAP TO PLAY OVERLAY -->
-<div id="tap-overlay" onclick="tapToPlay()">
-  <div class="big">🔊</div>
-  <p>Tap to hear audio</p>
-  <small>Browser requires a tap before playing audio</small>
-</div>
-
 <div id="toast" class="toast"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js" crossorigin="anonymous"></script>
 <script>
 'use strict';
 // ═══════════════════════════════════════════════════════════
-// WAVEROOM v4 — Audio-only multi-device sync
+// WAVEROOM v4 — Audio-only perfect multi-device sync
 //
-// Architecture:
-//   HOST: getDisplayMedia → MediaRecorder(opus 80ms chunks) → socket
-//   SERVER: relay chunks with timestamps
-//   LISTENER: MediaSource → AudioContext → Web Audio API playback
+// SYNC ARCHITECTURE (why there are no gaps):
+//   HOST:     getDisplayMedia → MediaRecorder(opus 60ms) → socket.emit
+//   SERVER:   relay chunk + server timestamp (ts = Date.now())
+//   LISTENER: decodeAudioData → AudioBufferSourceNode.start(exactTime)
 //
-// Sync method:
-//   1. NTP clock sync (12 rounds) → accurate clockOffset
-//   2. Server timestamps each chunk
-//   3. Listener schedules AudioContext.currentTime playback
-//      so all devices play the same chunk at the same moment
-//
-// This is how professional broadcast sync works.
+//   The key insight:
+//     NTP gives us clockOffset so srvNow() = server's Date.now()
+//     Server stamps each chunk with ts
+//     Listener calculates: playAt = acBase + (ts - streamStart) / 1000
+//     Web Audio API's AudioBufferSourceNode.start(when) is SAMPLE ACCURATE
+//     So all devices play the same chunk at the same hardware moment
 // ═══════════════════════════════════════════════════════════
 
-// ── CONFIG ──────────────────────────────────────────────────
-const NTP_ROUNDS  = 16;        // more rounds = more accurate
-const CHUNK_MS    = 60;        // ms per MediaRecorder chunk (lower = less lag)
-const TARGET_LAG  = 400;       // ms behind live (buffer for jitter). Lower = less lag but more glitches
-const DRIFT_MAX   = 0.08;      // seconds of allowed drift before correction
+const NTP_ROUNDS = 16;
+const CHUNK_MS   = 60;    // ms per chunk - lower = less lag, higher = more stable
+const TARGET_LAG = 350;   // ms buffer behind live edge (absorbs jitter/network variance)
 
-// ── STATE ───────────────────────────────────────────────────
-let sock = null;
-let roomCode = null;
-let amHost = false;
+const PRESETS = {
+  flat:   {sub:0,  bass:0,  lo:0,  mid:0,  hi:0,  pres:0,  air:0,  rev:0,   depth:0,  label:'Flat'},
+  atmos:  {sub:4,  bass:3,  lo:-2, mid:1,  hi:5,  pres:6,  air:7,  rev:.18, depth:85, label:'Atmos 3D'},
+  cinema: {sub:6,  bass:5,  lo:1,  mid:2,  hi:4,  pres:5,  air:5,  rev:.28, depth:95, label:'Cinema'},
+  bass:   {sub:10, bass:8,  lo:3,  mid:-2, hi:1,  pres:2,  air:1,  rev:.06, depth:20, label:'Bass+'},
+  vocal:  {sub:-3, bass:-2, lo:1,  mid:5,  hi:4,  pres:3,  air:2,  rev:.12, depth:30, label:'Vocal'},
+};
 
-// NTP
-let ntpSamples = [];
-let clockOffset = 0;   // local = server + clockOffset  →  server = local - clockOffset
-let ntpDone = false;
+// ── STATE ──────────────────────────────────────────────────
+let sock=null, roomCode=null, amHost=false;
+let ntpSamples=[], clockOffset=0, bestRTT=0;
+let listeners={};
 
-// Host side
-let captureStream  = null;
-let mediaRecorder  = null;
-let hostAudioCtx   = null;
-let hostAnalyser   = null;
-let hostVizRaf     = null;
-let chunkSeq       = 0;
+// Host
+let captureStream=null, mediaRecorder=null;
+let hostAudioCtx=null, hostAnalyser=null, hostVizRaf=null;
+let chunkSeq=0;
 
-// Listener side — Web Audio API based playback
-let listenerAudioCtx  = null;   // AudioContext — its clock is THE sync reference
-let listenerGain      = null;   // GainNode for volume
-let listenerAnalyser  = null;   // for visualizer
-let listenerVizRaf    = null;
-let streamStartSrvTime = null;  // server Date.now() when stream started
-let streamStartAcTime  = null;  // AudioContext.currentTime when stream started
-let chunkQueue        = [];     // { seq, data:ArrayBuffer, srvTs } waiting to decode
-let nextSeq           = 0;
-let decoding          = false;
-let listenerRunning   = false;
-let statsRaf          = null;
+// Listener — Web Audio API
+let lac=null;           // AudioContext
+let lacGain=null;       // master GainNode
+let lacEQ=null;         // EQ chain
+let lacConvolver=null, lacRevGain=null, lacDryGain=null;
+let lacAnalyser=null;
+let lacVizRaf=null, lacStatsRaf=null;
+let streamSrvStart=0;   // server timestamp when stream started
+let streamAcBase=0;     // AudioContext.currentTime reference
+let chunkQueue=[];
+let decoding=false;
+let lacRunning=false;
+let currentEQKey='flat';
 
-// ── HELPERS ─────────────────────────────────────────────────
+// ── HELPERS ────────────────────────────────────────────────
 const G = id => document.getElementById(id);
-function srvNow() { return Date.now() - clockOffset; }
-
-function toast(msg, dur = 3000) {
-  const t = G('toast');
-  t.textContent = msg;
-  t.classList.add('on');
-  clearTimeout(t._t);
-  t._t = setTimeout(() => t.classList.remove('on'), dur);
+function srvNow(){ return Date.now() - clockOffset; }
+function toast(msg, dur=3000){
+  const t=G('toast'); t.textContent=msg; t.classList.add('on');
+  clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('on'),dur);
 }
-
-function show(id) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('on'));
+function show(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on'));
   G(id).classList.add('on');
 }
-
-function setStatus(dotId, txtId, dotClass, txt) {
-  const d = G(dotId), t = G(txtId);
-  if (d) d.className = 'dot ' + dotClass;
-  if (t) t.textContent = txt;
+function setSyncText(html){
+  if(G('l-sync'))  G('l-sync').innerHTML ='<b>Status:</b> '+html;
+  if(G('l-sync2')) G('l-sync2').innerHTML='<b>Status:</b> '+html;
+}
+function setPill(id,cls,dotCls,txt){
+  const e=G(id); if(!e) return;
+  e.className='pill '+cls;
+  e.innerHTML=`<div class="dot ${dotCls}"></div><span>${txt}</span>`;
+}
+function setConn(on){
+  const b=G('conn-badge'); b.classList.toggle('on',on);
+  G('conn-txt').textContent=on?'Online':'Offline';
 }
 
-function setConn(on) {
-  G('conn-dot').className = 'dot ' + (on ? 'dot-conn' : 'dot-wait');
-  G('conn-txt').textContent = on ? 'Online' : 'Connecting...';
+// ── NTP CLOCK SYNC ─────────────────────────────────────────
+function startNTP(){ ntpSamples=[]; sendPing(); }
+function sendPing(){ if(sock?.connected) sock.emit('ntp:ping',{clientTime:Date.now()}); }
+function onPong({clientTime,serverTime}){
+  const now=Date.now(), rtt=now-clientTime;
+  ntpSamples.push({rtt, offset:now-(serverTime+rtt/2)});
+  if(ntpSamples.length<NTP_ROUNDS){ setTimeout(sendPing,30); return; }
+  ntpSamples.sort((a,b)=>a.rtt-b.rtt);
+  const best=ntpSamples.slice(0,Math.ceil(NTP_ROUNDS/3));
+  clockOffset=best.reduce((s,x)=>s+x.offset,0)/best.length;
+  bestRTT=ntpSamples[0].rtt;
+  if(G('l-rtt')) G('l-rtt').textContent=bestRTT+'ms';
+  console.log(`[NTP] offset=${clockOffset.toFixed(1)}ms RTT=${bestRTT}ms`);
 }
 
-function copyCode() {
-  const code = G('h-code').textContent;
-  navigator.clipboard?.writeText(code).then(() => toast('📋 Copied: ' + code));
-}
+// ── SOCKET ────────────────────────────────────────────────
+function initSock(){
+  if(sock?.connected) return;
+  sock=io({transports:['websocket','polling'],reconnectionAttempts:30,reconnectionDelay:1000,timeout:20000});
+  sock.on('connect',()=>{ setConn(true); startNTP(); clearInterval(window._ka); window._ka=setInterval(()=>sock?.connected&&sock.emit('keepalive'),15000); });
+  sock.on('disconnect',()=>{ setConn(false); if(roomCode) toast('⚠️ Reconnecting...'); });
+  sock.on('reconnect',()=>{ setConn(true); startNTP(); });
+  sock.on('connect_error',()=>setConn(false));
+  sock.on('ntp:pong',onPong);
 
-// ── NTP CLOCK SYNC ──────────────────────────────────────────
-// Measures the offset between local clock and server clock.
-// After NTP, clockOffset = (local - server)
-// So server time = Date.now() - clockOffset
-// And srvNow() gives us server wall time from local machine.
-
-function startNTP() {
-  ntpSamples = [];
-  ntpDone = false;
-  sendNTPPing();
-}
-
-function sendNTPPing() {
-  if (!sock || !sock.connected) return;
-  sock.emit('ntp:ping', { clientTime: Date.now() });
-}
-
-function onNTPPong({ clientTime, serverTime }) {
-  const now = Date.now();
-  const rtt = now - clientTime;
-  const offset = now - (serverTime + rtt / 2);  // local - server
-  ntpSamples.push({ rtt, offset });
-
-  if (ntpSamples.length < NTP_ROUNDS) {
-    setTimeout(sendNTPPing, 30);
-  } else {
-    // Use median of best-RTT third for accuracy
-    ntpSamples.sort((a, b) => a.rtt - b.rtt);
-    const best = ntpSamples.slice(0, Math.ceil(NTP_ROUNDS / 3));
-    clockOffset = best.reduce((s, x) => s + x.offset, 0) / best.length;
-    ntpDone = true;
-    const rttMs = ntpSamples[0].rtt;
-    console.log(`[NTP] done. offset=${clockOffset.toFixed(1)}ms bestRTT=${rttMs}ms`);
-  }
-}
-
-// ── SOCKET ──────────────────────────────────────────────────
-function initSock() {
-  if (sock && sock.connected) return;
-  sock = io({
-    transports: ['websocket', 'polling'],
-    reconnectionAttempts: 30,
-    reconnectionDelay: 1000,
-    timeout: 20000,
+  sock.on('listener:joined',({id,count})=>{
+    listeners[id]={}; G('h-lcnt').textContent=count; renderListeners();
+    toast('🎧 Listener joined! ('+count+')');
+  });
+  sock.on('listener:left',({id,count})=>{
+    delete listeners[id]; G('h-lcnt').textContent=count; renderListeners();
   });
 
-  sock.on('connect', () => {
-    console.log('[WS] connected', sock.id);
-    setConn(true);
-    startNTP();
-    clearInterval(window._ka);
-    window._ka = setInterval(() => {
-      if (sock?.connected) sock.emit('keepalive');
-    }, 15000);
+  sock.on('stream:start',({mime,serverTime})=>{
+    console.log('[L] stream:start serverTime='+serverTime);
+    startListening(mime,serverTime);
   });
 
-  sock.on('disconnect', () => {
-    setConn(false);
-    if (roomCode) toast('⚠️ Reconnecting...');
-  });
-
-  sock.on('reconnect', () => {
-    setConn(true);
-    startNTP();
-    if (roomCode && !amHost) {
-      // Listener reconnected — reinitialise audio context
-      toast('✅ Reconnected');
-    }
-  });
-
-  sock.on('connect_error', () => setConn(false));
-  sock.on('ntp:pong', onNTPPong);
-
-  // ── HOST events ──────────────────────────────────────────
-  sock.on('listener:joined', ({ id, count }) => {
-    G('h-lcnt').textContent = count;
-    toast('🎧 Listener joined! (' + count + ' total)');
-  });
-
-  sock.on('listener:left', ({ id, count }) => {
-    G('h-lcnt').textContent = count;
-  });
-
-  // ── LISTENER events ───────────────────────────────────────
-  sock.on('stream:start', ({ mime, serverTime }) => {
-    console.log('[L] stream:start mime=' + mime);
-    startListening(mime, serverTime);
-  });
-
-  sock.on('stream:chunk', ({ seq, data, ts }) => {
-    if (!listenerRunning) return;
-    // data arrives as ArrayBuffer (socket.io binary)
-    const ab = data instanceof ArrayBuffer ? data
-              : data?.buffer ? data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength)
-              : null;
-    if (!ab) { console.warn('[L] bad chunk type', typeof data); return; }
-    chunkQueue.push({ seq, data: ab, srvTs: ts });
+  sock.on('stream:chunk',({seq,data,ts})=>{
+    if(!lacRunning) return;
+    // Normalize data to ArrayBuffer regardless of how socket.io delivers it
+    let ab;
+    if(data instanceof ArrayBuffer) ab=data;
+    else if(data?.buffer instanceof ArrayBuffer) ab=data.buffer.slice(data.byteOffset,data.byteOffset+data.byteLength);
+    else if(typeof data==='object'&&data!==null) ab=new Uint8Array(Object.values(data)).buffer;
+    else { console.warn('[L] unknown chunk type',typeof data); return; }
+    if(ab.byteLength<4) return;
+    chunkQueue.push({seq,data:ab,srvTs:ts});
     drainQueue();
   });
 
-  sock.on('stream:stop', () => {
-    console.log('[L] stream:stop');
-    stopListening();
-    toast('Host stopped the stream');
-  });
-
-  sock.on('host:left', () => {
-    toast('🚪 Host ended the session');
-    setTimeout(leave, 1500);
-  });
+  sock.on('stream:stop',()=>{ stopListening(); toast('Host stopped the stream'); });
+  sock.on('host:left',()=>{ toast('🚪 Host ended the session'); setTimeout(leave,1500); });
 }
 
-// ── CREATE / JOIN ────────────────────────────────────────────
-function createRoom() {
-  const name = G('room-name').value.trim() || 'Audio Room';
-  const btn = document.querySelector('#s-home .btn-cyan');
-  btn.disabled = true; btn.textContent = 'Creating...';
-  amHost = true; initSock();
-
-  const go = () => sock.emit('room:create', { name }, res => {
-    btn.disabled = false; btn.textContent = 'Create Room →';
-    if (!res?.ok) { toast('❌ Could not create room'); return; }
-    roomCode = res.code;
-    G('h-code').textContent = res.code;
-    G('h-room-name').textContent = res.name;
+// ── CREATE ROOM ────────────────────────────────────────────
+function createRoom(){
+  const name=G('rname-input').value.trim()||'Audio Room';
+  const btn=document.querySelector('#s-create .btn');
+  btn.disabled=true; btn.textContent='Creating...';
+  amHost=true; initSock();
+  const go=()=>sock.emit('room:create',{name},res=>{
+    btn.disabled=false; btn.textContent='Create Room →';
+    if(!res?.ok){ toast('❌ Could not create room'); return; }
+    roomCode=res.code;
+    G('h-code').textContent=res.code;
+    G('h-rname').textContent=res.name;
+    G('h-lcnt').textContent='0';
     show('s-host');
-    toast('🎉 Room created! Share: ' + res.code);
+    toast('🎉 Room created! Share: '+res.code);
   });
-
-  if (sock.connected) go();
-  else {
-    let done = false;
-    sock.once('connect', () => { done = true; setTimeout(go, 200); });
-    setTimeout(() => { if (!done) { btn.disabled = false; btn.textContent = 'Create Room →'; toast('❌ Cannot connect'); } }, 8000);
-  }
+  if(sock.connected) go();
+  else { let d=false; sock.once('connect',()=>{d=true;setTimeout(go,200);}); setTimeout(()=>{if(!d){btn.disabled=false;btn.textContent='Create Room →';toast('❌ Cannot connect');}},8000); }
 }
 
-async function joinRoom() {
-  const code = G('join-inp').value.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
-  if (code.length < 6) { toast('Enter the 6-letter room code'); return; }
-
-  const btn = document.querySelector('#s-home .btn-green');
-  btn.disabled = true; btn.textContent = 'Joining...';
+// ── JOIN ROOM ──────────────────────────────────────────────
+async function joinRoom(){
+  const code=G('join-code').value.trim().toUpperCase().replace(/[^A-Z0-9]/g,'');
+  if(code.length<6){ toast('Enter the full 6-letter code'); return; }
+  const btn=document.querySelector('#s-join .btn.bp');
+  btn.disabled=true; btn.textContent='Joining...';
   G('join-err').classList.remove('on');
-
   // HTTP pre-check
   try {
-    const r = await fetch('/room/' + code);
-    const d = await r.json();
-    if (!d.exists) {
-      G('join-err').textContent = 'Room "' + code + '" not found. Check the code or ask the host to recreate.';
-      G('join-err').classList.add('on');
-      btn.disabled = false; btn.textContent = 'Join Room →';
-      return;
-    }
-  } catch (e) { /* server might just be loading, try socket anyway */ }
-
-  amHost = false; initSock();
-
-  const go = () => sock.emit('room:join', { code }, res => {
-    btn.disabled = false; btn.textContent = 'Join Room →';
-    if (!res?.ok) {
-      G('join-err').textContent = 'Room not found. Host may have left.';
-      G('join-err').classList.add('on');
-      return;
-    }
-    roomCode = code;
-    G('l-room-name').textContent = res.name + ' · ' + code;
+    const r=await fetch('/room/'+code);
+    const d=await r.json();
+    if(!d.exists){ G('join-err').textContent='Room "'+code+'" not found. Check code or ask host to recreate.'; G('join-err').classList.add('on'); btn.disabled=false; btn.textContent='Join Room →'; return; }
+  } catch(e){ /* fallthrough to socket */ }
+  amHost=false; initSock();
+  const go=()=>sock.emit('room:join',{code},res=>{
+    btn.disabled=false; btn.textContent='Join Room →';
+    if(!res?.ok){ G('join-err').textContent='Room not found. Host may have left.'; G('join-err').classList.add('on'); return; }
+    roomCode=code;
+    G('l-rname').textContent=res.name;
+    G('l-clabel').textContent='Room: '+code;
     show('s-listen');
-    toast('🎧 Joined "' + res.name + '"!');
-
-    // If stream already running when we joined — start listening immediately
-    if (res.streaming) {
-      // We'll get stream:start shortly or handle via resync
-      toast('🔴 Stream is live — connecting...');
-    }
+    toast('🎧 Joined "'+res.name+'"!');
+    if(res.streaming) toast('🔴 Stream is live — connecting audio...');
   });
-
-  if (sock.connected) go();
+  if(sock.connected) go();
   else {
-    let done = false;
-    sock.once('connect', () => { done = true; setTimeout(go, 200); });
-    setTimeout(() => {
-      if (!done) {
-        btn.disabled = false; btn.textContent = 'Join Room →';
-        G('join-err').textContent = 'Cannot connect. Check internet.';
-        G('join-err').classList.add('on');
-      }
-    }, 8000);
+    let d=false;
+    setSyncText('<span class="spin-ani">⟳</span> Connecting...');
+    sock.once('connect',()=>{d=true;setTimeout(go,200);});
+    setTimeout(()=>{if(!d){btn.disabled=false;btn.textContent='Join Room →';G('join-err').textContent='Cannot connect.';G('join-err').classList.add('on');}},8000);
   }
 }
 
-// ── SCREEN SHARE (HOST) ──────────────────────────────────────
-async function startShare() {
+// ── SCREEN SHARE (HOST) ────────────────────────────────────
+async function startShare(){
   try {
-    // getDisplayMedia — user picks a tab or screen
-    // Chrome shows "Share tab audio" checkbox when video is requested
-    captureStream = await navigator.mediaDevices.getDisplayMedia({
-      video: { width: 1, height: 1, frameRate: 1 }, // minimal — just to get audio checkbox
-      audio: {
-        echoCancellation: false,
-        noiseSuppression: false,
-        autoGainControl: false,
-        sampleRate: 48000,
-        channelCount: 2,
-      }
+    captureStream=await navigator.mediaDevices.getDisplayMedia({
+      video:{width:1,height:1,frameRate:1},
+      audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false,sampleRate:48000,channelCount:2}
     });
-
-    const audioTracks = captureStream.getAudioTracks();
-    if (!audioTracks.length) {
-      captureStream.getTracks().forEach(t => t.stop());
-      toast('❌ No audio! Make sure to tick "Share tab audio"', 6000);
+    const aTracks=captureStream.getAudioTracks();
+    if(!aTracks.length){
+      captureStream.getTracks().forEach(t=>t.stop());
+      toast('❌ No audio! Make sure to tick "Share tab audio"',6000);
       return;
     }
-
-    // Kill video track — we only want audio
-    captureStream.getVideoTracks().forEach(t => t.stop());
-
-    // Build audio-only stream for MediaRecorder
-    const audioOnlyStream = new MediaStream(audioTracks);
-
-    // Pick best mime type
-    const mime = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus']
-      .find(m => MediaRecorder.isTypeSupported(m)) || '';
-
-    // Host visualizer
-    hostAudioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 48000 });
-    const src = hostAudioCtx.createMediaStreamSource(audioOnlyStream);
-    hostAnalyser = hostAudioCtx.createAnalyser(); hostAnalyser.fftSize = 512;
+    // Drop video tracks — audio only
+    captureStream.getVideoTracks().forEach(t=>t.stop());
+    const audioOnly=new MediaStream(aTracks);
+    const mime=['audio/webm;codecs=opus','audio/webm','audio/ogg;codecs=opus'].find(m=>MediaRecorder.isTypeSupported(m))||'';
+    // Visualizer for host
+    hostAudioCtx=new(window.AudioContext||window.webkitAudioContext)({sampleRate:48000});
+    const src=hostAudioCtx.createMediaStreamSource(audioOnly);
+    hostAnalyser=hostAudioCtx.createAnalyser(); hostAnalyser.fftSize=512;
     src.connect(hostAnalyser);
-    G('h-live-indicator').style.display = 'block';
-    startViz('h-viz', hostAnalyser, hostVizRaf, raf => hostVizRaf = raf);
-
-    // MediaRecorder — encode to opus chunks
-    mediaRecorder = new MediaRecorder(audioOnlyStream, { mimeType: mime, audioBitsPerSecond: 128000 });
-    chunkSeq = 0;
-
-    mediaRecorder.ondataavailable = async e => {
-      if (!e.data || e.data.size === 0 || !sock?.connected) return;
-      const buf = await e.data.arrayBuffer();
-      sock.emit('stream:chunk', { seq: chunkSeq++, data: buf });
+    startViz('h-viz',hostAnalyser,r=>hostVizRaf=r);
+    // MediaRecorder → opus chunks
+    mediaRecorder=new MediaRecorder(audioOnly,{mimeType:mime,audioBitsPerSecond:128000});
+    chunkSeq=0;
+    mediaRecorder.ondataavailable=async e=>{
+      if(!e.data||e.data.size===0||!sock?.connected) return;
+      const buf=await e.data.arrayBuffer();
+      sock.emit('stream:chunk',{seq:chunkSeq++,data:buf});
     };
-
-    // Tell server we're starting
-    sock.emit('stream:start', { mime });
+    sock.emit('stream:start',{mime});
     mediaRecorder.start(CHUNK_MS);
-
-    G('h-start-btn').style.display = 'none';
-    G('h-stop-btn').style.display = '';
-    setStatus('h-dot', 'h-status', 'dot-live', '🔴 Live');
-    toast('🔴 Live! Listeners can hear your audio');
-
-    // Handle user stopping via browser's built-in stop button
-    audioTracks[0].onended = () => stopShare();
-
-  } catch (e) {
-    if (e.name === 'NotAllowedError') toast('❌ Permission denied', 5000);
-    else toast('❌ ' + e.message, 5000);
-    console.error('[SHARE]', e);
+    G('h-live-indicator').style.display='block';
+    G('share-btn').style.display='none';
+    G('stop-btn').style.display='';
+    setPill('h-pill','po','do','● Live');
+    toast('🔴 Live! All listeners hear your audio');
+    aTracks[0].onended=()=>stopShare();
+  } catch(e){
+    if(e.name==='NotAllowedError') toast('❌ Permission denied',5000);
+    else toast('❌ '+e.message,5000);
+    console.error('[SHARE]',e);
   }
 }
 
-function stopShare() {
-  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-    try { mediaRecorder.stop(); } catch (e) {}
-  }
-  if (captureStream) {
-    captureStream.getTracks().forEach(t => t.stop());
-    captureStream = null;
-  }
-  if (hostAudioCtx) { hostAudioCtx.close().catch(() => {}); hostAudioCtx = null; }
-  if (hostVizRaf) { cancelAnimationFrame(hostVizRaf); hostVizRaf = null; }
-  mediaRecorder = null;
-  if (sock) sock.emit('stream:stop');
-  G('h-live-indicator').style.display = 'none';
-  G('h-start-btn').style.display = '';
-  G('h-stop-btn').style.display = 'none';
-  setStatus('h-dot', 'h-status', 'dot-wait', 'Ready');
+function stopShare(){
+  try{ if(mediaRecorder&&mediaRecorder.state!=='inactive') mediaRecorder.stop(); }catch(e){}
+  if(captureStream){ captureStream.getTracks().forEach(t=>t.stop()); captureStream=null; }
+  if(hostAudioCtx){ hostAudioCtx.close().catch(()=>{}); hostAudioCtx=null; }
+  if(hostVizRaf){ cancelAnimationFrame(hostVizRaf); hostVizRaf=null; }
+  mediaRecorder=null; hostAnalyser=null;
+  if(sock) sock.emit('stream:stop');
+  G('h-live-indicator').style.display='none';
+  G('share-btn').style.display='';
+  G('stop-btn').style.display='none';
+  setPill('h-pill','pw','dm','Ready');
   toast('⏹ Stream stopped');
 }
 
-// ── LISTENER AUDIO — Web Audio API based ────────────────────
+// ── LISTENER — WEB AUDIO PERFECT SYNC ─────────────────────
 //
-// How sync works:
-// 1. Server records Date.now() (ts) when each chunk arrives
-// 2. Listener knows clockOffset (via NTP), so can compute srvNow()
-// 3. Each chunk's "play time" in AudioContext time =
-//      acStart + (chunkSrvTs - streamStartSrvTime) / 1000 + TARGET_LAG/1000
-//    where acStart = AudioContext.currentTime when we initialised
-// 4. We use AudioContext.decodeAudioData + AudioBufferSourceNode.start(when)
-//    This is sample-accurate scheduling — no gaps, no drift.
+//  For each chunk that arrives:
+//    playAt = streamAcBase + (chunk.srvTs - streamSrvStart) / 1000
+//
+//  streamAcBase = AudioContext.currentTime at the moment we initialised
+//                 + TARGET_LAG/1000 (we play this many ms behind live)
+//  streamSrvStart = server's Date.now() when host started streaming
+//  chunk.srvTs = server's Date.now() when THIS chunk was received
+//
+//  Since NTP ensures srvNow() ≈ server's Date.now(),
+//  all listeners compute the same playAt for the same chunk,
+//  and Web Audio's start(when) is hardware sample-accurate.
+//  Result: zero drift between devices, no gaps.
 
-function startListening(mime, streamStartSrvTs) {
-  stopListening(); // clean up any previous
-
-  // Create Web Audio context
-  listenerAudioCtx = new (window.AudioContext || window.webkitAudioContext)({
-    sampleRate: 48000,
-    latencyHint: 'playback',
-  });
-
-  // Resume if suspended (mobile)
-  const resumeCtx = () => listenerAudioCtx?.resume();
-
-  // Gain node (volume)
-  listenerGain = listenerAudioCtx.createGain();
-  listenerGain.gain.value = parseFloat(G('l-vol').value) || 0.9;
-
-  // Analyser for visualizer
-  listenerAnalyser = listenerAudioCtx.createAnalyser();
-  listenerAnalyser.fftSize = 512;
-
-  listenerGain.connect(listenerAnalyser);
-  listenerAnalyser.connect(listenerAudioCtx.destination);
-
-  // Record when we initialised, relative to stream start
-  streamStartSrvTime = streamStartSrvTs;
-  // AudioContext "start" = now, adjusted for clock offset
-  // We add TARGET_LAG so we always play slightly behind live
-  streamStartAcTime = listenerAudioCtx.currentTime
-                    + TARGET_LAG / 1000
-                    - (srvNow() - streamStartSrvTs) / 1000;
-
-  listenerRunning = true;
-  chunkQueue = [];
-  nextSeq = 0;
-
-  G('l-waiting').style.display = 'none';
-  G('l-live').style.display = 'block';
-  G('l-stats').style.display = 'flex';
-  setStatus('l-dot', 'l-status', 'dot-live', '🔴 Live');
-
-  startViz('l-viz', listenerAnalyser, listenerVizRaf, raf => listenerVizRaf = raf);
+function startListening(mime, serverTime){
+  stopListening();
+  lac=new(window.AudioContext||window.webkitAudioContext)({sampleRate:48000,latencyHint:'playback'});
+  lac.resume().catch(()=>{});
+  if(lac.state==='suspended') G('unlock').classList.remove('gone');
+  // Build audio processing chain
+  buildListenerChain();
+  // Set reference timestamps
+  streamSrvStart=serverTime;
+  streamAcBase=lac.currentTime + TARGET_LAG/1000;
+  lacRunning=true;
+  chunkQueue=[]; decoding=false;
+  G('l-wait-panel').style.display='none';
+  G('l-live-panel').style.display='block';
+  G('l-stats').style.display='flex';
+  setPill('l-pill','po','do','● Live');
+  setSyncText('🔴 Receiving live audio...');
+  startViz('l-viz',lacAnalyser,r=>lacVizRaf=r);
   startStatsLoop();
-
-  // Handle autoplay block
-  if (listenerAudioCtx.state === 'suspended') {
-    G('tap-overlay').classList.add('on');
-  }
-
-  console.log('[L] listening, TARGET_LAG=' + TARGET_LAG + 'ms');
 }
 
-function stopListening() {
-  listenerRunning = false;
-  chunkQueue = [];
-  nextSeq = 0;
-  if (listenerVizRaf) { cancelAnimationFrame(listenerVizRaf); listenerVizRaf = null; }
-  if (statsRaf) { cancelAnimationFrame(statsRaf); statsRaf = null; }
-  if (listenerAudioCtx) { listenerAudioCtx.close().catch(() => {}); listenerAudioCtx = null; }
-  listenerGain = null; listenerAnalyser = null;
-  G('l-waiting').style.display = '';
-  G('l-live').style.display = 'none';
-  G('l-stats').style.display = 'none';
-  setStatus('l-dot', 'l-status', 'dot-wait', 'Waiting...');
+function buildListenerChain(){
+  if(!lac) return;
+  // Gain (volume)
+  lacGain=lac.createGain();
+  lacGain.gain.value=parseFloat(G('l-vol').value)||0.9;
+  // Analyser
+  lacAnalyser=lac.createAnalyser(); lacAnalyser.fftSize=512;
+  // EQ
+  lacEQ=buildEQChain(lac);
+  // Reverb
+  lacConvolver=lac.createConvolver(); lacConvolver.buffer=makeIR(lac,2.2,3);
+  lacRevGain=lac.createGain(); lacRevGain.gain.value=0;
+  lacDryGain=lac.createGain(); lacDryGain.gain.value=1;
+  // Wire: source → EQ → dry/wet split → gain → analyser → dest
+  lacEQ.out.connect(lacDryGain);
+  lacEQ.out.connect(lacConvolver);
+  lacConvolver.connect(lacRevGain);
+  lacDryGain.connect(lacGain);
+  lacRevGain.connect(lacGain);
+  lacGain.connect(lacAnalyser);
+  lacAnalyser.connect(lac.destination);
+  applyListenerPreset(PRESETS[currentEQKey]);
 }
 
-// Drain chunk queue — decode and schedule each chunk
-function drainQueue() {
-  if (decoding || !listenerRunning || !listenerAudioCtx) return;
-  if (chunkQueue.length === 0) return;
+function buildEQChain(ctx){
+  const f1=mkF(ctx,'lowshelf',40);
+  const f2=mkF(ctx,'peaking',120,1.0);
+  const f3=mkF(ctx,'peaking',400,0.9);
+  const f4=mkF(ctx,'peaking',1200,0.9);
+  const f5=mkF(ctx,'peaking',4000,1.0);
+  const f6=mkF(ctx,'peaking',8000,1.1);
+  const f7=mkF(ctx,'highshelf',16000);
+  f1.connect(f2);f2.connect(f3);f3.connect(f4);f4.connect(f5);f5.connect(f6);f6.connect(f7);
+  return {in:f1,out:f7,f1,f2,f3,f4,f5,f6,f7};
+}
+function mkF(ctx,type,freq,q){const f=ctx.createBiquadFilter();f.type=type;f.frequency.value=freq;if(q!==undefined)f.Q.value=q;return f;}
+function makeIR(ctx,dur,decay){
+  const len=Math.floor(ctx.sampleRate*dur),buf=ctx.createBuffer(2,len,ctx.sampleRate);
+  for(let ch=0;ch<2;ch++){const d=buf.getChannelData(ch);for(let i=0;i<len;i++){const t=i/ctx.sampleRate,env=Math.pow(Math.max(0,1-t/dur),decay);d[i]=(Math.random()*2-1)*env*0.4;if(i<ctx.sampleRate*0.04)d[i]*=1.8;}}
+  return buf;
+}
+function applyListenerPreset(p){
+  if(!lacEQ||!p) return;
+  lacEQ.f1.gain.value=p.sub; lacEQ.f2.gain.value=p.bass;
+  lacEQ.f3.gain.value=p.lo;  lacEQ.f4.gain.value=p.mid;
+  lacEQ.f5.gain.value=p.hi;  lacEQ.f6.gain.value=p.pres; lacEQ.f7.gain.value=p.air;
+  if(lacRevGain) lacRevGain.gain.value=p.rev||0;
+  if(lacDryGain) lacDryGain.gain.value=1-((p.rev||0)*0.4);
+  const df=G('l-depth'),dv=G('l-depth-val');
+  if(df){df.style.width=(p.depth||0)+'%';dv.textContent=(p.depth||0)+'%';}
+}
+function setListenerVol(v){
+  const val=parseFloat(v);
+  if(lacGain) lacGain.gain.value=val;
+  G('l-vol-val').textContent=Math.round(val*100)+'%';
+}
+function setListenerEQ(btn,key){
+  currentEQKey=key;
+  document.querySelectorAll('[id^="leq-"]').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  applyListenerPreset(PRESETS[key]);
+  toast('✦ '+(PRESETS[key]?.label||key));
+}
 
-  // Sort by seq to handle out-of-order delivery
-  chunkQueue.sort((a, b) => a.seq - b.seq);
-
-  // Only process chunks we're ready for
-  const chunk = chunkQueue[0];
-  if (chunk.seq > nextSeq + 5) return; // too far ahead — wait
-  chunkQueue.shift();
-  nextSeq = chunk.seq + 1;
-
-  decoding = true;
-  listenerAudioCtx.decodeAudioData(chunk.data.slice(0), buffer => {
-    decoding = false;
-
-    if (!listenerRunning || !listenerAudioCtx) return;
-
-    // Calculate WHEN to play this chunk in AudioContext time
-    // chunkSrvTs = server wall clock when chunk was received by server
-    // We map that to AudioContext time using our reference points
-    const chunkAcTime = streamStartAcTime + (chunk.srvTs - streamStartSrvTime) / 1000;
-
-    // If we're already past this chunk's play time, skip it (we're behind)
-    const now = listenerAudioCtx.currentTime;
-    if (chunkAcTime < now - 0.1) {
-      console.warn('[L] skipped late chunk seq=' + chunk.seq +
-        ' was ' + ((now - chunkAcTime) * 1000).toFixed(0) + 'ms late');
-      drainQueue();
-      return;
+// Decode and schedule each chunk sample-accurately
+function drainQueue(){
+  if(decoding||!lacRunning||!lac||!chunkQueue.length) return;
+  chunkQueue.sort((a,b)=>a.seq-b.seq);
+  const chunk=chunkQueue.shift();
+  decoding=true;
+  lac.decodeAudioData(chunk.data.slice(0), buffer=>{
+    decoding=false;
+    if(!lacRunning||!lac) return;
+    // playAt in AudioContext time = base + elapsed since stream started
+    const playAt=streamAcBase+(chunk.srvTs-streamSrvStart)/1000;
+    const now=lac.currentTime;
+    if(playAt < now-0.05){
+      console.warn('[L] late chunk seq='+chunk.seq+' '+((now-playAt)*1000).toFixed(0)+'ms — skip');
+      drainQueue(); return;
     }
-
-    // Schedule playback at exact time
-    const src = listenerAudioCtx.createBufferSource();
-    src.buffer = buffer;
-    src.connect(listenerGain);
-    src.start(Math.max(now, chunkAcTime));
-
-    drainQueue(); // process next chunk immediately
-  }, err => {
-    decoding = false;
-    console.warn('[L] decode error', err);
+    const node=lac.createBufferSource();
+    node.buffer=buffer;
+    node.connect(lacEQ.in);  // inject into EQ chain
+    node.start(Math.max(now+0.001, playAt));
+    // Update stats
+    if(G('l-latency')) G('l-latency').textContent=TARGET_LAG+'ms';
+    const actualBehind=(playAt-now)*1000;
+    if(G('l-drift')) G('l-drift').textContent=Math.max(0,Math.abs(Math.round(actualBehind-TARGET_LAG)))+'ms';
+    setPill('l-pill','ps','dc','● In Sync');
+    setSyncText('🎧 Playing in sync');
+    drainQueue();
+  }, err=>{
+    decoding=false;
+    console.warn('[L] decode error',err);
     drainQueue();
   });
 }
 
-// Tap to play on mobile
-function tapToPlay() {
-  if (!listenerAudioCtx) return;
-  listenerAudioCtx.resume().then(() => {
-    G('tap-overlay').classList.remove('on');
-    console.log('[L] AudioContext resumed after tap');
-  });
+function stopListening(){
+  lacRunning=false; chunkQueue=[]; decoding=false;
+  if(lacVizRaf){cancelAnimationFrame(lacVizRaf);lacVizRaf=null;}
+  if(lacStatsRaf){cancelAnimationFrame(lacStatsRaf);lacStatsRaf=null;}
+  if(lac){lac.close().catch(()=>{});lac=null;}
+  lacGain=null; lacEQ=null; lacAnalyser=null; lacConvolver=null; lacRevGain=null; lacDryGain=null;
+  G('l-wait-panel').style.display='';
+  G('l-live-panel').style.display='none';
+  G('l-stats').style.display='none';
+  setPill('l-pill','pw','dm','Waiting...');
+  setSyncText('Waiting for host...');
 }
 
-// ── VOLUME ───────────────────────────────────────────────────
-function setListenerVol(v) {
-  const val = parseFloat(v);
-  if (listenerGain) listenerGain.gain.value = val;
-  G('l-vol-val').textContent = Math.round(val * 100) + '%';
+function tapUnlock(){
+  G('unlock').classList.add('gone');
+  if(lac) lac.resume().then(()=>console.log('[L] AudioContext resumed after tap'));
 }
 
-// ── VISUALIZER ───────────────────────────────────────────────
-function startViz(canvasId, analyser, currentRaf, setRaf) {
-  if (currentRaf) cancelAnimationFrame(currentRaf);
-  const cv = G(canvasId);
-  if (!cv || !analyser) return;
-  const dpr = window.devicePixelRatio || 1;
-  const W = cv.offsetWidth || 380, H = cv.offsetHeight || 52;
-  cv.width = W * dpr; cv.height = H * dpr;
-  const ctx = cv.getContext('2d'); ctx.scale(dpr, dpr);
-  const bins = analyser.frequencyBinCount;
-  const buf = new Uint8Array(bins);
-  const peaks = new Float32Array(bins);
-  const bw = (W / bins) * 2;
+function startStatsLoop(){
+  if(lacStatsRaf) cancelAnimationFrame(lacStatsRaf);
+  function tick(){
+    lacStatsRaf=requestAnimationFrame(tick);
+    if(G('l-buf-stat')) G('l-buf-stat').textContent=(chunkQueue.length||0)+' q';
+  }
+  tick();
+}
 
-  function draw() {
+// ── VISUALIZER ─────────────────────────────────────────────
+function startViz(canvasId, analyser, setRaf){
+  const cv=G(canvasId); if(!cv||!analyser) return;
+  const dpr=window.devicePixelRatio||1;
+  const W=cv.offsetWidth||380, H=cv.offsetHeight||58;
+  cv.width=W*dpr; cv.height=H*dpr;
+  const ctx=cv.getContext('2d'); ctx.scale(dpr,dpr);
+  const bins=analyser.frequencyBinCount;
+  const buf=new Uint8Array(bins), peaks=new Float32Array(bins);
+  const bw=(W/bins)*2;
+  function draw(){
     setRaf(requestAnimationFrame(draw));
     analyser.getByteFrequencyData(buf);
-    ctx.fillStyle = '#05060a'; ctx.fillRect(0, 0, W, H);
-    for (let i = 0; i < bins; i++) {
-      const r = buf[i] / 255, h = r * H * 0.92;
-      if (r > peaks[i]) peaks[i] = r; else peaks[i] *= 0.985;
-      const hue = 170 + i / bins * 90;
-      ctx.fillStyle = `hsla(${hue},90%,60%,${0.5 + r * 0.5})`;
-      ctx.fillRect(i * (bw + 0.5), H - h, bw, h);
-      if (peaks[i] > 0.04) {
-        ctx.fillStyle = `hsla(${hue},100%,80%,.8)`;
-        ctx.fillRect(i * (bw + 0.5), H - peaks[i] * H * 0.92 - 1, bw, 1.5);
-      }
+    ctx.fillStyle='#06070c'; ctx.fillRect(0,0,W,H);
+    for(let i=0;i<bins;i++){
+      const r=buf[i]/255, h=r*H*.92;
+      if(r>peaks[i]) peaks[i]=r; else peaks[i]*=.985;
+      const hue=170+i/bins*90;
+      ctx.fillStyle=`hsla(${hue},90%,60%,${.5+r*.5})`;
+      ctx.fillRect(i*(bw+.5),H-h,bw,h);
+      if(peaks[i]>.04){ctx.fillStyle=`hsla(${hue},100%,80%,.8)`;ctx.fillRect(i*(bw+.5),H-peaks[i]*H*.92-1,bw,1.5);}
     }
   }
   draw();
 }
 
-// ── STATS LOOP ────────────────────────────────────────────────
-function startStatsLoop() {
-  if (statsRaf) cancelAnimationFrame(statsRaf);
-  function tick() {
-    statsRaf = requestAnimationFrame(tick);
-    if (!listenerAudioCtx || !listenerRunning) return;
-    const now = listenerAudioCtx.currentTime;
-    const lag = TARGET_LAG;
-    const buf = chunkQueue.length;
-
-    // Drift = how far are we from expected play position
-    const expectedSrvTime = srvNow();
-    const streamElapsed = (expectedSrvTime - streamStartSrvTime) / 1000;
-    const expectedAcTime = streamStartAcTime + streamElapsed;
-    const drift = (expectedAcTime - now) * 1000; // ms, positive = ahead of schedule
-
-    G('l-lag').textContent = lag + 'ms';
-    G('l-drift').textContent = Math.abs(Math.round(drift)) + 'ms';
-    G('l-buf').textContent = buf + ' chunks';
-
-    // Update sync badge
-    const badge = G('l-sync-badge');
-    if (badge) {
-      if (Math.abs(drift) < 80) {
-        badge.textContent = '● In Sync';
-        badge.className = 'badge badge-sync';
-      } else {
-        badge.textContent = '⟳ Syncing';
-        badge.className = 'badge badge-live';
-      }
-    }
-  }
-  tick();
+// ── MISC ───────────────────────────────────────────────────
+function renderListeners(){
+  const ids=Object.keys(listeners);
+  G('h-llist').innerHTML=ids.length
+    ? ids.map((id,i)=>`<div class="litem"><div class="lav">🎧</div><span>Listener ${i+1}</span><span style="margin-left:auto;font-size:9px;color:var(--m)">${id.slice(0,6)}</span></div>`).join('')
+    : '<div class="nol">No one joined yet — share your code!</div>';
 }
-
-// ── LEAVE ────────────────────────────────────────────────────
-function leave() {
-  stopShare();
-  stopListening();
+function copyCode(){
+  const code=G('h-code').textContent;
+  navigator.clipboard?.writeText(code).then(()=>toast('📋 Copied: '+code));
+}
+function leave(){
+  stopShare(); stopListening();
   clearInterval(window._ka);
-  if (sock) { sock.disconnect(); sock = null; }
-  roomCode = null; amHost = false;
-  G('h-lcnt').textContent = '0';
-  G('join-inp').value = '';
-  G('l-waiting').style.display = '';
-  G('l-live').style.display = 'none';
-  G('tap-overlay').classList.remove('on');
-  setConn(false);
-  show('s-home');
-  initSock(); // reconnect ready for next session
+  if(sock){sock.disconnect();sock=null;}
+  roomCode=null; amHost=false; listeners={};
+  G('unlock').classList.add('gone');
+  setConn(false); show('s-home');
+  initSock();
 }
 
-// ── INIT ─────────────────────────────────────────────────────
-G('join-inp').addEventListener('input', function () {
-  this.value = this.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
-});
-G('join-inp').addEventListener('keydown', e => { if (e.key === 'Enter') joinRoom(); });
-G('room-name').addEventListener('keydown', e => { if (e.key === 'Enter') createRoom(); });
-
-window.addEventListener('load', () => initSock());
+// ── INIT ───────────────────────────────────────────────────
+G('join-code').addEventListener('input',function(){this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'');});
+G('join-code').addEventListener('keydown',e=>{if(e.key==='Enter')joinRoom();});
+G('rname-input').addEventListener('keydown',e=>{if(e.key==='Enter')createRoom();});
+window.addEventListener('load',()=>initSock());
 </script>
 </body>
 </html>
