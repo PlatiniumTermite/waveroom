@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -327,6 +327,13 @@ canvas{width:100%;height:58px;display:block;border-radius:7px;background:var(--b
             <button class="btn bc" id="yt-btn" onclick="loadYoutube()">Load</button>
           </div>
           <div class="load-status" id="yt-status"></div>
+          <!-- YouTube IFrame Player (hidden, used for sync) -->
+          <div id="yt-player-wrap" style="display:none;margin-top:10px;border-radius:10px;overflow:hidden;position:relative;padding-bottom:56.25%;height:0;">
+            <div id="yt-player" style="position:absolute;top:0;left:0;width:100%;height:100%;"></div>
+          </div>
+          <div id="yt-listener-wrap" style="display:none;margin-top:10px;border-radius:10px;overflow:hidden;position:relative;padding-bottom:56.25%;height:0;">
+            <div id="yt-listener-player" style="position:absolute;top:0;left:0;width:100%;height:100%;"></div>
+          </div>
         </div>
         <div class="src-pane" id="pane-direct">
           <div class="url-row">
@@ -787,44 +794,205 @@ function pushStreamChunk(rawData){
 // ════════════════════════════════════════════
 // YOUTUBE / URL LOAD — HOST
 // ════════════════════════════════════════════
-async function loadYoutube(){
-  const raw=G('yt-url').value.trim();
-  if(!raw){ toast('Paste a YouTube URL'); return; }
-  const btn=G('yt-btn');
-  btn.disabled=true; btn.textContent='...';
-  setStatus('yt-status','<span class="spin">⟳</span> Fetching via yt-dlp (10–20s first time)...');
+// ═══════════════════════════════════════════
+// YOUTUBE IFRAME SYNC SYSTEM
+// Works exactly like Watch2Gether / Teleparty:
+// Every user loads YouTube independently in their
+// own browser — host sends play/pause/seek/videoId
+// over socket. Zero server-side extraction.
+// Never blocked. Works forever.
+// ═══════════════════════════════════════════
+let ytPlayer = null;       // host player
+let ytListenerPlayer = null; // listener player
+let ytReady = false;
+let ytListenerReady = false;
+let ytVideoId = null;
+let ytSyncInterval = null;
+
+// Extract video ID from any YouTube URL format
+function ytExtractId(url){
   try{
-    const ctrl=new AbortController();
-    const tid=setTimeout(()=>ctrl.abort(),50000);
-    let res,data;
-    try{
-      res=await fetch('/yt-info?url='+encodeURIComponent(raw),{signal:ctrl.signal});
-      data=await res.json();
-    }finally{ clearTimeout(tid); }
-    if(!res.ok||data.error){
-      // Show error + big helpful switch-to-screen-share prompt
-      setStatus('yt-status',`<span style="color:var(--r)">❌ ${data.error}</span>`);
-      // Automatically switch to screen share tab and show instructions
-      setTimeout(()=>{
-        switchMode('screen');
-        toast('💡 Open YouTube in another tab, then use Screen Share below!', 7000);
-        G('screen-share-box').style.border='2px solid var(--orange)';
-        G('screen-share-box').style.boxShadow='0 0 20px rgba(255,123,53,.2)';
-        setTimeout(()=>{
-          G('screen-share-box').style.border='';
-          G('screen-share-box').style.boxShadow='';
-        }, 4000);
-      }, 1200);
-      btn.disabled=false; btn.textContent='Load'; return;
-    }
-    setStatus('yt-status','✅ '+data.title);
-    applyTrack('/yt-stream?url='+encodeURIComponent(raw), data.title, raw);
-  }catch(e){
-    const m=e.name==='AbortError'?'Request timed out — use Screen Share!':e.message;
-    setStatus('yt-status','<span style="color:var(--r)">❌ '+m+'</span>');
-    setTimeout(()=>{ switchMode('screen'); toast('💡 Open YouTube in a tab → use Screen Share', 7000); }, 1200);
+    const u = new URL(url.includes('://') ? url : 'https://'+url);
+    if(u.hostname === 'youtu.be') return u.pathname.slice(1).split('?')[0];
+    return u.searchParams.get('v') || null;
+  }catch(e){ return null; }
+}
+
+// Load YouTube IFrame API once
+let ytApiLoaded = false;
+function loadYtApi(cb){
+  if(ytApiLoaded && window.YT && window.YT.Player){ cb(); return; }
+  window.onYouTubeIframeAPIReady = function(){
+    ytApiLoaded = true;
+    cb();
+  };
+  if(!document.getElementById('yt-api-script')){
+    const s = document.createElement('script');
+    s.id = 'yt-api-script';
+    s.src = 'https://www.youtube.com/iframe_api';
+    document.head.appendChild(s);
+  } else if(window.YT && window.YT.Player){
+    ytApiLoaded = true; cb();
   }
-  btn.disabled=false; btn.textContent='Load';
+}
+
+function loadYoutube(){
+  const raw = G('yt-url').value.trim();
+  if(!raw){ toast('Paste a YouTube URL'); return; }
+  const videoId = ytExtractId(raw);
+  if(!videoId){ setStatus('yt-status','❌ Invalid YouTube URL'); return; }
+
+  const btn = G('yt-btn');
+  btn.disabled = true; btn.textContent = '...';
+  setStatus('yt-status','<span class="spin">⟳</span> Loading YouTube player...');
+
+  loadYtApi(()=>{
+    ytVideoId = videoId;
+    G('yt-player-wrap').style.display = 'block';
+
+    // Destroy old player if exists
+    if(ytPlayer){ try{ ytPlayer.destroy(); }catch(e){} ytPlayer=null; ytReady=false; }
+
+    ytPlayer = new YT.Player('yt-player', {
+      height:'100%', width:'100%',
+      videoId: videoId,
+      playerVars:{
+        autoplay:0, controls:1, rel:0, modestbranding:1,
+        playsinline:1, enablejsapi:1,
+      },
+      events:{
+        onReady(e){
+          ytReady = true;
+          btn.disabled = false; btn.textContent = 'Load';
+          const title = ytPlayer.getVideoData()?.title || 'YouTube Video';
+          setStatus('yt-status','✅ '+title);
+          G('h-player').style.display = 'block';
+          G('h-tname').textContent = title;
+          G('h-tsub').textContent = fmt(ytPlayer.getDuration()) + ' · YouTube';
+          G('h-dur').textContent = fmt(ytPlayer.getDuration());
+          G('h-play-btn').disabled = false;
+          toast('✅ Loaded — press Play ▶');
+          // Tell all listeners which video to load
+          if(sock) sock.emit('yt:load',{ videoId, title });
+          currentTrack = { isYT:true, videoId, title, isLocal:false };
+          startYtProg();
+          // Build viz from YT audio (needs AudioContext on user gesture)
+        },
+        onStateChange(e){
+          // YT.PlayerState: -1=unstarted, 0=ended, 1=playing, 2=paused, 3=buffering, 5=cued
+          if(e.data === YT.PlayerState.PLAYING){
+            G('h-art').classList.add('spin');
+            setPill('h-pill','pl','dg','● Playing');
+          } else if(e.data === YT.PlayerState.PAUSED){
+            G('h-art').classList.remove('spin');
+            setPill('h-pill','pw','dm','Paused');
+          }
+        },
+        onError(e){
+          const errs={2:'Invalid video ID',5:'HTML5 error',100:'Video not found',101:'Embedding not allowed',150:'Embedding not allowed'};
+          setStatus('yt-status','❌ '+(errs[e.data]||'YouTube error '+e.data));
+          btn.disabled=false; btn.textContent='Load';
+        }
+      }
+    });
+  });
+}
+
+// HOST: play YouTube + sync
+function hostYtPlay(){
+  if(!ytPlayer||!ytReady){ toast('Load a YouTube video first'); return; }
+  const pos = ytPlayer.getCurrentTime();
+  const playAt = srvNow() + SCHED_LEAD;
+  ytPlayer.playVideo();
+  setPill('h-pill','pl','dg','● Playing');
+  sock.emit('yt:play',{ position:pos, serverPlayAt:playAt });
+}
+function hostYtPause(){
+  if(!ytPlayer||!ytReady) return;
+  ytPlayer.pauseVideo();
+  setPill('h-pill','pw','dm','Paused');
+  sock.emit('yt:pause',{ position:ytPlayer.getCurrentTime() });
+}
+function hostYtRestart(){
+  if(!ytPlayer||!ytReady) return;
+  ytPlayer.seekTo(0);
+  const playAt = srvNow() + SCHED_LEAD;
+  ytPlayer.playVideo();
+  sock.emit('yt:play',{ position:0, serverPlayAt:playAt });
+}
+
+// Progress bar for YouTube
+function startYtProg(){
+  if(progRaf){ cancelAnimationFrame(progRaf); progRaf=null; }
+  function tick(){
+    progRaf = requestAnimationFrame(tick);
+    if(!ytPlayer||!ytReady) return;
+    try{
+      const cur = ytPlayer.getCurrentTime()||0;
+      const dur = ytPlayer.getDuration()||0;
+      const p = dur ? (cur/dur*100) : 0;
+      const f=G('h-fill'); if(f) f.style.width=p+'%';
+      if(G('h-cur')) G('h-cur').textContent=fmt(cur);
+      if(G('h-dur')) G('h-dur').textContent=fmt(dur);
+    }catch(e){}
+  }
+  tick();
+}
+
+// LISTENER: load + sync YouTube player
+function initListenerYt(videoId, onReady){
+  G('yt-listener-wrap').style.display = 'block';
+  if(ytListenerPlayer){ try{ytListenerPlayer.destroy();}catch(e){} ytListenerPlayer=null; ytListenerReady=false; }
+
+  loadYtApi(()=>{
+    ytListenerPlayer = new YT.Player('yt-listener-player',{
+      height:'100%', width:'100%',
+      videoId: videoId,
+      playerVars:{ autoplay:0, controls:0, rel:0, modestbranding:1, playsinline:1, mute:0 },
+      events:{
+        onReady(e){
+          ytListenerReady = true;
+          const vol = parseFloat(G('l-vol').value)||0.85;
+          ytListenerPlayer.setVolume(vol*100);
+          if(onReady) onReady();
+        },
+        onError(e){ console.error('[YT listener] error',e.data); }
+      }
+    });
+  });
+}
+
+function schedYtPlay(position, serverPlayAt){
+  if(!ytListenerPlayer||!ytListenerReady){ return; }
+  const localPlayAt = serverPlayAt + clockOffset;
+  const msLeft = localPlayAt - Date.now();
+  const execute = ()=>{
+    const late = Math.max(0,(Date.now()-localPlayAt))/1000;
+    const target = Math.max(0, position+late);
+    ytListenerPlayer.seekTo(target, true);
+    ytListenerPlayer.playVideo();
+    setPill('l-pill','ps','dc','● In Sync');
+    setSyncInfo('🎧 Playing in sync');
+    G('l-art').classList.add('spin');
+    G('l-tname').textContent = currentTrack?.title || 'YouTube';
+    // Drift correction
+    clearInterval(driftTimer);
+    driftTimer = setInterval(()=>{
+      if(!ytListenerPlayer) return;
+      try{
+        const state = ytListenerPlayer.getPlayerState();
+        if(state !== 1) return; // only when playing
+        const elapsed = (srvNow()-serverPlayAt)/1000;
+        const expected = position+elapsed;
+        const actual = ytListenerPlayer.getCurrentTime();
+        const d = Math.abs(actual-expected);
+        if(d > DRIFT_HARD){ ytListenerPlayer.seekTo(expected,true); console.warn('[YT SYNC] corrected',d.toFixed(2)+'s'); }
+        if(G('l-drift')) G('l-drift').textContent = Math.round(d*1000)+'ms';
+      }catch(e){}
+    }, 3000);
+  };
+  if(msLeft > 20){ setSyncInfo('⟳ Syncing...'); setTimeout(execute, msLeft); }
+  else execute();
 }
 
 function loadDirectUrl(){
@@ -1017,7 +1185,18 @@ function initSock(){
     listeners[id]={}; renderListeners();
     // Push current state to new joiner after small delay
     setTimeout(()=>{
-      if(currentMode==='url'&&currentTrack&&!currentTrack.isLocal&&sock){
+      if(currentTrack?.isYT && sock){
+        sock.emit('yt:load',{videoId:currentTrack.videoId, title:currentTrack.title});
+        setTimeout(()=>{
+          if(!ytPlayer||!ytReady) return;
+          const state=ytPlayer.getPlayerState();
+          if(state===1){ // playing
+            sock.emit('yt:play',{position:ytPlayer.getCurrentTime(), serverPlayAt:srvNow()+SCHED_LEAD});
+          } else {
+            sock.emit('yt:pause',{position:ytPlayer.getCurrentTime()||0});
+          }
+        }, 1200);
+      } else if(currentMode==='url'&&currentTrack&&!currentTrack.isLocal&&sock){
         sock.emit('track:set',{streamUrl:currentTrack.streamUrl,title:currentTrack.title,originalUrl:currentTrack.originalUrl});
         const a=G('h-audio');
         setTimeout(()=>{
@@ -1036,8 +1215,47 @@ function initSock(){
     console.log('[L] track:set',title);
     G('l-stream-panel').style.display='none';
     G('l-url-panel').style.display='block';
-    lPendingSchedPlay=null; // clear any stale pending
+    lPendingSchedPlay=null;
     loadListenerTrack(streamUrl, title);
+  });
+
+  // YouTube IFrame sync events (listener side)
+  sock.on('yt:load',({videoId, title})=>{
+    console.log('[L] yt:load',videoId);
+    G('l-stream-panel').style.display='none';
+    G('l-url-panel').style.display='block';
+    currentTrack={isYT:true, videoId, title};
+    G('l-tname').textContent=title||'YouTube Video';
+    setSyncInfo('<span class="spin">⟳</span> Loading YouTube player...');
+    // Show listener player in URL pane
+    switchSrc('yt');
+    initListenerYt(videoId, ()=>{
+      setSyncInfo('✅ Ready — waiting for host to play...');
+      G('l-stats').style.display='flex';
+      if(G('l-mode-val'))G('l-mode-val').textContent='YT';
+    });
+  });
+  sock.on('yt:play',({position,serverPlayAt})=>{
+    console.log('[L] yt:play pos='+position.toFixed(2));
+    if(!ytListenerReady){ setTimeout(()=>schedYtPlay(position,serverPlayAt), 1500); return; }
+    schedYtPlay(position, serverPlayAt);
+  });
+  sock.on('yt:pause',({position})=>{
+    console.log('[L] yt:pause');
+    clearInterval(driftTimer);
+    if(ytListenerPlayer&&ytListenerReady){
+      ytListenerPlayer.pauseVideo();
+      try{ ytListenerPlayer.seekTo(position,true); }catch(e){}
+    }
+    G('l-art').classList.remove('spin');
+    setPill('l-pill','pw','dm','Paused');
+    setSyncInfo('Host paused.');
+  });
+  sock.on('yt:seek',({position,playing,serverPlayAt})=>{
+    if(!ytListenerPlayer&&!ytListenerReady) return;
+    try{ ytListenerPlayer.seekTo(position,true); }catch(e){}
+    if(playing) schedYtPlay(position,serverPlayAt);
+    else{ try{ytListenerPlayer.pauseVideo();}catch(e){} G('l-art').classList.remove('spin'); }
   });
 
   sock.on('audio:play',({position,serverPlayAt})=>{
@@ -1271,7 +1489,20 @@ function joinRoom(){
     show('s-listen');
     toast('🎧 Joined — waiting for host...');
 
-    if(res.track?.streamUrl){
+    if(res.track?.isYT && res.track.videoId){
+      // YouTube sync mode
+      currentTrack={isYT:true, videoId:res.track.videoId, title:res.track.title};
+      G('l-tname').textContent=res.track.title||'YouTube';
+      setSyncInfo('<span class="spin">⟳</span> Loading YouTube player...');
+      switchSrc('yt');
+      initListenerYt(res.track.videoId, ()=>{
+        setSyncInfo('✅ Ready — waiting for host to play...');
+        if(res.state?.playing && res.state.serverPlayAt){
+          const elapsed=(srvNow()-res.state.serverPlayAt)/1000;
+          schedYtPlay(Math.max(0,(res.state.position||0)+elapsed), srvNow()+SCHED_LEAD);
+        }
+      });
+    } else if(res.track?.streamUrl){
       loadListenerTrack(res.track.streamUrl, res.track.title, ()=>{
         if(res.state?.playing && res.state.serverPlayAt){
           const elapsed=(srvNow()-res.state.serverPlayAt)/1000;
@@ -1291,6 +1522,7 @@ function joinRoom(){
 // HOST CONTROLS
 // ════════════════════════════════════════════
 function hostPlay(){
+  if(currentTrack?.isYT){ hostYtPlay(); return; }
   const a=G('h-audio'); if(!a.src){ toast('Load a track first'); return; }
   if(hAudioCtx) hAudioCtx.resume();
   const pos=a.currentTime, playAt=srvNow()+SCHED_LEAD;
@@ -1300,12 +1532,14 @@ function hostPlay(){
   sock.emit('audio:play',{position:pos, serverPlayAt:playAt});
 }
 function hostPause(){
+  if(currentTrack?.isYT){ hostYtPause(); return; }
   const a=G('h-audio');
   a.pause(); G('h-art').classList.remove('spin');
   setPill('h-pill','pw','dm','Paused');
   sock.emit('audio:pause',{position:a.currentTime});
 }
 function hostRestart(){
+  if(currentTrack?.isYT){ hostYtRestart(); return; }
   const a=G('h-audio'); if(!a.src) return;
   if(hAudioCtx) hAudioCtx.resume();
   a.currentTime=0;
@@ -1326,6 +1560,7 @@ function listVol(v){
   G('l-audio').volume=val;
   G('l-stream-audio').volume=val;
   if(lChain) lChain.master.gain.value=val;
+  if(ytListenerPlayer&&ytListenerReady){ try{ytListenerPlayer.setVolume(val*100);}catch(e){} }
   G('l-vol-val').textContent=Math.round(val*100)+'%';
 }
 
@@ -1347,6 +1582,10 @@ function leave(){
   try{ if(lAudioCtx){ lAudioCtx.close(); lAudioCtx=null; lChain=null; } }catch(e){}
   try{ if(lMS&&lMS.readyState==='open') lMS.endOfStream(); }catch(e){}
   lMS=null; lSB=null; lChunks=[]; lPlaying=false; lAudioReady=false; lPendingSchedPlay=null;
+  // Destroy YouTube players
+  try{ if(ytPlayer){ ytPlayer.destroy(); ytPlayer=null; ytReady=false; } }catch(e){}
+  try{ if(ytListenerPlayer){ ytListenerPlayer.destroy(); ytListenerPlayer=null; ytListenerReady=false; } }catch(e){}
+  clearInterval(ytSyncInterval); ytSyncInterval=null; ytVideoId=null;
   if(sock){ sock.disconnect(); sock=null; }
   roomCode=null; listeners={}; currentTrack=null;
   setConn(false); show('s-home');
