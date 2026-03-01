@@ -69,25 +69,46 @@ async function ensureYtDlp() {
 }
 
 // ─── YOUTUBE INFO ────────────────────────────────────────────────
+// yt-dlp args that bypass YouTube bot detection in 2025
+// player_client=tv,mweb uses TV/mobile clients which are less restricted
+// android also works but TV is most reliable on server IPs
+function ytdlpArgs(url, extra=[]) {
+  return [
+    '--no-playlist',
+    '--no-warnings',
+    '--quiet',
+    '--extractor-args', 'youtube:player_client=tv,mweb',
+    '--user-agent', 'Mozilla/5.0 (SMART-TV; Linux; Tizen 5.0) AppleWebKit/538.1 (KHTML, like Gecko) Version/5.0 TV Safari/538.1',
+    '-f', 'bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio/best',
+    ...extra,
+    url,
+  ];
+}
+
 app.get('/yt-info', async (req, res) => {
   const url = req.query.url;
   if (!url) return res.status(400).json({error:'No URL'});
   if (!isYTUrl(url)) return res.status(400).json({error:'Not a YouTube URL'});
   try {
     const bin = await ensureYtDlp();
-    const {stdout} = await execFileAsync(bin,
-      ['--no-playlist','--skip-download','--print-json','--no-warnings','--quiet',
-       '-f','bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio/best', url],
-      {timeout:45000, maxBuffer:10*1024*1024});
+    const args = ytdlpArgs(url, ['--skip-download','--print-json']);
+    console.log('[YT-INFO] Running:', bin, args.slice(0,4).join(' '), '...');
+    const {stdout} = await execFileAsync(bin, args, {timeout:45000, maxBuffer:10*1024*1024});
     const info = JSON.parse(stdout.trim());
     res.json({title: info.title||'Unknown', duration: info.duration||0});
   } catch(e) {
-    console.error('[YT-INFO]', e.message);
+    console.error('[YT-INFO] Error:', e.message.slice(0,300));
     let msg = e.message;
-    if (msg.includes('403')||msg.includes('bot')||msg.includes('Sign in')) msg='YouTube blocked this — try Screen Share mode instead.';
-    else if (msg.includes('unavailable')) msg='Video unavailable or region-locked.';
-    else if (msg.includes('Private')) msg='Video is private.';
-    else if (msg.includes('yt-dlp unavailable')) msg='yt-dlp not installed yet. Use Screen Share mode — it works instantly!';
+    if (msg.includes('403')||msg.includes('bot')||msg.includes('Sign in')||msg.includes('blocked'))
+      msg = 'YouTube blocked the server IP. Use Screen Share tab — paste YouTube URL in Chrome and share the tab. Works 100%.';
+    else if (msg.includes('unavailable')||msg.includes('removed'))
+      msg = 'Video unavailable or removed.';
+    else if (msg.includes('Private'))
+      msg = 'This video is private.';
+    else if (msg.includes('yt-dlp unavailable')||msg.includes('installation failed'))
+      msg = 'yt-dlp not installed yet (server is still starting). Wait 30s and try again, or use Screen Share.';
+    else if (msg.includes('ENOENT'))
+      msg = 'yt-dlp binary not found. Use Screen Share instead.';
     res.status(500).json({error: msg});
   }
 });
@@ -102,10 +123,8 @@ app.get('/yt-stream', async (req, res) => {
     res.setHeader('Content-Type','audio/mp4');
     res.setHeader('Transfer-Encoding','chunked');
     res.setHeader('Cache-Control','no-cache');
-    const proc = spawn(bin,
-      ['--no-playlist','--no-warnings','--quiet',
-       '-f','bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio/best','-o','-',url],
-      {stdio:['ignore','pipe','pipe']});
+    // Same bot-bypass args as yt-info
+    const proc = spawn(bin, ytdlpArgs(url, ['-o','-']), {stdio:['ignore','pipe','pipe']});
     proc.stdout.pipe(res);
     let se=''; proc.stderr.on('data',d=>{se+=d;});
     proc.on('error',e=>{if(!res.headersSent)res.status(500).send(e.message);else res.end();});
