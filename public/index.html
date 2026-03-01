@@ -1,4 +1,4 @@
-!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -1462,60 +1462,130 @@ function cancelSched(){
 // CREATE / JOIN
 // ════════════════════════════════════════════
 function createRoom(){
-  const name=G('rname-input').value.trim()||'Audio Room';
-  amHost=true; initSock();
-  const go=()=>sock.emit('room:create',{name},res=>{
-    if(!res?.ok){ toast('❌ Could not create room'); return; }
-    roomCode=res.code;
-    G('h-rname').textContent=res.name;
-    G('h-code').textContent=res.code;
-    show('s-host');
-    toast('🎉 Room ready! Share: '+res.code);
-  });
-  if(sock.connected) go();
-  else sock.once('connect',()=>setTimeout(go,300));
+  const name = G('rname-input').value.trim()||'Audio Room';
+  const btn  = document.querySelector('#s-create .btn');
+  if(btn){ btn.disabled=true; btn.textContent='Creating...'; }
+  amHost = true;
+  initSock();
+
+  const doCreate = () => {
+    sock.emit('room:create', {name}, res => {
+      if(btn){ btn.disabled=false; btn.textContent='Create Room →'; }
+      if(!res?.ok){ toast('❌ Could not create room — try again'); return; }
+      roomCode = res.code;
+      G('h-rname').textContent = res.name;
+      G('h-code').textContent  = res.code;
+      show('s-host');
+      toast('🎉 Room created! Share code: '+res.code);
+    });
+  };
+
+  if(sock.connected){
+    doCreate();
+  } else {
+    let connected = false;
+    sock.once('connect', ()=>{
+      connected = true;
+      setTimeout(doCreate, 200);
+    });
+    setTimeout(()=>{
+      if(!connected){
+        if(btn){ btn.disabled=false; btn.textContent='Create Room →'; }
+        toast('❌ Cannot connect to server. Check your internet.');
+      }
+    }, 8000);
+  }
 }
 
-function joinRoom(){
-  const code=G('join-code').value.trim().toUpperCase();
-  if(code.length<6){ toast('Enter the full 6-letter code'); return; }
-  G('join-err').classList.remove('on');
-  amHost=false; initSock();
-  const go=()=>sock.emit('room:join',{code},res=>{
-    if(!res?.ok){ G('join-err').classList.add('on'); return; }
-    roomCode=code;
-    G('l-rname').textContent=res.name;
-    G('l-clabel').textContent='Room: '+code;
-    show('s-listen');
-    toast('🎧 Joined — waiting for host...');
+async function joinRoom(){
+  const code = G('join-code').value.trim().toUpperCase().replace(/[^A-Z0-9]/g,'');
+  if(code.length < 6){ toast('Enter the full 6-letter code'); return; }
 
-    if(res.track?.isYT && res.track.videoId){
-      // YouTube sync mode
-      currentTrack={isYT:true, videoId:res.track.videoId, title:res.track.title};
-      G('l-tname').textContent=res.track.title||'YouTube';
-      setSyncInfo('<span class="spin">⟳</span> Loading YouTube player...');
-      switchSrc('yt');
-      initListenerYt(res.track.videoId, ()=>{
-        setSyncInfo('✅ Ready — waiting for host to play...');
-        if(res.state?.playing && res.state.serverPlayAt){
-          const elapsed=(srvNow()-res.state.serverPlayAt)/1000;
-          schedYtPlay(Math.max(0,(res.state.position||0)+elapsed), srvNow()+SCHED_LEAD);
-        }
-      });
-    } else if(res.track?.streamUrl){
-      loadListenerTrack(res.track.streamUrl, res.track.title, ()=>{
-        if(res.state?.playing && res.state.serverPlayAt){
-          const elapsed=(srvNow()-res.state.serverPlayAt)/1000;
-          schedPlay(Math.max(0,(res.state.position||0)+elapsed), srvNow()+SCHED_LEAD);
-        } else {
-          G('l-audio').currentTime=res.state?.position||0;
-          setSyncInfo('Ready — waiting for host to play.');
-        }
-      });
+  const btn = document.querySelector('#s-join .btn');
+  if(btn){ btn.disabled=true; btn.textContent='Joining...'; }
+  G('join-err').classList.remove('on');
+
+  // Step 1: HTTP pre-check — verify room exists before even connecting socket
+  // This gives a clear error if server restarted and room was lost
+  try{
+    const check = await fetch('/room/'+code);
+    const data  = await check.json();
+    if(!data.exists){
+      G('join-err').textContent = 'Room "'+code+'" not found. Check the code or ask the host to recreate the room.';
+      G('join-err').classList.add('on');
+      if(btn){ btn.disabled=false; btn.textContent='Join Room →'; }
+      return;
     }
-  });
-  if(sock.connected) go();
-  else sock.once('connect',()=>setTimeout(go,400));
+  } catch(e){
+    // Server unreachable — still try socket in case HTTP is flaky
+    console.warn('HTTP room check failed, trying socket anyway:', e.message);
+  }
+
+  // Step 2: Ensure socket connected THEN emit join
+  amHost = false;
+  initSock();
+
+  const doJoin = () => {
+    sock.emit('room:join', {code}, res => {
+      if(btn){ btn.disabled=false; btn.textContent='Join Room →'; }
+      if(!res?.ok){
+        G('join-err').textContent = 'Room not found. The host may have left or the server restarted.';
+        G('join-err').classList.add('on');
+        return;
+      }
+      roomCode = code;
+      G('l-rname').textContent = res.name;
+      G('l-clabel').textContent = 'Room: '+code;
+      show('s-listen');
+      toast('🎧 Joined "'+res.name+'"!');
+
+      if(res.track?.isYT && res.track.videoId){
+        currentTrack = {isYT:true, videoId:res.track.videoId, title:res.track.title};
+        G('l-tname').textContent = res.track.title||'YouTube';
+        setSyncInfo('<span class="spin">⟳</span> Loading YouTube player...');
+        switchSrc('yt');
+        initListenerYt(res.track.videoId, ()=>{
+          setSyncInfo('✅ Ready — waiting for host to play...');
+          if(res.state?.playing && res.state.serverPlayAt){
+            const elapsed=(srvNow()-res.state.serverPlayAt)/1000;
+            schedYtPlay(Math.max(0,(res.state.position||0)+elapsed), srvNow()+SCHED_LEAD);
+          }
+        });
+      } else if(res.track?.streamUrl){
+        loadListenerTrack(res.track.streamUrl, res.track.title, ()=>{
+          if(res.state?.playing && res.state.serverPlayAt){
+            const elapsed=(srvNow()-res.state.serverPlayAt)/1000;
+            schedPlay(Math.max(0,(res.state.position||0)+elapsed), srvNow()+SCHED_LEAD);
+          } else {
+            G('l-audio').currentTime = res.state?.position||0;
+            setSyncInfo('Ready — waiting for host to play.');
+          }
+        });
+      } else {
+        setSyncInfo('✅ Joined — waiting for host to load a track...');
+      }
+    });
+  };
+
+  // If already connected, join immediately. Otherwise wait for connect.
+  if(sock.connected){
+    doJoin();
+  } else {
+    setSyncInfo('<span class="spin">⟳</span> Connecting...');
+    // Wait up to 8 seconds for connection
+    let connected = false;
+    sock.once('connect', ()=>{
+      connected = true;
+      setTimeout(doJoin, 200); // small delay to let NTP start
+    });
+    setTimeout(()=>{
+      if(!connected){
+        if(btn){ btn.disabled=false; btn.textContent='Join Room →'; }
+        G('join-err').textContent = 'Could not connect to server. Check your internet and try again.';
+        G('join-err').classList.add('on');
+      }
+    }, 8000);
+  }
 }
 
 // ════════════════════════════════════════════
