@@ -228,6 +228,35 @@ io.on('connection', socket => {
     socket.to(socket.data.code).emit('track:set', {streamUrl,title,originalUrl});
   });
 
+  // ── YouTube IFrame sync relay ──────────────────────
+  socket.on('yt:load', ({videoId, title}) => {
+    const room = rooms[socket.data.code];
+    if (!room||room.host!==socket.id) return;
+    room.track = {isYT:true, videoId, title};
+    room.state = {playing:false, position:0, serverPlayAt:null};
+    room.mode  = 'yt';
+    socket.to(socket.data.code).emit('yt:load', {videoId, title});
+    console.log(`[YT] ${socket.data.code} loaded: ${title}`);
+  });
+  socket.on('yt:play', ({position, serverPlayAt}) => {
+    const room = rooms[socket.data.code];
+    if (!room||room.host!==socket.id) return;
+    room.state = {playing:true, position, serverPlayAt};
+    socket.to(socket.data.code).emit('yt:play', {position, serverPlayAt});
+  });
+  socket.on('yt:pause', ({position}) => {
+    const room = rooms[socket.data.code];
+    if (!room||room.host!==socket.id) return;
+    room.state = {playing:false, position, serverPlayAt:null};
+    socket.to(socket.data.code).emit('yt:pause', {position});
+  });
+  socket.on('yt:seek', ({position, playing, serverPlayAt}) => {
+    const room = rooms[socket.data.code];
+    if (!room||room.host!==socket.id) return;
+    room.state = {playing, position, serverPlayAt: playing?serverPlayAt:null};
+    socket.to(socket.data.code).emit('yt:seek', {position, playing, serverPlayAt});
+  });
+
   socket.on('audio:play', ({position,serverPlayAt}) => {
     const room = rooms[socket.data.code];
     if (!room||room.host!==socket.id) return;
