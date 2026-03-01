@@ -24,6 +24,14 @@ app.use(express.json());
 // ─── HEALTH ──────────────────────────────────────────────────────
 app.get('/health', (_req, res) => res.json({ status: 'ok', uptime: process.uptime() }));
 
+// Room existence check — lets frontend verify before joining
+app.get('/room/:code', (req, res) => {
+  const code = (req.params.code||'').trim().toUpperCase();
+  const room = rooms[code];
+  if (!room) return res.json({exists:false});
+  res.json({exists:true, name:room.name, listeners:room.listeners.length, mode:room.mode||'url'});
+});
+
 // ─── CORS ────────────────────────────────────────────────────────
 app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -206,16 +214,21 @@ io.on('connection', socket => {
   });
 
   socket.on('room:join', ({code}, cb) => {
-    const room = rooms[code];
-    if (!room) return cb({ok:false, error:'Room not found'});
+    const normalCode = (code||'').toString().trim().toUpperCase();
+    console.log(`[ROOM] Join attempt: "${normalCode}" | Active rooms: [${Object.keys(rooms).join(', ')||'none'}]`);
+    const room = rooms[normalCode];
+    if (!room) {
+      console.log(`[ROOM] NOT FOUND: "${normalCode}"`);
+      return cb({ok:false, error:'Room not found'});
+    }
     room.listeners.push(socket.id);
-    socket.join(code);
-    socket.data.code = code;
+    socket.join(normalCode);
+    socket.data.code = normalCode;
     socket.data.isHost = false;
     io.to(room.host).emit('room:listener_joined', {id:socket.id});
-    io.to(code).emit('room:count', room.listeners.length);
-    cb({ok:true, name:room.name, track:room.track, state:room.state, mode:room.mode});
-    console.log(`[ROOM] ${socket.id} joined ${code}`);
+    io.to(normalCode).emit('room:count', room.listeners.length);
+    cb({ok:true, name:room.name, track:room.track, state:room.state, mode:room.mode||'url'});
+    console.log(`[ROOM] ${socket.id} successfully joined ${normalCode}`);
   });
 
   // ── Track (URL mode) ───────────────────────────────────────────
