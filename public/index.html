@@ -1,6 +1,3 @@
-Index · HTML
-Copy
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -293,10 +290,13 @@ canvas{width:100%;height:58px;display:block;border-radius:7px;background:var(--b
         <div class="share-title">Share Your Screen Audio</div>
         <div class="share-desc">Share any tab or your entire screen — Chrome will capture<br>its audio and stream it live to all listeners in real-time.</div>
         <div class="share-steps">
-          <div class="share-step"><span class="share-step-num">1.</span>Click "Start Screen Share" below</div>
-          <div class="share-step"><span class="share-step-num">2.</span>Pick a Chrome Tab or "Entire Screen"</div>
-          <div class="share-step"><span class="share-step-num">3.</span>✅ Check "Share tab audio" (Chrome shows this checkbox)</div>
-          <div class="share-step"><span class="share-step-num">4.</span>Press Share — everyone hears it instantly</div>
+          <div class="share-step"><span class="share-step-num">1.</span>Open YouTube (or Spotify, SoundCloud, anything) in another Chrome tab</div>
+          <div class="share-step"><span class="share-step-num">2.</span>Click "Start Screen Share" → choose that <b style="color:var(--t)">Chrome Tab</b></div>
+          <div class="share-step"><span class="share-step-num">3.</span>✅ Make sure <b style="color:var(--orange)">"Share tab audio"</b> checkbox is ticked</div>
+          <div class="share-step"><span class="share-step-num">4.</span>Press Share — all listeners hear it live with &lt;150ms lag</div>
+        </div>
+        <div style="background:rgba(255,123,53,.06);border:1px solid rgba(255,123,53,.18);border-radius:7px;padding:9px 12px;margin-bottom:14px;font-family:'Space Mono',monospace;font-size:10px;color:var(--orange);line-height:1.7">
+          💡 <b>Works with:</b> YouTube, Spotify Web, SoundCloud, Apple Music, Tidal, local files — anything in Chrome
         </div>
         <div id="screen-live-indicator" style="display:none">
           <div class="live-indicator"><div class="live-dot"></div>LIVE — streaming to listeners</div>
@@ -489,7 +489,7 @@ canvas{width:100%;height:58px;display:block;border-radius:7px;background:var(--b
 </div>
 <div id="toast" class="toast"></div>
 
-<script src="/socket.io/socket.io.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js" crossorigin="anonymous"></script>
 <script>
 'use strict';
 // ════════════════════════════════════════════
@@ -792,24 +792,37 @@ async function loadYoutube(){
   if(!raw){ toast('Paste a YouTube URL'); return; }
   const btn=G('yt-btn');
   btn.disabled=true; btn.textContent='...';
-  setStatus('yt-status','<span class="spin">⟳</span> Fetching via yt-dlp...');
+  setStatus('yt-status','<span class="spin">⟳</span> Fetching via yt-dlp (10–20s first time)...');
   try{
     const ctrl=new AbortController();
-    const tid=setTimeout(()=>ctrl.abort(),45000);
+    const tid=setTimeout(()=>ctrl.abort(),50000);
     let res,data;
     try{
       res=await fetch('/yt-info?url='+encodeURIComponent(raw),{signal:ctrl.signal});
       data=await res.json();
     }finally{ clearTimeout(tid); }
     if(!res.ok||data.error){
-      setStatus('yt-status',`❌ ${data.error} — <a href="#" onclick="switchMode('screen');return false;" style="color:var(--orange)">Use Screen Share instead →</a>`);
+      // Show error + big helpful switch-to-screen-share prompt
+      setStatus('yt-status',`<span style="color:var(--r)">❌ ${data.error}</span>`);
+      // Automatically switch to screen share tab and show instructions
+      setTimeout(()=>{
+        switchMode('screen');
+        toast('💡 Open YouTube in another tab, then use Screen Share below!', 7000);
+        G('screen-share-box').style.border='2px solid var(--orange)';
+        G('screen-share-box').style.boxShadow='0 0 20px rgba(255,123,53,.2)';
+        setTimeout(()=>{
+          G('screen-share-box').style.border='';
+          G('screen-share-box').style.boxShadow='';
+        }, 4000);
+      }, 1200);
       btn.disabled=false; btn.textContent='Load'; return;
     }
     setStatus('yt-status','✅ '+data.title);
     applyTrack('/yt-stream?url='+encodeURIComponent(raw), data.title, raw);
   }catch(e){
-    const m=e.name==='AbortError'?'Timed out — use Screen Share!':e.message;
-    setStatus('yt-status','❌ '+m);
+    const m=e.name==='AbortError'?'Request timed out — use Screen Share!':e.message;
+    setStatus('yt-status','<span style="color:var(--r)">❌ '+m+'</span>');
+    setTimeout(()=>{ switchMode('screen'); toast('💡 Open YouTube in a tab → use Screen Share', 7000); }, 1200);
   }
   btn.disabled=false; btn.textContent='Load';
 }
@@ -1389,7 +1402,10 @@ function startViz(cvId){
 G('join-code').addEventListener('input',function(){ this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,''); });
 G('join-code').addEventListener('keydown',e=>{ if(e.key==='Enter') joinRoom(); });
 G('rname-input').addEventListener('keydown',e=>{ if(e.key==='Enter') createRoom(); });
-window.addEventListener('load', ()=>initSock());
+window.addEventListener('load', ()=>{
+  try{ initSock(); }
+  catch(e){ console.error('initSock error:',e); }
+});
 </script>
 </body>
 </html>
