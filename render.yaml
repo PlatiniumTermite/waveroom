@@ -1,10 +1,3 @@
-services:
-  - type: web
-    name: waveroom
-    env: node
-    buildCommand: "npm install"
-    startCommand: "node server.js"
-    envVars:
-      - key: NODE_ENV
-        value: production
-    healthCheckPath: /health
+git add render.yaml
+git commit -m "add render.yaml"
+git push
