@@ -1,8 +1,19 @@
 {
   "name": "waveroom",
-  "version": "4.0.0",
+  "version": "2.1.0",
   "main": "server.js",
-  "scripts": { "start": "node server.js" },
-  "dependencies": { "express": "^4.18.2", "socket.io": "^4.7.5" },
-  "engines": { "node": ">=18.0.0" }
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "socket.io": "^4.7.2",
+    "@distube/ytdl-core": "^4.14.4",
+    "play-dl": "^1.9.7",
+    "node-fetch": "^2.7.0",
+    "cors": "^2.8.5"
+  }
 }
