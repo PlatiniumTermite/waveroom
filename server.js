@@ -6,7 +6,7 @@ const path       = require('path');
 const { randomBytes } = require('crypto');
 const { youtubeId, positionAt, validPosition } = require('./public/sync-model');
 
-function createWaveRoom() {
+function createWaveRoom({ resolveYoutube = require('./youtube-audio').resolveYoutube } = {}) {
 
 const app    = express();
 const server = http.createServer(app);
@@ -31,6 +31,7 @@ app.get('/health', (_, res) =>
 app.post('/upload', (req, res, next) => {
   const room = rooms[req.query.code];
   if (!room || req.get('X-Room-Host') !== room.hostToken) return res.status(403).json({ error: 'Host authorization required' });
+  room.sourceRequest = (room.sourceRequest || 0) + 1;
   req.uploadRoom = room;
   next();
 }, express.raw({ type: () => true, limit: '25mb' }), (req, res) => {
@@ -46,6 +47,33 @@ app.post('/upload', (req, res, next) => {
   const id = randomBytes(24).toString('hex');
   room.media = { id, buffer: req.body, type };
   res.json({ streamUrl: '/media/' + id });
+});
+// Resolve one shared audio file; devices never download separate YouTube streams.
+let youtubeJobs = 0;
+app.post('/youtube', express.json({ limit: '4kb' }), async (req, res) => {
+  const room = rooms[req.query.code];
+  if (!room || req.get('X-Room-Host') !== room.hostToken) return res.status(403).json({ error: 'Host authorization required' });
+  const videoId = youtubeId(req.body?.url);
+  if (!videoId) return res.status(400).json({ error: 'Enter a YouTube video link' });
+  if (room.youtubeBusy || youtubeJobs >= 2) return res.status(429).json({ error: 'Audio preparation is busy. Try again shortly.' });
+  const request = room.sourceRequest = (room.sourceRequest || 0) + 1;
+  room.youtubeBusy = true; youtubeJobs++;
+  try {
+    const media = await resolveYoutube(videoId);
+    if (rooms[req.query.code] !== room || room.sourceRequest !== request) {
+      return res.status(409).json({ error: 'Room or audio source changed during preparation' });
+    }
+    const used = Object.values(rooms).reduce((total, item) => total + (item.media?.buffer.length || 0), 0);
+    if (!Buffer.isBuffer(media.buffer) || !media.buffer.length || media.buffer.length > 25 * 1024 * 1024 ||
+      used - (room.media?.buffer.length || 0) + media.buffer.length > 100 * 1024 * 1024) {
+      return res.status(503).json({ error: 'Room audio storage limit reached' });
+    }
+    const id = randomBytes(24).toString('hex');
+    room.media = { ...media, id };
+    res.json({ streamUrl: '/media/' + id, title: media.title });
+  } catch (error) {
+    res.status(502).json({ error: error.message });
+  } finally { room.youtubeBusy = false; youtubeJobs--; }
 });
 app.get('/media/:id', (req, res) => {
   const media = Object.values(rooms).find(room => room.media?.id === req.params.id)?.media;
@@ -195,10 +223,11 @@ io.on('connection', socket => {
       (data.streamUrl.startsWith('/proxy?url=') || data.streamUrl === '/media/' + room.media?.id)) {
       track = { kind: 'audio', streamUrl: data.streamUrl, title: String(data.title || 'Audio').slice(0, 200) };
     } else return reply(cb, { ok: false, error: 'Invalid audio source' });
+    room.sourceRequest = (room.sourceRequest || 0) + 1;
     track.id = randomBytes(12).toString('hex');
     room.track = track;
     room.devices = Object.fromEntries([room.host, ...room.listeners].map(id => [id, { ready: false, status: 'loading' }]));
-    room.state = { playing: false, waiting: data.autoplay === true && track.kind === 'youtube',
+    room.state = { playing: false, waiting: data.autoplay === true && !track.isScreenShare,
       position: 0, serverPlayAt: null, revision: room.state.revision + 1 };
     io.to(socket.data.code).emit('track:set', track);
     publish(room, socket.data.code);

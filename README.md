@@ -1,35 +1,48 @@
 # WaveRoom
 
-Create a room and play YouTube links or uploaded audio together on multiple devices. YouTube playback uses the official IFrame Player API on each device; no YouTube API key or server audio extraction is needed.
+Paste a YouTube link, create or join a room, and play the same audio together. Shared audio mode downloads one file for the room, converts it to MP3, and buffers it on each device before scheduling playback on the browser's audio clock. No YouTube API key, user cookies, or music-provider account is required.
 
 ## Run
 
-Requires Node.js 18 or later.
+Requires Node.js 22 or later (tested with 24.14.1).
 
 ```sh
 npm ci
+npm run setup:youtube
 npm start
 ```
 
-Open `http://localhost:3000`. For phones, use the host computer's address on the same network or a deployed HTTPS address. `PORT` changes the server port. `/health` reports readiness. Rooms, timelines, and uploads live in memory: use one server instance, and expect rooms to end when it restarts. Render's free instance may sleep; the first visit can take time to load.
+Open `http://localhost:3000`. Phones need the host computer's address on the same network or a deployed HTTPS address. `PORT` changes the server port; `/health` reports readiness.
+
+`setup:youtube` installs the checksum-verified official yt-dlp 2026.08.19 executable on Linux x64. On other platforms, install yt-dlp and set `YT_DLP_PATH` to its executable. Audio conversion uses the pinned `ffmpeg-static` dependency, or an operator-provided `FFMPEG_PATH`. The Render build runs installation and YouTube setup automatically. GitHub downloads must be reachable during setup.
+
+Rooms and audio files live in memory. Use one server instance; restarting it ends rooms and removes their audio. Render free instances may sleep between visits.
 
 ## Play together
 
 1. Create a room and share its six character code.
-2. Join from the other phones or computers.
-3. Paste a YouTube video link in **YouTube / URL**, paste a direct audio URL, or upload an audio file (up to 25 MB).
-4. YouTube links queue playback automatically. For uploaded files and direct audio URLs, press Play once.
-5. Press **Enable Audio on This Device** on each device when prompted. The room starts together once all devices are ready. Later tracks reuse the audio permission where the browser allows it. Pause, restart, and seek apply to the entire room.
+2. Join on your other devices.
+3. Paste a public YouTube video link. **Shared audio** is the default; preparation can take a minute. This mode plays a shared audio file inside WaveRoom, rather than a YouTube video on each device.
+4. Tap **Enable Audio on This Device** when prompted. Playback queues automatically and starts once every device has downloaded and decoded the audio and enabled sound.
+5. Pause, Restart, and Seek control the room. New listeners download the same file and catch up without restarting existing speakers.
 
-The host and listeners use the same server timestamp and track revision. Playback starts 1.5 seconds after every device confirms preparation of the requested position. Play, Restart, and a seek during playback each require fresh preparation; readiness from a previous position cannot release a new start. New listeners catch up to the current timeline without reloading other devices. Browser clocks use a monotonic timer, are measured periodically, and drift is corrected during playback. If an active speaker buffers or loses audio permission after playback starts, the room pauses at a shared position, prepares the devices quietly, and resumes them together. A short room pause can occur during recovery. If preparation stalls for 20 seconds, the device shows a retry button; retry recreates a failed YouTube player and prepares the latest room position. A late joiner prepares independently; its initial loading does not pause existing speakers. Pause cancels a queued start or recovery. Brief network disconnects automatically rejoin; the host has a 20 second grace period. Reopening a page does not restore host ownership.
+You can also upload an audio file or paste a direct audio URL. For those sources, press Play once. All shared audio must be under 10 minutes and 25 MB. The server retains one audio file per room, with a combined storage limit of 100 MB and at most two concurrent YouTube preparations. Direct URLs must provide a finite audio file, not a live stream.
 
-### Synchronization limits
+### Timing
 
-YouTube embeds buffer separately on each device. Ads, network stalls, autoplay restrictions, unavailable or embedding disabled videos, browser scheduling, and speaker or Bluetooth output latency can cause audible differences. The displayed timeline difference measures player position, not sound arriving at your ears. Preparation confirms reported player position within 150 ms of its target before acknowledging readiness; that tolerance is not a guarantee of acoustic alignment. **This is approximate synchronized playback, not sample accurate playback or Dolby Atmos.** Keep pages in the foreground and use device speakers for the most predictable timing. YouTube EQ is unavailable because the embedded player does not expose its audio to Web Audio.
+Devices periodically measure their clock difference from the server. Each decoded audio buffer is scheduled in advance with `AudioBufferSourceNode.start`, so a delayed JavaScript UI timer does not determine its actual start. Browser-reported output latency is compensated, and small clock differences are corrected with gentle playback-rate changes.
 
-Direct audio permits finer playback rate adjustments than YouTube. Uploaded files are shared by the server with seeking support; one uploaded file per room is retained, and all files are removed when their rooms end. Total uploaded storage is limited to 100 MB per server. There is no built in music catalog.
+If speakers still sound misaligned, use **Device timing adjustment** on that device: positive values play earlier and negative values play later. These values apply to shared audio and remain while you use the page. Device and Bluetooth latency reporting varies, so the displayed timeline difference is an estimate, not a microphone measurement. Physical speaker alignment and every phone/browser combination have not been verified; keep the page active for predictable playback. This is not Dolby Atmos.
 
-Screen / Tab mode uses browser tab capture and WebRTC. Select a tab and enable sharing its audio (desktop Chrome/Edge). Its network and output delays differ per device; it does not use the scheduled media timeline. Control playback in the source tab.
+Play, Restart, and playing Seek require fresh readiness for the requested position. A device losing audio permission can pause the room while devices prepare again. Pause cancels a queued start. Brief network interruptions automatically rejoin; host ownership has a 20 second reconnect grace period and is not restored by a page reload.
+
+### YouTube availability
+
+A successful download is not guaranteed for every video or hosting network. Private, restricted, unavailable, live, or longer videos are unsupported; YouTube may block downloads or change its player, requiring an extractor update. Errors are shown without silently switching playback mode. The public-video download and two-device flow have been tested locally; Render's network has not been verified because deployment access is unavailable.
+
+The **YouTube player** option keeps playback in official embedded players without an API key. Those players buffer independently and provide approximate timing. Their audio is unavailable to WaveRoom's equalizer and decoded-buffer scheduler. Shared audio mode supports volume, EQ, and the existing spatial preset.
+
+Screen / Tab mode captures desktop browser tab audio over WebRTC. Select a tab and enable audio sharing. It is a separate live mode with per-device network delays; it does not use decoded-buffer scheduling. Control playback in the source tab. No built-in music library is included.
 
 ## Verify
 
@@ -37,4 +50,4 @@ Screen / Tab mode uses browser tab capture and WebRTC. Select a tab and enable s
 npm test
 ```
 
-Tests cover queued starts, coordinated buffering recovery, stale readiness, departure during preparation, quiet device preparation, room scheduling, late joins, playback authorization, paused seeks, stale commands, host reconnection, YouTube URL parsing, upload authorization, and seek ranges. Real multi-device acoustic timing still requires testing on physical hardware.
+Tests cover audio-clock scheduling, latency compensation, calibration, cancellation, decoding/readiness, clock correction, shared starts, recovery, late joining, authorization, upload ranges, and YouTube preparation ownership/concurrency. Real source downloads depend on YouTube and are checked separately from deterministic tests.

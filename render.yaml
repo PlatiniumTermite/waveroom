@@ -3,7 +3,7 @@ services:
     name: waveroom
     runtime: node
     plan: free
-    buildCommand: npm install
+    buildCommand: npm ci && npm run setup:youtube
     startCommand: npm start
     healthCheckPath: /health
     envVars:

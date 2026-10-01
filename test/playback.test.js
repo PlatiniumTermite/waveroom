@@ -7,13 +7,13 @@ const WaveSync = require('../public/sync-model');
 
 // Execute the browser controller with a deterministic clock and a fake IFrame
 // boundary. The server tests separately exercise real Socket.IO connections.
-function browser() {
+function browser(options = {}) {
   let now = 10000, nextTimer = 0;
   const timers = new Map(), intervals = [], events = [], players = [], handlers = new Map();
   const elements = new Map();
   function element(id) {
     if (!elements.has(id)) elements.set(id, {
-      textContent: '', hidden: true, value: '0.85', style: {}, currentTime: 0, duration: 120,
+      textContent: '', hidden: true, value: id.endsWith('-advance') ? '0' : '0.85', style: {}, currentTime: 0, duration: 120,
       classList: { add() {}, remove() {}, toggle() {} }, replaceChildren() {}, appendChild() {},
       pause() {}, load() {}, removeAttribute() {},
       addEventListener() {}, setAttribute() {}
@@ -36,11 +36,21 @@ function browser() {
     destroy() { this.destroyed = true; }
     ready() { this.config.events.onReady({ target: this }); }
   }
+  const sources=[];
+  const audioContext={state:'suspended',outputLatency:0.04,get currentTime(){return now/1000;},
+    resume(){this.state='running';return Promise.resolve();},
+    decodeAudioData:options.decode || (async()=>({duration:120})),
+    createBufferSource(){const source={connect(){},disconnect(){},stop(){this.stopped=true;},
+      start(when,offset){this.when=when;this.offset=offset;},playbackRate:{setValueAtTime(){}}};sources.push(source);return source;}
+  };
   const context = vm.createContext({
     WaveSync, window: { YT: { Player, PlayerState: { PLAYING: 1, PAUSED: 2, BUFFERING: 3, CUED: 5, ENDED: 0 } } },
     G: element, amHost: false, ntpDone: true, sock: { id: 'listener', emit: (...args) => events.push(args), on: (name, handler) => handlers.set(name, handler) },
     location: { origin: 'https://waveroom.test' }, performance: { now: () => now },
     document: { createElement: () => ({}), querySelectorAll: () => [] },
+    BufferedRoomAudio:require('../public/buffered-audio'),
+    AbortSignal, fetch:async()=>({ok:true,headers:{get:()=>null},body:{getReader(){let sent=false;return {async read(){if(sent)return {done:true};sent=true;return {value:new Uint8Array([1])};}};}}}),
+    buildChain(){context.lCtx=audioContext;context.lEQ={sub:{}};},startViz(){},lAn:{},
     AbortController, setTimeout: (fn, delay) => { const id = ++nextTimer; timers.set(id, { fn, at: now + delay }); return id; },
     clearTimeout: id => timers.delete(id), setInterval: fn => intervals.push(fn),
     srvNow: () => now, currentTrack: null, progRaf: null, vizRaf: null,
@@ -50,7 +60,7 @@ function browser() {
   });
   vm.runInContext(fs.readFileSync('public/playback.js', 'utf8') + '\nthis.controller = Playback;', context);
   async function snapshot(state, id = 'track-1') {
-    context.controller.snapshot({ track: { id, kind: 'youtube', videoId: 'dQw4w9WgXcQ', title: 'Test' }, state, devices: {} });
+    context.controller.snapshot({ track: { id, kind: 'youtube', videoId: 'dQw4w9WgXcQ', title: 'Test', ...options.track }, state, devices: {} });
     // Allow the resolved iframe API promise to construct the player.
     await Promise.resolve(); await Promise.resolve();
   }
@@ -63,7 +73,7 @@ function browser() {
     }
     intervals.forEach(fn => fn());
   }
-  return { context, snapshot, advance, players, events, elements, handlers };
+  return { context, snapshot, advance, players, events, elements, handlers, audioContext, sources };
 }
 
 test('a late listener catches up after its audio gesture using the original timeline', async () => {
@@ -264,4 +274,33 @@ test('buffering after quiet preparation revokes it and prepares again while the 
   assert.equal(b.events.at(-1)[1].status, 'prepared');
   assert.equal(b.events.at(-1)[1].revision, 3);
   assert.equal(player.muted, true);
+});
+
+
+test('buffered room playback waits for decoding and permission, then schedules ahead and cancels on pause', async () => {
+  let decode;
+  const b=browser({track:{kind:'audio',streamUrl:'/media/synthetic'},decode:()=>new Promise(resolve=>{decode=resolve;})});
+  await b.snapshot({playing:false,waiting:true,position:5,serverPlayAt:null,revision:1});
+  await new Promise(setImmediate);
+  b.context.controller.enable();
+  assert.equal(b.events.at(-1)[1].status,'loading');
+  decode({duration:120});await new Promise(setImmediate);
+  assert.equal(b.events.at(-1)[1].status,'blocked');
+  b.context.controller.enable();await new Promise(setImmediate);
+  assert.equal(b.events.at(-1)[1].status,'prepared');
+  await b.snapshot({playing:true,waiting:false,position:5,serverPlayAt:12000,revision:2});
+  assert.equal(b.sources.length,1);assert.equal(b.sources[0].when,11.96);
+  assert.equal(b.sources[0].offset,5);
+  await b.snapshot({playing:false,waiting:false,position:5,serverPlayAt:null,revision:3});
+  assert.equal(b.sources[0].stopped,true);
+  b.advance(13000);assert.notEqual(b.events.at(-1)[1].status,'ready');
+});
+
+test('an undecodable shared file reports a device error and never releases readiness', async () => {
+  const b=browser({track:{kind:'audio',streamUrl:'/media/synthetic'},decode:async()=>{throw new Error('Unsupported audio');}});
+  await b.snapshot({playing:false,waiting:true,position:0,serverPlayAt:null,revision:1});
+  await new Promise(setImmediate);
+  assert.equal(b.events.at(-1)[1].status,'error');
+  assert.equal(b.elements.get('l-device-status').textContent,'Unsupported audio');
+  assert.equal(b.sources.length,0);
 });

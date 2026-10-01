@@ -5,18 +5,19 @@ const Playback = (() => {
   let track = null, timeline = null, player = null, youtubePromise = null;
   let generation = 0, timer = null, loadTimeout = null, ready = false, status = '', enabled = false;
   let revision = -1, lastSeek = 0, disconnected = false;
-  let audioAllowed = false;
+  let audioAllowed = false, buffered = null;
   let preparedRevision = -1, preparing = false, playedForPreparation = false, preparationTimeout = null, preparationPoll = null, lastBufferReport = 0;
   let resuming = false, loadAbort = new AbortController();
   const side = () => amHost ? 'h' : 'l';
   const audio = () => G(side() + '-audio');
   const isYoutube = () => track?.kind === 'youtube';
-  const mediaTime = () => isYoutube() ? player?.getCurrentTime() || 0 : audio().currentTime;
-  const duration = () => isYoutube() ? player?.getDuration() || 0 : audio().duration;
-  const pause = () => { if (isYoutube()) player?.pauseVideo(); else audio().pause(); };
+  const mediaTime = () => isYoutube() ? player?.getCurrentTime() || 0 : buffered ? buffered.position : audio().currentTime;
+  const duration = () => isYoutube() ? player?.getDuration() || 0 : buffered ? buffered.duration : audio().duration;
+  const pause = () => { if (isYoutube()) player?.pauseVideo(); else if(buffered)buffered.stop(); else audio().pause(); };
   const seek = value => {
     const target = Math.max(0, Math.min(value, duration() || value));
     if (isYoutube()) player?.seekTo(target, true);
+    else if (buffered) buffered.stop(target);
     else if (audio().readyState) audio().currentTime = target;
     lastSeek = performance.now();
   };
@@ -50,6 +51,15 @@ const Playback = (() => {
   }
   function prepare(state) {
     if (!ready || !state || (state.waiting && preparedRevision === state.revision)) return;
+    if(buffered){
+      if(buffered.context.state!=='running'){needsGesture();return;}
+      if(!ntpDone)return;
+      preparedRevision=state.revision; preparing=false; cancel(); pause();
+      seek(WaveSync.positionAt(state,srvNow()));
+      report('prepared',true); revision=-1;
+      if(state.playing)apply(state);
+      return;
+    }
     preparedRevision = state.revision; preparing = true; playedForPreparation = false;
     clearTimeout(preparationTimeout); clearTimeout(preparationPoll); cancel(); pause(); mute(true);
     seek(WaveSync.positionAt(state, srvNow()));
@@ -130,6 +140,7 @@ const Playback = (() => {
     if(progRaf){cancelAnimationFrame(progRaf);progRaf=null;}
     if(vizRaf){cancelAnimationFrame(vizRaf);vizRaf=null;}
     if(!next.isScreenShare || !amHost)teardown(side());
+    buffered?.dispose(); buffered=null;
     player?.destroy(); player = null;
     audio().pause();
     audio().oncanplay = audio().onloadedmetadata = audio().onerror = null;
@@ -140,6 +151,7 @@ const Playback = (() => {
     timeline = null; revision = -1; preparedRevision = -1; preparing = false;
     ready = false; enabled = false; status = '';
     mute(false);
+    G(side() + '-calibration').hidden = isYoutube() || !!next.isScreenShare;
     G(side() + '-youtube-wrap').hidden = !isYoutube();
     G(side() + '-spectrum').hidden = isYoutube();
     G('unlock').onclick = doUnlock;
@@ -152,6 +164,7 @@ const Playback = (() => {
     document.querySelectorAll('#s-' + (amHost ? 'host' : 'listen') + ' .eq-wrap').forEach(el => el.hidden = isYoutube());
     if (amHost) {
       G('h-player').style.display = 'block';
+      if(!next.isScreenShare){G('h-live-badge').style.display='none';G('h-play-btn').style.display='';G('h-restart-btn').style.display='';}
       G('h-tsub').textContent = isYoutube() ? 'YouTube · plays on each device · no API key' : 'Room audio';
     }
     if (next.isScreenShare) {
@@ -203,23 +216,44 @@ const Playback = (() => {
         report('error'); G(side() + '-device-status').textContent = error.message;
       }
     } else {
-      if (amHost) {
-        applyTrack(next.streamUrl, next.title, null, false, true);
-      } else loadListenerTrack(next.streamUrl, next.title);
-      const element = audio();
-      element.addEventListener('canplay', () => {
-        if (attempt !== generation) return;
-        if(!ready){ready = true; if(audioAllowed){enabled = true;prepare(timeline);}else needsGesture();}
-        else if(enabled && !preparing && !timeline?.waiting)report('ready');
-      }, { signal: loadAbort.signal });
-      element.addEventListener('error', () => {
-        if (attempt === generation) { ready = false; preparing = false; clearTimeout(preparationTimeout); clearTimeout(preparationPoll); report('error'); }
-      }, { signal: loadAbort.signal });
-      element.onwaiting = () => { if (enabled) report('buffering'); };
-      element.onplaying = mediaStarted;
-      element.onended = () => { if(amHost && timeline?.playing)command('pause', duration()); };
+      try {
+        buildChain(audio(),side());
+        const context=amHost?hCtx:lCtx;
+        const eq=amHost?hEQ:lEQ;
+        if(!context || !eq)throw new Error('Web Audio is unavailable on this browser');
+        const engine=new BufferedRoomAudio(context,eq.sub,()=>{
+          if(attempt===generation && amHost && timeline?.playing)command('pause',duration());
+        });
+        buffered=engine;
+        engine.advanceMs=Number(G(side()+'-advance').value)||0;
+        report('loading');
+        const response=await fetch(next.streamUrl,{signal:AbortSignal.any([loadAbort.signal,AbortSignal.timeout(90000)])});
+        if(!response.ok)throw new Error('Audio download failed ('+response.status+')');
+        if(Number(response.headers.get('content-length'))>25*1024*1024)throw new Error('Audio must be 25 MB or smaller');
+        const reader=response.body.getReader(); let bytes=0; const chunks=[];
+        for(;;){
+          const part=await reader.read(); if(part.done)break;
+          bytes+=part.value.byteLength;
+          if(bytes>25*1024*1024){await reader.cancel();throw new Error('Audio must be 25 MB or smaller');}
+          chunks.push(part.value);
+        }
+        const data=new Uint8Array(bytes);let offset=0;
+        for(const chunk of chunks){data.set(chunk,offset);offset+=chunk.byteLength;}
+        const decoded=await context.decodeAudioData(data.buffer);
+        if(attempt!==generation)return;
+        if(decoded.duration>600)throw new Error('Choose audio under 10 minutes');
+        engine.buffer=decoded; ready=true;
+        G(side()+'-dur').textContent=fmt(engine.duration);
+        startViz(side()+'-viz',amHost?hAn:lAn);
+        if(audioAllowed){enabled=true;enable();}else needsGesture();
+      } catch(error) {
+        if(attempt!==generation)return;
+        ready=false; report('error');
+        G(side()+'-device-status').textContent=error.message;
+      }
     }
   }
+
   function apply(state) {
     timeline = state;
     if(status === 'error')return;
@@ -227,6 +261,16 @@ const Playback = (() => {
     if (state.revision === revision) return;
     revision = state.revision;
     if(state.waiting){prepare(state);return;}
+    if(buffered){
+      preparing=false; cancel(); buffered.stop(state.position);
+      if(!state.playing)return;
+      try{buffered.schedule(state,srvNow());}
+      catch(_){needsGesture();return;}
+      timer=setTimeout(()=>{
+        if(!disconnected && timeline?.playing && buffered?.source)report('ready',true);
+      },Math.max(0,state.serverPlayAt-srvNow()));
+      return;
+    }
     preparing = false; clearTimeout(preparationTimeout); clearTimeout(preparationPoll);
     cancel(); pause();
     if (isYoutube()) player.setPlaybackRate(1); else audio().playbackRate = 1;
@@ -247,6 +291,7 @@ const Playback = (() => {
   function correct() {
     if (track?.isScreenShare || !ready || !enabled || !timeline || !ntpDone || disconnected) return;
     if(status === 'error')return;
+    if(buffered && buffered.context.state!=='running'){needsGesture();return;}
     if (preparing) { completePreparation(); return; }
     if (revision !== timeline.revision) { apply(timeline); return; }
     if (timeline.waiting) { if(!preparing && preparedRevision !== timeline.revision)prepare(timeline); return; }
@@ -256,6 +301,11 @@ const Playback = (() => {
     }
     const target = WaveSync.positionAt(timeline, srvNow());
     const drift = mediaTime() - target;
+    if(buffered){
+      buffered.correct(target);
+      G(side()+'-timing').textContent='Estimated timeline difference: '+Math.round(drift*1000)+' ms';
+      return;
+    }
     const threshold = isYoutube() ? 0.30 : 0.25;
     if (Math.abs(drift) > threshold && performance.now() - lastSeek > 2500) seek(target);
     else if (!isYoutube()) audio().playbackRate = Math.abs(drift) > 0.025 ? (drift > 0 ? 0.98 : 1.02) : 1;
@@ -276,6 +326,16 @@ const Playback = (() => {
       return;
     }
     if (!ready) { toast('Wait for the player to load'); return; }
+    if(buffered){
+      const attempt=generation, engine=buffered;
+      engine.context.resume().then(()=>{
+        if(attempt!==generation || disconnected)return;
+        enabled=true; audioAllowed=true; preparedRevision=-1;
+        G(side()+'-enable').hidden=true; G('unlock').classList.add('gone');
+        prepare(timeline);
+      }).catch(()=>{if(attempt===generation)needsGesture();});
+      return;
+    }
     const context = amHost ? hCtx : lCtx;
     if (context?.state === 'suspended') context.resume().catch(() => {});
     preparedRevision = -1;
@@ -333,6 +393,7 @@ const Playback = (() => {
   }
   function reset() {
     cancel(); clearTimeout(loadTimeout); clearTimeout(preparationTimeout); clearTimeout(preparationPoll); loadAbort.abort(); ++generation; player?.destroy(); player = null;
+    buffered?.dispose(); buffered=null;
     track = timeline = null; currentTrack = null;
     audioAllowed = false;
     ready = enabled = preparing = false; status = ''; revision = preparedRevision = -1;
@@ -355,6 +416,11 @@ const Playback = (() => {
       timeline?.waiting ? 'Preparing room' : timeline?.playing ? (status === 'ready' ? 'Playing' : status === 'prepared' ? 'Starting' : status) : 'Paused');
   }, 250);
   return { bind, load, snapshot, enable, reset, command, duration, isYoutube,
+    calibrate: value => {
+      if(!buffered)return;
+      buffered.advanceMs=Math.max(-500,Math.min(500,Number(value)||0));
+      if(timeline?.playing){revision=-1;apply(timeline);}
+    },
     volume: value => { if (isYoutube()) player?.setVolume(value * 100); },
     seek: ratio => command('seek', ratio * duration()) };
 })();

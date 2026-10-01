@@ -352,6 +352,11 @@ input[type=range]{flex:1;accent-color:var(--c);cursor:pointer;height:16px}
  
       <!-- URL pane -->
       <div id="pane-url">
+        <label for="youtube-mode">YouTube playback</label>
+        <select id="youtube-mode" class="fi" style="margin:8px 0">
+          <option value="buffered">Shared audio · precise scheduling</option>
+          <option value="embed">YouTube player · approximate timing</option>
+        </select>
         <div class="info-box warn" style="margin-bottom:9px">
           <b>Paste a YouTube link</b> or a direct MP3 / WAV / OGG URL. No API key needed.<br>
           YouTube links start automatically once every device has enabled audio. YouTube sync is approximate; independent buffering and speaker latency can cause audible differences.
@@ -380,6 +385,11 @@ input[type=range]{flex:1;accent-color:var(--c);cursor:pointer;height:16px}
     <div class="panel" id="h-player" style="display:none">
       <div id="h-youtube-wrap" hidden><div id="h-youtube"></div></div>
       <div class="sbox"><span id="h-device-status">Waiting for a track</span><br><span id="h-room-status"></span><br><small id="h-timing"></small></div>
+      <div id="h-calibration" hidden class="sbox">
+        <label for="h-advance">Device timing adjustment (ms)</label>
+        <input class="fi" id="h-advance" type="number" min="-500" max="500" step="5" value="0" onchange="Playback.calibrate(this.value)">
+        <small>Positive plays earlier; negative plays later. Adjust if you hear an echo.</small>
+      </div>
       <button class="btn bc" id="h-enable" hidden onclick="Playback.enable()">Enable Audio on This Device</button>
 
       <div class="tinfo">
@@ -479,6 +489,11 @@ input[type=range]{flex:1;accent-color:var(--c);cursor:pointer;height:16px}
     <div class="panel">
       <div id="l-youtube-wrap" hidden><div id="l-youtube"></div></div>
       <div class="sbox"><span id="l-device-status">Waiting for a track</span><br><small id="l-timing"></small></div>
+      <div id="l-calibration" hidden class="sbox">
+        <label for="l-advance">Device timing adjustment (ms)</label>
+        <input class="fi" id="l-advance" type="number" min="-500" max="500" step="5" value="0" onchange="Playback.calibrate(this.value)">
+        <small>Positive plays earlier; negative plays later. Adjust if you hear an echo.</small>
+      </div>
       <button class="btn bc" id="l-enable" hidden onclick="Playback.enable()">Enable Audio on This Device</button>
       <div class="sbox" id="l-sync"><b>Sync:</b> Waiting for host to load audio...</div>
     </div>
@@ -727,7 +742,7 @@ async function createOffer(listenerId) {
 // ═══════════════════════════════════════════
 // ── URL MODE ─────────────────────────────
 // ═══════════════════════════════════════════
-function loadUrl() {
+async function loadUrl() {
   const raw=G('audio-url').value.trim();
   if(!raw){toast('Enter a URL');return;}
   let url;
@@ -737,8 +752,21 @@ function loadUrl() {
   if(/(^|\.)youtube\.com$/.test(url.hostname)||url.hostname==='youtu.be') {
     if(!videoId){toast('Enter a YouTube video link, not a channel or playlist');return;}
   }
-  const next=videoId?{kind:'youtube',originalUrl:raw,autoplay:true}:{
-    kind:'audio',streamUrl:'/proxy?url='+encodeURIComponent(raw),title:url.pathname.split('/').pop()||'Audio'};
+  let prepared;
+  if(videoId && G('youtube-mode').value==='buffered'){
+    setStatus('url-status','Preparing shared YouTube audio… This can take a minute.','loading');
+    const code=roomCode;
+    try{
+      const response=await fetch('/youtube?code='+encodeURIComponent(code),{method:'POST',
+        headers:{'Content-Type':'application/json','X-Room-Host':roomHostToken},body:JSON.stringify({url:raw})});
+      const result=await response.json();
+      if(!response.ok)throw new Error(result.error||'Could not prepare YouTube audio');
+      if(roomCode!==code)return;
+      prepared={kind:'audio',streamUrl:result.streamUrl,title:result.title,autoplay:true};
+    }catch(error){setStatus('url-status',error.message,'err');return;}
+  }
+  const next=prepared||(videoId?{kind:'youtube',originalUrl:raw,autoplay:true}:{
+    kind:'audio',streamUrl:'/proxy?url='+encodeURIComponent(raw),title:url.pathname.split('/').pop()||'Audio'});
   sock.emit('track:set',next,res=>{
     setStatus('url-status',res?.ok?'Track loaded — enable audio on every device.':res?.error||'Could not load track',res?.ok?'ok':'err');
   });
@@ -1205,6 +1233,7 @@ G('join-code').addEventListener('input',function(){
   this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'');
 });
 </script>
+<script src="/buffered-audio.js"></script>
 <script src="/playback.js"></script>
 </body>
 </html>

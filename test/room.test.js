@@ -5,8 +5,8 @@ const { io } = require('socket.io-client');
 const { createWaveRoom } = require('../server');
 const { youtubeId, positionAt } = require('../public/sync-model');
 
-async function setup(t) {
-  const app = createWaveRoom();
+async function setup(t, options) {
+  const app = createWaveRoom(options);
   await new Promise(resolve => app.server.listen(0, '127.0.0.1', resolve));
   const url = `http://127.0.0.1:${app.server.address().port}`;
   const clients = [];
@@ -284,4 +284,35 @@ test('a prepared late joiner cannot pause established speakers before its first 
   const recovery = event(host, 'room:state', data => data.state.waiting);
   late.emit('device:status', { trackId: media.id, status: 'buffering', revision: before.revision });
   assert.equal((await recovery).state.waiting, true);
+});
+
+
+test('YouTube shared audio requires host authorization and queues all devices from one media URL', async t => {
+  let calls=0;
+  const {host,room,url}=await setup(t,{resolveYoutube:async id=>{
+    calls++;assert.equal(id,'dQw4w9WgXcQ');return {buffer:Buffer.from('synthetic m4a'),type:'audio/mp4',title:'Test song'};
+  }});
+  const post=(token,link)=>fetch(url+'/youtube?code='+room.code,{method:'POST',headers:{'Content-Type':'application/json','X-Room-Host':token},body:JSON.stringify({url:link})});
+  assert.equal((await post('wrong','https://youtu.be/dQw4w9WgXcQ')).status,403);
+  assert.equal((await post(room.hostToken,'https://example.com')).status,400);
+  assert.equal(calls,0);
+  const response=await post(room.hostToken,'https://youtu.be/dQw4w9WgXcQ');assert.equal(response.status,200);
+  const media=await response.json();assert.equal(calls,1);
+  assert.equal(await (await fetch(url+media.streamUrl)).text(),'synthetic m4a');
+  await emit(host,'track:set',{kind:'audio',...media,autoplay:true});
+  const snapshot=await emit(host,'room:sync',{});
+  assert.equal(snapshot.track.kind,'audio');assert.equal(snapshot.track.streamUrl,media.streamUrl);
+  assert.equal(snapshot.state.waiting,true);
+});
+
+test('YouTube preparation rejects overlapping jobs and discards results after a source change', async t => {
+  let finish,started;
+  const pending=new Promise(resolve=>{started=resolve;});
+  const {host,room,url}=await setup(t,{resolveYoutube:()=>new Promise(resolve=>{finish=resolve;started();})});
+  const post=()=>fetch(url+'/youtube?code='+room.code,{method:'POST',headers:{'Content-Type':'application/json','X-Room-Host':room.hostToken},body:JSON.stringify({url:'https://youtu.be/dQw4w9WgXcQ'})});
+  const request=post();await pending;
+  assert.equal((await post()).status,429);
+  await track(host);
+  finish({buffer:Buffer.from('stale'),type:'audio/mp4',title:'Stale'});
+  assert.equal((await request).status,409);
 });
