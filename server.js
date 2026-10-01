@@ -3,6 +3,10 @@ const express    = require('express');
 const http       = require('http');
 const { Server } = require('socket.io');
 const path       = require('path');
+const { randomBytes } = require('crypto');
+const { youtubeId, positionAt, validPosition } = require('./public/sync-model');
+
+function createWaveRoom() {
 
 const app    = express();
 const server = http.createServer(app);
@@ -22,6 +26,46 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.get('/health', (_, res) =>
   res.json({ ok: true, rooms: Object.keys(rooms).length, ts: Date.now() })
 );
+
+// Uploaded files stay in memory for the lifetime of their room.
+app.post('/upload', (req, res, next) => {
+  const room = rooms[req.query.code];
+  if (!room || req.get('X-Room-Host') !== room.hostToken) return res.status(403).json({ error: 'Host authorization required' });
+  req.uploadRoom = room;
+  next();
+}, express.raw({ type: () => true, limit: '25mb' }), (req, res) => {
+  const room = req.uploadRoom;
+  if (rooms[req.query.code] !== room) return res.status(410).json({ error: 'Room ended during upload' });
+  if (!Buffer.isBuffer(req.body) || !req.body.length) return res.status(400).json({ error: 'Empty file' });
+  const used = Object.values(rooms).reduce((total, value) => total + (value.media?.buffer.length || 0), 0);
+  if (used - (room.media?.buffer.length || 0) + req.body.length > 100 * 1024 * 1024) {
+    return res.status(503).json({ error: 'Upload storage is full. Try a smaller file.' });
+  }
+  const type = req.get('Content-Type') || 'application/octet-stream';
+  if (!type.startsWith('audio/') && type !== 'application/octet-stream') return res.status(415).json({ error: 'Choose an audio file' });
+  const id = randomBytes(24).toString('hex');
+  room.media = { id, buffer: req.body, type };
+  res.json({ streamUrl: '/media/' + id });
+});
+app.get('/media/:id', (req, res) => {
+  const media = Object.values(rooms).find(room => room.media?.id === req.params.id)?.media;
+  if (!media) return res.sendStatus(404);
+  const size = media.buffer.length;
+  res.set({ 'Content-Type': media.type, 'Accept-Ranges': 'bytes', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' });
+  if (!req.headers.range) return res.send(media.buffer);
+  const match = /^bytes=(\d*)-(\d*)$/.exec(req.headers.range);
+  if (!match || (!match[1] && !match[2])) return res.status(416).set('Content-Range', 'bytes */' + size).end();
+  const start = match[1] ? Number(match[1]) : Math.max(0, size - Number(match[2]));
+  const end = match[1] && match[2] ? Math.min(size - 1, Number(match[2])) : size - 1;
+  if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start > end || start >= size) {
+    return res.status(416).set('Content-Range', 'bytes */' + size).end();
+  }
+  res.status(206).set('Content-Range', `bytes ${start}-${end}/${size}`).send(media.buffer.subarray(start, end + 1));
+});
+app.use((error, req, res, next) => {
+  if (error.type === 'entity.too.large') return res.status(413).json({ error: 'Audio files must be 25 MB or smaller' });
+  next(error);
+});
 
 // ── Generic audio proxy (for direct MP3/WAV/OGG URLs) ────────────
 app.get('/proxy', async (req, res) => {
@@ -44,8 +88,8 @@ app.get('/proxy', async (req, res) => {
     if (cl) res.setHeader('Content-Length', cl);
     if (ar) res.setHeader('Accept-Ranges', ar);
     if (cr) res.setHeader('Content-Range', cr);
-    res.status(up.status === 206 ? 206 : 200);
-    req.on('close', () => { try { up.body.destroy(); } catch(_){} });
+    res.status(up.status);
+    res.on('close', () => { try { up.body.destroy(); } catch(_){} });
     up.body.pipe(res);
   } catch(e) {
     console.error('[PROXY]', e.message);
@@ -53,152 +97,182 @@ app.get('/proxy', async (req, res) => {
   }
 });
 
-// ── YouTube info + stream ─────────────────────────────────────────
-app.get('/yt-info', async (req, res) => {
-  const url = req.query.url;
-  if (!url) return res.status(400).json({ error: 'No URL' });
-  let lastErr = 'unknown';
-
-  // Attempt 1: @distube/ytdl-core
-  try {
-    const ytdl = require('@distube/ytdl-core');
-    if (!ytdl.validateURL(url)) return res.status(400).json({ error: 'Invalid YouTube URL' });
-    const info    = await ytdl.getInfo(url, { requestOptions: { headers: { 'User-Agent': 'Mozilla/5.0' }}});
-    const formats = ytdl.filterFormats(info.formats, 'audioonly');
-    const mp4     = formats.filter(f => f.container==='mp4' && f.audioBitrate).sort((a,b)=>b.audioBitrate-a.audioBitrate)[0];
-    const best    = mp4 || formats.sort((a,b)=>(b.audioBitrate||0)-(a.audioBitrate||0))[0];
-    if (!best) throw new Error('No audio format');
-    return res.json({ ok:true, title:info.videoDetails.title,
-      duration:+info.videoDetails.lengthSeconds,
-      streamEndpoint:'/yt-stream?url='+encodeURIComponent(url) });
-  } catch(e) { lastErr = e.message; console.warn('[yt-info ytdl]', e.message); }
-
-  // Attempt 2: play-dl
-  try {
-    const pd   = require('play-dl');
-    const info = await pd.video_info(url);
-    return res.json({ ok:true, title:info.video_details.title,
-      duration:info.video_details.durationInSec,
-      streamEndpoint:'/yt-stream?url='+encodeURIComponent(url) });
-  } catch(e) { lastErr = e.message; console.warn('[yt-info playdl]', e.message); }
-
-  res.status(500).json({ error: 'YouTube blocked the request. Use a direct MP3 URL instead. Error: '+lastErr });
-});
-
-app.get('/yt-stream', async (req, res) => {
-  const url = req.query.url;
-  if (!url) return res.status(400).send('No URL');
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Cache-Control', 'no-cache');
-
-  // Attempt 1: @distube/ytdl-core
-  try {
-    const ytdl    = require('@distube/ytdl-core');
-    const info    = await ytdl.getInfo(url, { requestOptions: { headers: { 'User-Agent': 'Mozilla/5.0' }}});
-    const formats = ytdl.filterFormats(info.formats, 'audioonly');
-    const mp4     = formats.filter(f => f.container==='mp4' && f.audioBitrate).sort((a,b)=>b.audioBitrate-a.audioBitrate)[0];
-    const chosen  = mp4 || formats.sort((a,b)=>(b.audioBitrate||0)-(a.audioBitrate||0))[0];
-    if (!chosen) throw new Error('No format');
-    res.setHeader('Content-Type', mp4 ? 'audio/mp4' : 'audio/webm');
-    const s = ytdl(url, { format: chosen, highWaterMark: 1<<25 });
-    req.on('close', () => { try { s.destroy(); } catch(_){} });
-    s.on('error', e => { console.error('[stream ytdl]', e.message); if(!res.headersSent) res.end(); });
-    s.pipe(res);
-    return;
-  } catch(e) { console.warn('[stream ytdl]', e.message); }
-
-  // Attempt 2: play-dl
-  try {
-    const pd  = require('play-dl');
-    const s   = await pd.stream(url, { quality: 2 });
-    res.setHeader('Content-Type', 'audio/webm');
-    req.on('close', () => { try { s.stream.destroy(); } catch(_){} });
-    s.stream.on('error', e => { console.error('[stream playdl]', e.message); if(!res.headersSent) res.end(); });
-    s.stream.pipe(res);
-    return;
-  } catch(e) { console.warn('[stream playdl]', e.message); }
-
-  if (!res.headersSent) res.status(500).send('YouTube stream failed — use a direct MP3 URL');
-});
-
 // ── WebRTC signalling (for screen audio capture mode) ────────────
 // Host captures screen/tab audio → sends WebRTC offer to each listener
 io.on('connection', socket => {
+  // Invalid socket payloads must not crash the room server.
+  socket.use((packet, next) => {
+    if (['ntp:ping', 'room:create', 'room:join', 'track:set', 'device:status', 'playback:command', 'webrtc:offer', 'webrtc:answer', 'webrtc:ice'].includes(packet[0]) &&
+      (!packet[1] || typeof packet[1] !== 'object' || Array.isArray(packet[1]))) packet[1] = {};
+    next();
+  });
 
-  socket.on('ntp:ping', ({ clientTime }) =>
+  socket.on('ntp:ping', ({ clientTime } = {}) =>
     socket.emit('ntp:pong', { clientTime, serverTime: Date.now() })
   );
   socket.on('keepalive', () => socket.emit('keepalive-ack'));
 
-  // ── Room management ───────────────────────────────────────────
-  socket.on('room:create', ({ name }, cb) => {
+  function snapshot(room) {
+    return { track: room.track, state: room.state, devices: room.devices, serverTime: Date.now() };
+  }
+  function publish(room, code) { io.to(code).emit('room:state', snapshot(room)); }
+  function allReady(room) {
+    return io.sockets.sockets.has(room.host) && Object.values(room.devices).length > 0 &&
+      Object.values(room.devices).every(device => device.ready);
+  }
+  function resumeIfReady(room, code) {
+    if (!room.state.waiting || !allReady(room)) return;
+    for (const device of Object.values(room.devices)) device.participating = true;
+    room.state = { playing: true, waiting: false, position: room.state.position,
+      serverPlayAt: Date.now() + 1500, revision: room.state.revision + 1 };
+    publish(room, code);
+  }
+  function waitTogether(room, code, position = positionAt(room.state, Date.now())) {
+    room.state = { playing: false, waiting: true, position,
+      serverPlayAt: null, revision: room.state.revision + 1 };
+    for (const device of Object.values(room.devices)) { device.ready = false; device.status = 'loading'; }
+    publish(room, code);
+  }
+  function hostRoom() {
+    const room = rooms[socket.data.code];
+    return room && room.host === socket.id ? room : null;
+  }
+  function reply(cb, data) { if (typeof cb === 'function') cb(data); }
+
+  socket.on('room:create', ({ name } = {}, cb) => {
+    if (socket.data.code) return reply(cb, { ok: false, error: 'Already in a room' });
     let code = genCode();
     while (rooms[code]) code = genCode();
-    rooms[code] = {
-      host: socket.id, name: name || 'Audio Room',
-      listeners: [], track: null,
-      state: { playing: false, position: 0, serverPlayAt: null }
+    const room = rooms[code] = {
+      host: socket.id, hostToken: randomBytes(24).toString('hex'),
+      name: typeof name === 'string' ? name.slice(0, 80) : 'Audio Room',
+      listeners: [], devices: {}, track: null,
+      state: { playing: false, waiting: false, position: 0, serverPlayAt: null, revision: 0 }
     };
     socket.join(code);
-    socket.data.code   = code;
+    socket.data.code = code;
     socket.data.isHost = true;
-    console.log('[+] Room', code, '| total:', Object.keys(rooms).length);
-    cb({ ok: true, code, name: rooms[code].name });
+    reply(cb, { ok: true, code, name: room.name, hostToken: room.hostToken, ...snapshot(room) });
   });
 
-  socket.on('room:join', ({ code }, cb) => {
+  socket.on('room:join', ({ code, hostToken } = {}, cb) => {
+    if (typeof code !== 'string') return reply(cb, { ok: false, error: 'Invalid room code' });
+    code = code.toUpperCase();
     const room = rooms[code];
-    console.log('[?] join', code, '| found:', !!room, '| rooms:', Object.keys(rooms).join(','));
-    if (!room) return cb({ ok: false, error: 'Room not found' });
-    room.listeners.push(socket.id);
+    if (!room) return reply(cb, { ok: false, error: 'Room not found' });
+    if (socket.data.code) return reply(cb, { ok: false, error: 'Already in a room' });
+    if (hostToken) {
+      if (hostToken !== room.hostToken || io.sockets.sockets.has(room.host)) {
+        return reply(cb, { ok: false, error: 'Cannot resume host session' });
+      }
+      clearTimeout(room.closeTimer);
+      room.host = socket.id;
+      socket.data.isHost = true;
+    } else {
+      room.listeners.push(socket.id);
+      socket.data.isHost = false;
+      io.to(room.host).emit('room:listener_joined', { id: socket.id });
+    }
     socket.join(code);
-    socket.data.code   = code;
-    socket.data.isHost = false;
-    io.to(room.host).emit('room:listener_joined', { id: socket.id });
+    socket.data.code = code;
+    if (room.track && !room.track.isScreenShare) room.devices[socket.id] = { ready: false, status: 'loading' };
     io.to(code).emit('room:count', room.listeners.length);
-    cb({ ok: true, name: room.name, track: room.track, state: room.state });
+    reply(cb, { ok: true, name: room.name, listeners: room.listeners, ...snapshot(room) });
+    publish(room, code);
   });
 
-  // ── Track sync (URL mode) ─────────────────────────────────────
-  socket.on('track:set', data => {
-    const { code } = socket.data;
-    const room = rooms[code];
-    if (!room || room.host !== socket.id) return;
-    room.track = data;
-    room.state = { playing: false, position: 0, serverPlayAt: null };
-    socket.to(code).emit('track:set', data);
-    console.log('[♪]', code, data.title);
+  socket.on('track:set', (data = {}, cb) => {
+    const room = hostRoom();
+    if (!room) return reply(cb, { ok: false, error: 'Only the host can load a track' });
+    let track;
+    if (data.kind === 'youtube') {
+      const videoId = youtubeId(data.originalUrl);
+      if (!videoId) return reply(cb, { ok: false, error: 'Invalid YouTube link' });
+      track = { kind: 'youtube', videoId, title: 'YouTube · ' + videoId, originalUrl: data.originalUrl.slice(0, 2048) };
+    } else if (data.isScreenShare) {
+      track = { kind: 'screen', isScreenShare: true, title: 'Screen Audio', streamUrl: '__screen__' };
+    } else if (typeof data.streamUrl === 'string' && data.streamUrl.length <= 4096 &&
+      (data.streamUrl.startsWith('/proxy?url=') || data.streamUrl === '/media/' + room.media?.id)) {
+      track = { kind: 'audio', streamUrl: data.streamUrl, title: String(data.title || 'Audio').slice(0, 200) };
+    } else return reply(cb, { ok: false, error: 'Invalid audio source' });
+    track.id = randomBytes(12).toString('hex');
+    room.track = track;
+    room.devices = Object.fromEntries([room.host, ...room.listeners].map(id => [id, { ready: false, status: 'loading' }]));
+    room.state = { playing: false, waiting: data.autoplay === true && track.kind === 'youtube',
+      position: 0, serverPlayAt: null, revision: room.state.revision + 1 };
+    io.to(socket.data.code).emit('track:set', track);
+    publish(room, socket.data.code);
+    reply(cb, { ok: true });
   });
 
-  socket.on('audio:play', ({ position, serverPlayAt }) => {
-    const { code } = socket.data; const room = rooms[code];
-    if (!room || room.host !== socket.id) return;
-    room.state = { playing: true, position, serverPlayAt };
-    socket.to(code).emit('audio:play', { position, serverPlayAt });
+  socket.on('device:status', (data = {}) => {
+    const room = rooms[socket.data.code];
+    if (!room || !room.track || data.trackId !== room.track.id) return;
+    const statuses = ['prepared', 'ready', 'loading', 'buffering', 'blocked', 'error'];
+    if (!statuses.includes(data.status)) return;
+    // Delayed readiness or buffering from an old timeline must not alter the current one.
+    if (data.revision !== room.state.revision) return;
+    const previous = room.devices[socket.id];
+    room.devices[socket.id] = { ready: ['prepared', 'ready'].includes(data.status), status: data.status,
+      participating: previous?.participating || (data.status === 'ready' && room.state.playing) };
+    // A late join is prepared independently. Only an already participating
+    // speaker can request a room-wide recovery after playback has started.
+    if (room.state.playing && previous?.participating && ['buffering', 'blocked', 'error'].includes(data.status) &&
+      Date.now() >= room.state.serverPlayAt + 500) {
+      waitTogether(room, socket.data.code);
+    } else {
+      io.to(socket.data.code).emit('room:devices', room.devices);
+      resumeIfReady(room, socket.data.code);
+    }
   });
 
-  socket.on('audio:pause', ({ position }) => {
-    const { code } = socket.data; const room = rooms[code];
-    if (!room || room.host !== socket.id) return;
-    room.state = { playing: false, position, serverPlayAt: null };
-    socket.to(code).emit('audio:pause', { position });
+  socket.on('playback:command', (data = {}, cb) => {
+    const room = hostRoom();
+    if (!room || !room.track || data.trackId !== room.track.id) return reply(cb, { ok: false, error: 'Track is no longer active' });
+    if (!['play', 'pause', 'seek'].includes(data.action) || !validPosition(data.position)) {
+      return reply(cb, { ok: false, error: 'Invalid playback command' });
+    }
+    const playing = data.action === 'play' || (data.action === 'seek' && Boolean(room.state.playing || room.state.waiting));
+    if (playing) {
+      // Readiness at the old position says nothing about the requested position.
+      waitTogether(room, socket.data.code, data.position);
+      reply(cb, { ok: true, queued: true });
+    } else {
+      room.state = { playing: false, waiting: false, position: data.position,
+        serverPlayAt: null, revision: room.state.revision + 1 };
+      publish(room, socket.data.code);
+      reply(cb, { ok: true, queued: false });
+    }
   });
 
-  socket.on('audio:seek', ({ position, playing, serverPlayAt }) => {
-    const { code } = socket.data; const room = rooms[code];
-    if (!room || room.host !== socket.id) return;
-    room.state = { playing, position, serverPlayAt: playing ? serverPlayAt : null };
-    socket.to(code).emit('audio:seek', { position, playing, serverPlayAt });
+  // Live tab sharing retains its own WebRTC timing.
+  socket.on('audio:play', () => {
+    const room = hostRoom();
+    if (!room || !room.track?.isScreenShare) return;
+    room.state = { playing: true, position: 0, serverPlayAt: Date.now(), revision: room.state.revision + 1 };
+  });
+  socket.on('room:sync', (_, cb) => {
+    const room = rooms[socket.data.code];
+    if (room) reply(cb, { ok: true, ...snapshot(room) });
   });
 
   // ── WebRTC signalling (screen/tab audio mode) ─────────────────
   socket.on('webrtc:offer', ({ to, offer }) => {
+    const room = rooms[socket.data.code];
+    if (!room || ![room.host, ...room.listeners].includes(to) ||
+      (socket.id !== room.host && to !== room.host)) return;
     io.to(to).emit('webrtc:offer', { from: socket.id, offer });
   });
   socket.on('webrtc:answer', ({ to, answer }) => {
+    const room = rooms[socket.data.code];
+    if (!room || ![room.host, ...room.listeners].includes(to) ||
+      (socket.id !== room.host && to !== room.host)) return;
     io.to(to).emit('webrtc:answer', { from: socket.id, answer });
   });
   socket.on('webrtc:ice', ({ to, candidate }) => {
+    const room = rooms[socket.data.code];
+    if (!room || ![room.host, ...room.listeners].includes(to) ||
+      (socket.id !== room.host && to !== room.host)) return;
     io.to(to).emit('webrtc:ice', { from: socket.id, candidate });
   });
 
@@ -206,21 +280,26 @@ io.on('connection', socket => {
   socket.on('disconnect', () => {
     const { code, isHost } = socket.data;
     if (!code || !rooms[code]) return;
+    const room = rooms[code];
+    delete room.devices[socket.id];
     if (isHost) {
-      io.to(code).emit('room:host_left');
-      delete rooms[code];
-      console.log('[-] Room', code, '| total:', Object.keys(rooms).length);
+      // Preserve the timeline briefly so a transient network loss can resume.
+      room.closeTimer = setTimeout(() => {
+        io.to(code).emit('room:host_left');
+        delete rooms[code];
+      }, 20000);
+      room.closeTimer.unref();
     } else {
-      rooms[code].listeners = rooms[code].listeners.filter(id => id !== socket.id);
-      if (rooms[code]) {
-        io.to(rooms[code].host).emit('room:listener_left', { id: socket.id });
-        io.to(code).emit('room:count', rooms[code].listeners.length);
-      }
+      room.listeners = room.listeners.filter(id => id !== socket.id);
+      io.to(room.host).emit('room:listener_left', { id: socket.id });
+      io.to(code).emit('room:count', room.listeners.length);
     }
+    io.to(code).emit('room:devices', room.devices);
+    resumeIfReady(room, code);
   });
 });
 
-const rooms = {};
+const rooms = Object.create(null);
 function genCode() {
   const c = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let s = '';
@@ -228,12 +307,22 @@ function genCode() {
   return s;
 }
 
-// Self-ping to keep Render free tier alive
-const PORT     = process.env.PORT || 3000;
-const SELF_URL = process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`;
-setInterval(async () => {
-  try { const f = require('node-fetch'); await f(SELF_URL + '/health'); }
-  catch(e) { console.warn('[ping]', e.message); }
-}, 13 * 60 * 1000);
+const pulse = setInterval(() => {
+  for (const [code, room] of Object.entries(rooms)) {
+    io.to(code).emit('room:state', { track: room.track, state: room.state, devices: room.devices, serverTime: Date.now() });
+  }
+}, 2000);
+pulse.unref();
+return { app, server, io, rooms, close: async () => {
+  clearInterval(pulse);
+  for (const room of Object.values(rooms)) clearTimeout(room.closeTimer);
+  await new Promise(resolve => io.close(resolve));
+} };
+}
 
-server.listen(PORT, () => console.log(`WaveRoom v3 on :${PORT}`));
+if (require.main === module) {
+  const { server } = createWaveRoom();
+  const port = process.env.PORT || 3000;
+  server.listen(port, () => console.log(`WaveRoom on :${port}`));
+}
+module.exports = { createWaveRoom };
