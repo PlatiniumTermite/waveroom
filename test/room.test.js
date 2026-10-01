@@ -71,7 +71,7 @@ test('host and listener receive the same future start; late joins never reset th
   await ready(host, trackId); await ready(listener, trackId);
   const [h, l] = await Promise.all([hostState, listenerState]);
   assert.deepEqual(h.state, l.state);
-  assert.ok(h.state.serverPlayAt >= before + 1400);
+  assert.ok(h.state.serverPlayAt >= before + 350);
   const late = await connect();
   const joined = await emit(late, 'room:join', { code: room.code.toLowerCase() });
   assert.equal(joined.track.id, trackId);
@@ -134,8 +134,9 @@ test('malformed socket payloads cannot crash the room server', async t => {
   const { host } = await setup(t);
   assert.equal((await emit(host, 'track:set', null)).ok, false);
   assert.equal((await emit(host, 'playback:command', 'bad')).ok, false);
-  const pong = event(host, 'ntp:pong'); host.emit('ntp:ping', null);
-  assert.ok(Number.isFinite((await pong).serverTime));
+  host.emit('ntp:ping', null);
+  const pong = event(host, 'ntp:pong');host.emit('ntp:ping',{t0:Date.now(),groupId:1,index:0});
+  assert.ok(Number.isFinite((await pong).t1));
   assert.equal((await emit(host, 'room:sync', {})).ok, true);
 });
 
@@ -173,7 +174,7 @@ test('Play queues until every device prepares the current revision, then starts 
   await ready(listener, media.id);
   const state = (await started).state;
   assert.equal(state.waiting, false); assert.equal(state.playing, true); assert.equal(state.position, 15);
-  assert.ok(state.serverPlayAt > Date.now() + 1300);
+  assert.ok(state.serverPlayAt > Date.now() + 300);
 });
 
 test('buffering freezes the room and all speakers resume from the same position', async t => {
@@ -315,4 +316,24 @@ test('YouTube preparation rejects overlapping jobs and discards results after a 
   await track(host);
   finish({buffer:Buffer.from('stale'),type:'audio/mp4',title:'Stale'});
   assert.equal((await request).status,409);
+});
+
+
+test('clock probes return ordered server timestamps and readiness includes slow-device headroom', async t => {
+  const {host}=await setup(t);
+  const response=event(host,'ntp:pong');
+  host.emit('ntp:ping',{t0:Date.now(),groupId:1,index:0,rtt:600,compensationMs:1000});
+  const pong=await response;
+  assert.equal(pong.groupId,1);assert.equal(pong.index,0);assert.ok(pong.t2>=pong.t1);
+  await track(host);
+  const initial=await emit(host,'room:sync',{});
+  await emit(host,'playback:command',{trackId:initial.track.id,action:'play',position:0});
+  const waiting=await emit(host,'room:sync',{});
+  const start=event(host,'room:state',d=>d.state.playing);
+  const before=Date.now();
+  host.emit('device:status',{trackId:initial.track.id,status:'prepared',revision:waiting.state.revision,
+    timing:{rtt:700,compensationMs:1400}});
+  const result=await start;
+  assert.ok(result.state.serverPlayAt>=before+1550);
+  assert.ok(result.state.serverPlayAt<before+2200);
 });

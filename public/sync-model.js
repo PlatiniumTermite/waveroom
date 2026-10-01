@@ -21,5 +21,14 @@
     return Math.max(0, state.position + (state.playing ? Math.max(0, now - state.serverPlayAt) / 1000 : 0));
   }
   function validPosition(value) { return Number.isFinite(value) && value >= 0 && value <= 86400 * 7; }
-  return { youtubeId, positionAt, validPosition };
+  function scheduleDelay(timings) {
+    // Adapted from BeatSync: slowest RTT plus output-compensation headroom.
+    let rtt=0,compensation=0;
+    for(const timing of timings){
+      if(Number.isFinite(timing?.rtt))rtt=Math.max(rtt,Math.min(10000,Math.max(0,timing.rtt)));
+      if(Number.isFinite(timing?.compensationMs))compensation=Math.max(compensation,Math.min(2000,Math.max(0,timing.compensationMs)));
+    }
+    return Math.max(Math.min(3000,Math.max(400,rtt*1.5+200)),compensation+200);
+  }
+  return { youtubeId, positionAt, validPosition, scheduleDelay };
 });

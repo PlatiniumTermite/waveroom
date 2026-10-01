@@ -4,10 +4,13 @@ const http       = require('http');
 const { Server } = require('socket.io');
 const path       = require('path');
 const { randomBytes } = require('crypto');
-const { youtubeId, positionAt, validPosition } = require('./public/sync-model');
+const { performance } = require('node:perf_hooks');
+const { youtubeId, positionAt, validPosition, scheduleDelay } = require('./public/sync-model');
 
 function createWaveRoom({ resolveYoutube = require('./youtube-audio').resolveYoutube } = {}) {
 
+const clockOrigin = Date.now()-performance.now();
+const serverNow = () => clockOrigin+performance.now();
 const app    = express();
 const server = http.createServer(app);
 
@@ -24,7 +27,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // ── Health ────────────────────────────────────────────────────────
 app.get('/health', (_, res) =>
-  res.json({ ok: true, rooms: Object.keys(rooms).length, ts: Date.now() })
+  res.json({ ok: true, rooms: Object.keys(rooms).length, ts: serverNow() })
 );
 
 // Uploaded files stay in memory for the lifetime of their room.
@@ -135,13 +138,24 @@ io.on('connection', socket => {
     next();
   });
 
-  socket.on('ntp:ping', ({ clientTime } = {}) =>
-    socket.emit('ntp:pong', { clientTime, serverTime: Date.now() })
-  );
+  function updateTiming(data) {
+    if(Number.isFinite(data?.rtt) && data.rtt>=0 && data.rtt<=10000 &&
+      Number.isFinite(data?.compensationMs) && data.compensationMs>=0 && data.compensationMs<=2000){
+      socket.data.timing={rtt:data.rtt,compensationMs:data.compensationMs};
+    }
+  }
+  socket.on('ntp:ping', (data = {}) => {
+    const t1=serverNow();updateTiming(data);
+    if(Number.isFinite(data.t0) && Number.isSafeInteger(data.groupId) && [0,1].includes(data.index)){
+      socket.emit('ntp:pong',{t0:data.t0,t1,t2:serverNow(),groupId:data.groupId,index:data.index});
+    }else if(Number.isFinite(data.clientTime)){
+      socket.emit('ntp:pong',{clientTime:data.clientTime,serverTime:serverNow()});
+    }
+  });
   socket.on('keepalive', () => socket.emit('keepalive-ack'));
 
   function snapshot(room) {
-    return { track: room.track, state: room.state, devices: room.devices, serverTime: Date.now() };
+    return { track: room.track, state: room.state, devices: room.devices, serverTime: serverNow() };
   }
   function publish(room, code) { io.to(code).emit('room:state', snapshot(room)); }
   function allReady(room) {
@@ -152,10 +166,10 @@ io.on('connection', socket => {
     if (!room.state.waiting || !allReady(room)) return;
     for (const device of Object.values(room.devices)) device.participating = true;
     room.state = { playing: true, waiting: false, position: room.state.position,
-      serverPlayAt: Date.now() + 1500, revision: room.state.revision + 1 };
+      serverPlayAt: serverNow() + scheduleDelay(Object.keys(room.devices).map(id=>io.sockets.sockets.get(id)?.data.timing)), revision: room.state.revision + 1 };
     publish(room, code);
   }
-  function waitTogether(room, code, position = positionAt(room.state, Date.now())) {
+  function waitTogether(room, code, position = positionAt(room.state, serverNow())) {
     room.state = { playing: false, waiting: true, position,
       serverPlayAt: null, revision: room.state.revision + 1 };
     for (const device of Object.values(room.devices)) { device.ready = false; device.status = 'loading'; }
@@ -241,13 +255,14 @@ io.on('connection', socket => {
     if (!statuses.includes(data.status)) return;
     // Delayed readiness or buffering from an old timeline must not alter the current one.
     if (data.revision !== room.state.revision) return;
+    updateTiming(data.timing);
     const previous = room.devices[socket.id];
     room.devices[socket.id] = { ready: ['prepared', 'ready'].includes(data.status), status: data.status,
       participating: previous?.participating || (data.status === 'ready' && room.state.playing) };
     // A late join is prepared independently. Only an already participating
     // speaker can request a room-wide recovery after playback has started.
     if (room.state.playing && previous?.participating && ['buffering', 'blocked', 'error'].includes(data.status) &&
-      Date.now() >= room.state.serverPlayAt + 500) {
+      serverNow() >= room.state.serverPlayAt + 500) {
       waitTogether(room, socket.data.code);
     } else {
       io.to(socket.data.code).emit('room:devices', room.devices);
@@ -278,7 +293,7 @@ io.on('connection', socket => {
   socket.on('audio:play', () => {
     const room = hostRoom();
     if (!room || !room.track?.isScreenShare) return;
-    room.state = { playing: true, position: 0, serverPlayAt: Date.now(), revision: room.state.revision + 1 };
+    room.state = { playing: true, position: 0, serverPlayAt: serverNow(), revision: room.state.revision + 1 };
   });
   socket.on('room:sync', (_, cb) => {
     const room = rooms[socket.data.code];
@@ -338,7 +353,7 @@ function genCode() {
 
 const pulse = setInterval(() => {
   for (const [code, room] of Object.entries(rooms)) {
-    io.to(code).emit('room:state', { track: room.track, state: room.state, devices: room.devices, serverTime: Date.now() });
+    io.to(code).emit('room:state', { track: room.track, state: room.state, devices: room.devices, serverTime: serverNow() });
   }
 }, 2000);
 pulse.unref();

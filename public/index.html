@@ -387,7 +387,7 @@ input[type=range]{flex:1;accent-color:var(--c);cursor:pointer;height:16px}
       <div class="sbox"><span id="h-device-status">Waiting for a track</span><br><span id="h-room-status"></span><br><small id="h-timing"></small></div>
       <div id="h-calibration" hidden class="sbox">
         <label for="h-advance">Device timing adjustment (ms)</label>
-        <input class="fi" id="h-advance" type="number" min="-500" max="500" step="5" value="0" onchange="Playback.calibrate(this.value)">
+        <input class="fi" id="h-advance" type="number" min="-1000" max="1000" step="5" value="0" onchange="Playback.calibrate(this.value)">
         <small>Positive plays earlier; negative plays later. Adjust if you hear an echo.</small>
       </div>
       <button class="btn bc" id="h-enable" hidden onclick="Playback.enable()">Enable Audio on This Device</button>
@@ -491,7 +491,7 @@ input[type=range]{flex:1;accent-color:var(--c);cursor:pointer;height:16px}
       <div class="sbox"><span id="l-device-status">Waiting for a track</span><br><small id="l-timing"></small></div>
       <div id="l-calibration" hidden class="sbox">
         <label for="l-advance">Device timing adjustment (ms)</label>
-        <input class="fi" id="l-advance" type="number" min="-500" max="500" step="5" value="0" onchange="Playback.calibrate(this.value)">
+        <input class="fi" id="l-advance" type="number" min="-1000" max="1000" step="5" value="0" onchange="Playback.calibrate(this.value)">
         <small>Positive plays earlier; negative plays later. Adjust if you hear an echo.</small>
       </div>
       <button class="btn bc" id="l-enable" hidden onclick="Playback.enable()">Enable Audio on This Device</button>
@@ -512,15 +512,14 @@ input[type=range]{flex:1;accent-color:var(--c);cursor:pointer;height:16px}
  
 <script src="/socket.io/socket.io.js"></script>
 <script src="/sync-model.js"></script>
+<script src="/clock-sync.js"></script>
 <script>
 'use strict';
  
 // ═══════════════════════════════════════════
 // CONFIG
 // ═══════════════════════════════════════════
-const NTP_ROUNDS = 12;
-const SCHED_MS   = 600;   // schedule 600ms ahead
-const DRIFT_TOL  = 0.05;  // 50ms
+
  
 // ═══════════════════════════════════════════
 // EQ PRESETS (Dolby-style)
@@ -538,7 +537,7 @@ const EQ_PRESETS = {
 // STATE
 // ═══════════════════════════════════════════
 let sock=null, roomCode=null, amHost=false, roomHostToken=null;
-let clockOffset=0, ntpSamples=[], ntpDone=false;
+let clockOffset=0, ntpDone=false, roomClock=null;
 let pendingPlay=null, progRaf=null, vizRaf=null;
 let listeners={}, currentTrack=null;
 let currentMode='url';
@@ -944,13 +943,13 @@ function initSock() {
     clearInterval(window._ka);
     window._ka=setInterval(()=>{
       if(sock&&sock.connected) sock.emit('keepalive');
-      if(ntpDone)doNTP();
+
     },15000);
   });
  
   sock.on('disconnect',reason=>{
     console.warn('[sock] disconnect',reason);
-    ntpDone=false;
+    roomClock?.stop();ntpDone=false;
     if(roomCode) toast('⚠️ Reconnecting...');
   });
  
@@ -962,12 +961,8 @@ function initSock() {
   sock.on('connect_error',e=>console.error('[sock] error',e.message));
  
   // NTP
-  sock.on('ntp:pong',({clientTime,serverTime})=>{
-    const now=clockNow(),rtt=now-clientTime;
-    ntpSamples.push({rtt,offset:now-(serverTime+rtt/2)});
-    if(ntpSamples.length<NTP_ROUNDS) setTimeout(()=>{if(sock?.connected&&!ntpDone)sock.emit('ntp:ping',{clientTime:clockNow()});},50);
-    else finishNTP();
-  });
+  sock.on('ntp:pong',data=>roomClock?.receive(data));
+
  
   // HOST events
   sock.on('room:listener_joined',async({id})=>{
@@ -1048,15 +1043,16 @@ function initSock() {
 // NTP
 // ═══════════════════════════════════════════
 function doNTP() {
-  ntpSamples=[]; ntpDone=false;
-  sock.emit('ntp:ping',{clientTime:clockNow()});
-}
-function finishNTP() {
-  ntpSamples.sort((a,b)=>a.rtt-b.rtt);
-  const best=ntpSamples.slice(0,3);
-  clockOffset=best.reduce((s,x)=>s+x.offset,0)/best.length;
-  ntpDone=true;
-  console.log('[NTP] offset:'+clockOffset.toFixed(1)+'ms RTT:'+ntpSamples[0].rtt+'ms');
+  roomClock?.stop();ntpDone=false;
+  const connection=sock;
+  roomClock=new RoomClock.RoomClock({
+    now:clockNow,
+    send:data=>{if(connection.connected)connection.emit('ntp:ping',data);},
+    timing:()=>({rtt:roomClock?.rtt||0,compensationMs:Playback.compensation()}),
+    onUpdate:result=>{clockOffset=-result.offset;ntpDone=result.ready;},
+    onStale:()=>{ntpDone=false;Playback.clockLost();}
+  });
+  roomClock.start();
 }
  
 // ═══════════════════════════════════════════
@@ -1161,6 +1157,7 @@ function setVol(input,side){
 // LEAVE
 // ═══════════════════════════════════════════
 function leave(){
+  roomClock?.stop();roomClock=null;ntpDone=false;
   Playback.reset(); roomHostToken=null;
   cancelSched();
   clearInterval(window._ka);

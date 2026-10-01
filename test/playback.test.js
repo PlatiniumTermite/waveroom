@@ -385,3 +385,28 @@ test('a late decode and its timeout cannot replace or abort a newer shared track
   assert.equal(b.context.controller.duration(),120);
   assert.equal(b.events.at(-1)[1].trackId,'new-track');
 });
+
+
+test('saved device calibration is restored and reported with readiness', async () => {
+  const saved=new Map([['waveroom.advanceMs','150']]);
+  const b=browser({track:{kind:'audio',streamUrl:'/media/synthetic'}});
+  b.context.localStorage={getItem:key=>saved.get(key)??null,setItem:(key,value)=>saved.set(key,value)};
+  await b.snapshot({playing:false,waiting:true,position:0,serverPlayAt:null,revision:1});
+  await new Promise(setImmediate);b.context.controller.enable();await new Promise(setImmediate);
+  assert.equal(b.elements.get('l-advance').value,'150');
+  assert.ok(Math.abs(b.events.at(-1)[1].timing.compensationMs-190)<1e-6);
+  b.context.controller.calibrate(-75);
+  assert.equal(saved.get('waveroom.advanceMs'),'-75');
+});
+
+test('losing clock calibration stops audio and asks the room to prepare again', async () => {
+  const b=browser({track:{kind:'audio',streamUrl:'/media/synthetic'}});
+  await b.snapshot({playing:false,waiting:true,position:0,serverPlayAt:null,revision:1});
+  await new Promise(setImmediate);b.context.controller.enable();await new Promise(setImmediate);
+  await b.snapshot({playing:true,waiting:false,position:0,serverPlayAt:12000,revision:2});
+  b.context.ntpDone=false;b.context.controller.clockLost();
+  assert.equal(b.sources[0].stopped,true);assert.equal(b.events.at(-1)[1].status,'buffering');
+  await b.snapshot({playing:false,waiting:true,position:1,serverPlayAt:null,revision:3});
+  b.context.ntpDone=true;b.advance(14000);
+  assert.equal(b.events.at(-1)[1].status,'prepared');
+});

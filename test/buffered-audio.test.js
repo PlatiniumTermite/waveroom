@@ -7,7 +7,7 @@ function setup() {
   const context={currentTime:10,outputLatency:0.04,state:'running',createBufferSource(){
     const source={connect(){},disconnect(){},stop(){this.stopped=true;},
       start(when,offset){this.when=when;this.offset=offset;},
-      playbackRate:{setValueAtTime(rate){source.rate=rate;}}};
+      playbackRate:{setValueAtTime(rate,when){source.rate=rate;source.rateAt=when;}}};
     sources.push(source);return source;
   }};
   let ended=0;const engine=new BufferedAudio(context,{},()=>ended++);engine.buffer={duration:120};
@@ -58,4 +58,34 @@ test('large clock jumps require rescheduling but scheduled future starts do not'
   context.currentTime=13;
   assert.equal(engine.correct(3),'resync');
   assert.equal(engine.rate,1);
+});
+
+test('output timestamps bridge clocks without double-subtracting reported latency',()=>{
+  const {engine,context,sources}=setup();
+  engine.performanceNow=()=>5000;
+  context.getOutputTimestamp=()=>({contextTime:9.8,performanceTime:4950});
+  engine.schedule({playing:true,position:0,serverPlayAt:12000},10000);
+  assert.ok(Math.abs(sources[0].when-11.85)<1e-9);
+  context.currentTime=12.7;engine.performanceNow=()=>7700;
+  context.getOutputTimestamp=()=>({contextTime:12.55,performanceTime:7700});
+  assert.ok(Math.abs(engine.position-0.7)<1e-9);
+});
+test('invalid or stale hardware timestamps fall back, and implausible output latency uses manual calibration',()=>{
+  const {engine,context}=setup();engine.performanceNow=()=>5000;
+  context.getOutputTimestamp=()=>({contextTime:8,performanceTime:2000});
+  assert.equal(engine.outputTime,9.96);
+  context.outputLatency=0.648;assert.equal(engine.latency,0);assert.equal(engine.outputTime,10);
+  context.getOutputTimestamp=()=>{throw new Error('unsupported');};assert.equal(engine.outputTime,10);
+});
+
+
+test('rate correction preserves output position while scheduling its AudioParam on the processing clock',()=>{
+  const {engine,context,sources}=setup();
+  engine.schedule({playing:true,position:0,serverPlayAt:12000},10000);
+  context.currentTime=13;engine.performanceNow=()=>5000;
+  context.getOutputTimestamp=()=>({contextTime:12.7,performanceTime:5000});
+  const before=engine.position;
+  engine.correct(before-0.02);
+  assert.ok(Math.abs(engine.position-before)<1e-9);
+  assert.equal(sources[0].rate,0.997);assert.equal(sources[0].rateAt,13);
 });

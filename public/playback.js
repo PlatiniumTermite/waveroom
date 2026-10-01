@@ -21,11 +21,15 @@ const Playback = (() => {
     else if (audio().readyState) audio().currentTime = target;
     lastSeek = performance.now();
   };
+  function compensation() {
+    return buffered?Math.min(2000,Math.max(0,buffered.outputDelay*1000+buffered.advanceMs)):0;
+  }
   function report(value, force = false) {
     if (!track || (status === value && !force)) return;
     status = value;
     if (value === 'buffering' && !preparing) preparedRevision = -1;
-    sock?.emit('device:status', { trackId: track.id, status: value, revision: timeline?.revision });
+    sock?.emit('device:status', { trackId: track.id, status: value, revision: timeline?.revision,
+      timing:{rtt:typeof roomClock!=='undefined'?(roomClock?.rtt||0):0,compensationMs:compensation()} });
     const label = { prepared: 'Ready', ready: 'Ready', loading: 'Loading', blocked: 'Enable Audio', buffering: 'Buffering', error: 'Playback error' }[value];
     G(side() + '-device-status').textContent = label;
   }
@@ -54,7 +58,7 @@ const Playback = (() => {
     if (!ready || !state || (state.waiting && preparedRevision === state.revision)) return;
     if(buffered){
       if(buffered.context.state!=='running'){needsGesture();return;}
-      if(!ntpDone)return;
+      if(!ntpDone){report('loading');G(side()+'-device-status').textContent='Synchronizing device clock…';return;}
       preparedRevision=state.revision; preparing=false; cancel(); pause();
       seek(WaveSync.positionAt(state,srvNow()));
       report('prepared',true); revision=-1;
@@ -227,7 +231,11 @@ const Playback = (() => {
           if(attempt===generation && amHost && timeline?.playing)command('pause',duration());
         });
         buffered=engine;
-        engine.advanceMs=Math.max(-500,Math.min(500,Number(G(side()+'-advance').value)||0));
+        try{
+          const saved=localStorage.getItem('waveroom.advanceMs');
+          if(saved!==null && Number.isFinite(Number(saved)))G(side()+'-advance').value=String(Math.max(-1000,Math.min(1000,Number(saved))));
+        }catch(_){}
+        engine.advanceMs=Math.max(-1000,Math.min(1000,Number(G(side()+'-advance').value)||0));
         report('loading');
         // Capture this load's controller; its timeout must never abort a newer track.
         const downloadController=loadAbort;
@@ -424,10 +432,15 @@ const Playback = (() => {
     setPill(prefix + '-pill', timeline?.playing ? 'pl' : 'pw', timeline?.playing ? 'dg' : 'dm',
       timeline?.waiting ? 'Preparing room' : timeline?.playing ? (status === 'ready' ? 'Playing' : status === 'prepared' ? 'Starting' : status) : 'Paused');
   }, 250);
-  return { bind, load, snapshot, enable, reset, command, duration, isYoutube,
+  return { bind, load, snapshot, enable, reset, command, duration, isYoutube, compensation,
+    clockLost: () => {
+      if(track && enabled && !track.isScreenShare){cancel();pause();report('buffering',true);}
+    },
     calibrate: value => {
       if(!buffered)return;
-      buffered.advanceMs=Math.max(-500,Math.min(500,Number(value)||0));
+      buffered.advanceMs=Math.max(-1000,Math.min(1000,Number(value)||0));
+      try{localStorage.setItem('waveroom.advanceMs',String(buffered.advanceMs));}catch(_){}
+      G(side()+'-advance').value=String(buffered.advanceMs);
       if(timeline?.playing){revision=-1;apply(timeline);}
     },
     volume: value => { if (isYoutube()) player?.setVolume(value * 100); },
