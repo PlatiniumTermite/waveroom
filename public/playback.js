@@ -231,6 +231,7 @@ const Playback = (() => {
           if(attempt===generation && amHost && timeline?.playing)command('pause',duration());
         });
         buffered=engine;
+        G(side()+'-enable').hidden=audioAllowed;
         try{
           const saved=localStorage.getItem('waveroom.advanceMs');
           if(saved!==null && Number.isFinite(Number(saved)))G(side()+'-advance').value=String(Math.max(-1000,Math.min(1000,Number(saved))));
@@ -340,19 +341,26 @@ const Playback = (() => {
       audioAllowed = true;
       load(track, true);
       apply(state);
+      // load creates the native context before its first await. Unlock it
+      // during this click, before the retry's download consumes the gesture.
+      if(buffered)enable();
       return;
     }
-    if (!ready) { toast('Wait for the player to load'); return; }
     if(buffered){
       const attempt=generation, engine=buffered;
       engine.context.resume().then(()=>{
         if(attempt!==generation || disconnected)return;
-        enabled=true; audioAllowed=true; preparedRevision=-1;
+        audioAllowed=true;
         G(side()+'-enable').hidden=true; G('unlock').classList.add('gone');
+        // A click during download/decode grants permission without claiming
+        // that this device has prepared its audio yet.
+        if(!ready)return;
+        enabled=true; preparedRevision=-1;
         prepare(timeline);
       }).catch(()=>{if(attempt===generation)needsGesture();});
       return;
     }
+    if (!ready) { toast('Wait for the player to load'); return; }
     const context = amHost ? hCtx : lCtx;
     if (context?.state === 'suspended') context.resume().catch(() => {});
     preparedRevision = -1;

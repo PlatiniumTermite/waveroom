@@ -277,16 +277,18 @@ test('buffering after quiet preparation revokes it and prepares again while the 
 });
 
 
-test('buffered room playback waits for decoding and permission, then schedules ahead and cancels on pause', async () => {
+test('Enable during decoding unlocks audio once but waits for preparation before scheduling', async () => {
   let decode;
   const b=browser({track:{kind:'audio',streamUrl:'/media/synthetic'},decode:()=>new Promise(resolve=>{decode=resolve;})});
   await b.snapshot({playing:false,waiting:true,position:5,serverPlayAt:null,revision:1});
   await new Promise(setImmediate);
+  assert.equal(b.elements.get('l-enable').hidden,false);
   b.context.controller.enable();
+  assert.equal(b.audioContext.state,'running');
+  await new Promise(setImmediate);
   assert.equal(b.events.at(-1)[1].status,'loading');
+  assert.equal(b.sources.length,0);
   decode({duration:120});await new Promise(setImmediate);
-  assert.equal(b.events.at(-1)[1].status,'blocked');
-  b.context.controller.enable();await new Promise(setImmediate);
   assert.equal(b.events.at(-1)[1].status,'prepared');
   await b.snapshot({playing:true,waiting:false,position:5,serverPlayAt:12000,revision:2});
   assert.equal(b.sources.length,1);assert.equal(b.sources[0].when,11.96);
@@ -409,4 +411,29 @@ test('losing clock calibration stops audio and asks the room to prepare again', 
   await b.snapshot({playing:false,waiting:true,position:1,serverPlayAt:null,revision:3});
   b.context.ntpDone=true;b.advance(14000);
   assert.equal(b.events.at(-1)[1].status,'prepared');
+});
+
+
+test('retry unlocks native audio inside the click before its download completes', async () => {
+  const b=browser({track:{kind:'audio',streamUrl:'/media/synthetic'}});
+  const fetchAudio=b.context.fetch;
+  b.context.fetch=async()=>{throw new Error('Offline');};
+  await b.snapshot({playing:false,waiting:true,position:15,serverPlayAt:null,revision:3});
+  await new Promise(setImmediate);
+  assert.equal(b.events.at(-1)[1].status,'error');
+  let finishDownload,gesture=true;
+  b.context.fetch=()=>new Promise(resolve=>{finishDownload=resolve;});
+  b.audioContext.resume=()=>{
+    assert.ok(gesture || b.audioContext.state==='running','resume requires the click until unlocked');
+    b.audioContext.state='running';return Promise.resolve();
+  };
+  b.context.controller.enable();
+  gesture=false;
+  assert.equal(b.audioContext.state,'running');
+  await new Promise(setImmediate);
+  assert.equal(b.events.at(-1)[1].status,'loading');
+  assert.equal(b.sources.length,0);
+  finishDownload(await fetchAudio());await new Promise(setImmediate);
+  assert.equal(b.events.at(-1)[1].status,'prepared');
+  assert.equal(b.events.at(-1)[1].revision,3);
 });
