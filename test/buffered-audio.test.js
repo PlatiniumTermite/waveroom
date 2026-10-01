@@ -49,3 +49,13 @@ test('suspended audio cannot announce a scheduled start',()=>{
   assert.throws(()=>engine.schedule({position:0,serverPlayAt:12000},10000),/Enable audio/);
   assert.equal(sources.length,0);
 });
+
+
+test('large clock jumps require rescheduling but scheduled future starts do not',()=>{
+  const {engine,context}=setup();
+  engine.schedule({playing:true,position:0,serverPlayAt:12000},10000);
+  assert.notEqual(engine.correct(0),'resync');
+  context.currentTime=13;
+  assert.equal(engine.correct(3),'resync');
+  assert.equal(engine.rate,1);
+});

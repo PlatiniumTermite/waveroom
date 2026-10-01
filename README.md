@@ -34,7 +34,7 @@ Devices periodically measure their clock difference from the server. Each decode
 
 If speakers still sound misaligned, use **Device timing adjustment** on that device: positive values play earlier and negative values play later. These values apply to shared audio and remain while you use the page. Device and Bluetooth latency reporting varies, so the displayed timeline difference is an estimate, not a microphone measurement. Physical speaker alignment and every phone/browser combination have not been verified; keep the page active for predictable playback. This is not Dolby Atmos.
 
-Play, Restart, and playing Seek require fresh readiness for the requested position. A device losing audio permission can pause the room while devices prepare again. Pause cancels a queued start. Brief network interruptions automatically rejoin; host ownership has a 20 second reconnect grace period and is not restored by a page reload.
+Play, Restart, and playing Seek require fresh readiness for the requested position. A device losing audio permission can pause the room while devices prepare again; its previous audio source is stopped before resuming. Timing jumps over 100 ms also trigger coordinated preparation instead of a long gradual catch-up. If a shared-file download or decode fails, tap Enable Audio to retry it without leaving the room. Pause cancels a queued start. Brief network interruptions automatically rejoin; host ownership has a 20 second reconnect grace period and is not restored by a page reload.
 
 ### YouTube availability
 

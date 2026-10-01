@@ -44,6 +44,7 @@
     correct(target) {
       if (!this.source || this.context.currentTime < this.anchor + this.latency) return;
       const drift = this.position - target - this.advanceMs / 1000;
+      if (Math.abs(drift) > 0.1) return 'resync';
       const rate = Math.abs(drift) > 0.008 ? (drift > 0 ? 0.997 : 1.003) : 1;
       if (rate !== this.rate) {
         // Preserve the render position while changing the clock slope.

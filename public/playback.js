@@ -30,6 +30,7 @@ const Playback = (() => {
     G(side() + '-device-status').textContent = label;
   }
   function needsGesture() {
+    cancel(); pause();
     preparing = false; preparedRevision = -1; clearTimeout(preparationTimeout); clearTimeout(preparationPoll);
     enabled = false;
     report('blocked');
@@ -216,6 +217,7 @@ const Playback = (() => {
         report('error'); G(side() + '-device-status').textContent = error.message;
       }
     } else {
+      let downloadTimeout;
       try {
         buildChain(audio(),side());
         const context=amHost?hCtx:lCtx;
@@ -225,9 +227,12 @@ const Playback = (() => {
           if(attempt===generation && amHost && timeline?.playing)command('pause',duration());
         });
         buffered=engine;
-        engine.advanceMs=Number(G(side()+'-advance').value)||0;
+        engine.advanceMs=Math.max(-500,Math.min(500,Number(G(side()+'-advance').value)||0));
         report('loading');
-        const response=await fetch(next.streamUrl,{signal:AbortSignal.any([loadAbort.signal,AbortSignal.timeout(90000)])});
+        // Capture this load's controller; its timeout must never abort a newer track.
+        const downloadController=loadAbort;
+        downloadTimeout=setTimeout(()=>downloadController.abort(),90000);
+        const response=await fetch(next.streamUrl,{signal:downloadController.signal});
         if(!response.ok)throw new Error('Audio download failed ('+response.status+')');
         if(Number(response.headers.get('content-length'))>25*1024*1024)throw new Error('Audio must be 25 MB or smaller');
         const reader=response.body.getReader(); let bytes=0; const chunks=[];
@@ -249,8 +254,9 @@ const Playback = (() => {
       } catch(error) {
         if(attempt!==generation)return;
         ready=false; report('error');
-        G(side()+'-device-status').textContent=error.message;
-      }
+        G(side()+'-enable').hidden=false;
+        G(side()+'-device-status').textContent=error.message+' — tap Enable Audio to retry.';
+      } finally { clearTimeout(downloadTimeout); }
     }
   }
 
@@ -302,7 +308,10 @@ const Playback = (() => {
     const target = WaveSync.positionAt(timeline, srvNow());
     const drift = mediaTime() - target;
     if(buffered){
-      buffered.correct(target);
+      if(buffered.correct(target)==='resync'){
+        buffered.stop(); report('buffering',true);
+        return;
+      }
       G(side()+'-timing').textContent='Estimated timeline difference: '+Math.round(drift*1000)+' ms';
       return;
     }
@@ -316,9 +325,9 @@ const Playback = (() => {
     G(side() + '-timing').textContent = label;
   }
   function enable() {
-    if (isYoutube() && status === 'error') {
-      // Reset the failed iframe instead of reusing its stalled decoder. Keep
-      // the latest room timeline so retry never restarts the other speakers.
+    if (track && !track.isScreenShare && status === 'error') {
+      // Recreate a failed player or retry downloading the shared file.
+      // Keep the latest room timeline while the device prepares again.
       const state = timeline;
       audioAllowed = true;
       load(track, true);
@@ -341,7 +350,7 @@ const Playback = (() => {
     preparedRevision = -1;
     prepare(timeline);
   }
-  function command(action, position = mediaTime()) {
+  function command(action, position = timeline ? WaveSync.positionAt(timeline, srvNow()) : mediaTime()) {
     if (!track || !sock?.connected) { toast('Connect and load a track first'); return; }
     sock.emit('playback:command', { action, position, trackId: track.id }, result => {
       if (!result?.ok) toast(result?.error || 'Playback command failed', 5000);

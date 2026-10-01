@@ -301,6 +301,87 @@ test('an undecodable shared file reports a device error and never releases readi
   await b.snapshot({playing:false,waiting:true,position:0,serverPlayAt:null,revision:1});
   await new Promise(setImmediate);
   assert.equal(b.events.at(-1)[1].status,'error');
-  assert.equal(b.elements.get('l-device-status').textContent,'Unsupported audio');
+  assert.match(b.elements.get('l-device-status').textContent,/Unsupported audio.*retry/);
   assert.equal(b.sources.length,0);
+});
+
+
+test('a shared-file decode failure can retry without reloading the room', async () => {
+  let attempts=0;
+  const b=browser({track:{kind:'audio',streamUrl:'/media/synthetic'},decode:async()=>{
+    if(++attempts===1)throw new Error('Temporary decode failure');return {duration:120};
+  }});
+  await b.snapshot({playing:false,waiting:true,position:15,serverPlayAt:null,revision:3});
+  await new Promise(setImmediate);
+  assert.equal(b.events.at(-1)[1].status,'error');assert.equal(b.elements.get('l-enable').hidden,false);
+  b.context.controller.enable();await new Promise(setImmediate);
+  assert.equal(attempts,2);assert.equal(b.events.at(-1)[1].status,'prepared');
+  assert.equal(b.events.at(-1)[1].revision,3);
+  assert.equal(b.elements.get('l-enable').hidden,true);
+});
+
+test('buffered audio loading works without AbortSignal.any or AbortSignal.timeout', async () => {
+  const b=browser({track:{kind:'audio',streamUrl:'/media/synthetic'}});
+  b.context.AbortSignal=undefined;
+  await b.snapshot({playing:false,waiting:true,position:0,serverPlayAt:null,revision:1});
+  await new Promise(setImmediate);
+  assert.equal(b.events.at(-1)[1].status,'blocked');
+  b.context.controller.enable();await new Promise(setImmediate);
+  assert.equal(b.events.at(-1)[1].status,'prepared');
+});
+
+test('audio suspension cancels the old source and prepares the recovery position after enabling', async () => {
+  const b=browser({track:{kind:'audio',streamUrl:'/media/synthetic'}});
+  await b.snapshot({playing:false,waiting:true,position:0,serverPlayAt:null,revision:1});
+  await new Promise(setImmediate);b.context.controller.enable();await new Promise(setImmediate);
+  await b.snapshot({playing:true,waiting:false,position:0,serverPlayAt:12000,revision:2});
+  b.advance(13000);b.audioContext.state='interrupted';b.advance(13250);
+  assert.equal(b.events.at(-1)[1].status,'blocked');assert.equal(b.sources[0].stopped,true);
+  await b.snapshot({playing:false,waiting:true,position:1.25,serverPlayAt:null,revision:3});
+  b.context.controller.enable();await new Promise(setImmediate);
+  assert.equal(b.events.at(-1)[1].status,'prepared');assert.equal(b.events.at(-1)[1].revision,3);
+  await b.snapshot({playing:true,waiting:false,position:1.25,serverPlayAt:15000,revision:4});
+  assert.equal(b.sources.length,2);assert.equal(b.sources[1].offset,1.25);
+});
+
+test('a large timing jump requests a coordinated recovery instead of minutes of slow catch-up', async () => {
+  const b=browser({track:{kind:'audio',streamUrl:'/media/synthetic'}});
+  await b.snapshot({playing:false,waiting:true,position:0,serverPlayAt:null,revision:1});
+  await new Promise(setImmediate);b.context.controller.enable();await new Promise(setImmediate);
+  await b.snapshot({playing:true,waiting:false,position:0,serverPlayAt:12000,revision:2});
+  b.advance(13000);b.context.srvNow=()=>15250;b.advance(13250);
+  assert.equal(b.events.at(-1)[1].status,'buffering');assert.equal(b.sources[0].stopped,true);
+  await b.snapshot({playing:false,waiting:true,position:3.25,serverPlayAt:null,revision:3});
+  assert.equal(b.events.at(-1)[1].status,'prepared');assert.equal(b.events.at(-1)[1].revision,3);
+});
+
+test('host controls use the shared timeline instead of a calibrated device position', async () => {
+  const b=browser();b.context.sock.connected=true;
+  await b.snapshot({playing:true,position:5,serverPlayAt:8000,revision:1});
+  b.players[0].time=7.5;
+  b.context.controller.command('pause');
+  const command=b.events.findLast(e=>e[0]==='playback:command');
+  assert.equal(command[1].position,7);
+});
+
+test('a late decode and its timeout cannot replace or abort a newer shared track', async () => {
+  let finishOld,decodes=0;
+  const b=browser({track:{kind:'audio',streamUrl:'/media/synthetic'},decode:()=>{
+    if(++decodes===1)return new Promise(resolve=>{finishOld=resolve;});
+    return Promise.resolve({duration:120});
+  }});
+  const signals=[],fetchAudio=b.context.fetch;
+  b.context.fetch=(url,options)=>{signals.push(options.signal);return fetchAudio(url,options);};
+  await b.snapshot({playing:false,waiting:true,position:0,serverPlayAt:null,revision:1});
+  await new Promise(setImmediate);
+  await b.snapshot({playing:false,waiting:true,position:10,serverPlayAt:null,revision:2},'new-track');
+  await new Promise(setImmediate);
+  b.context.controller.enable();await new Promise(setImmediate);
+  assert.equal(b.events.at(-1)[1].trackId,'new-track');
+  assert.equal(b.events.at(-1)[1].status,'prepared');
+  b.advance(101000); // The old, still-decoding request reaches its deadline.
+  assert.equal(signals[0].aborted,true);assert.equal(signals[1].aborted,false);
+  finishOld({duration:15});await new Promise(setImmediate);
+  assert.equal(b.context.controller.duration(),120);
+  assert.equal(b.events.at(-1)[1].trackId,'new-track');
 });
